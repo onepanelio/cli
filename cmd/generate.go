@@ -27,14 +27,16 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 )
 
 // generateCmd represents the generate command
 var generateCmd = &cobra.Command{
 	Use:   "generate",
-	Short: "Generates a kubernetes yaml configuration file",
+	Short: "Generates a kubernetes yaml configuration file and updates params.env with needed variables.",
 	Long: `Generates a kubernetes yaml configuration file given the 
-OpDef file, where you can customize components and overlays.
+OpDef file, where you can customize components and overlays. This command will also update the params.env
+file with any variables that are required by the kustomization and not already set. These new variables will have the default value of TODO
 
 A sample usage is:
 
@@ -53,9 +55,36 @@ op-cli generate sample.yaml
 		}
 
 		builder := template.NewBuilderFromConfig(*config)
-
 		if err := builder.Build(); err != nil {
 			log.Printf("err generating config. Error %v", err.Error())
+			return
+		}
+
+		parametersFilePath := "params.env"
+		exists, err := files.Exists(parametersFilePath)
+		if err != nil {
+			fmt.Printf("error checking if params.env exists: %v", err.Error())
+			return
+		}
+
+		if !exists {
+			return
+		}
+
+		mergedParams, err := mergeParametersFiles(parametersFilePath, builder.VarsArray())
+		if err != nil {
+			log.Printf("Error merging parameters: %v", err.Error())
+			return
+		}
+
+		paramsFile, err := os.OpenFile(parametersFilePath, os.O_RDWR, 0)
+		if err != nil {
+			log.Printf("Error opening parameters file: %v", err.Error())
+			return
+		}
+
+		if _, err := paramsFile.WriteString(mergedParams); err != nil {
+			log.Printf("Error writing merged parameters: %v", err.Error())
 			return
 		}
 
@@ -168,4 +197,49 @@ func generateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 	}
 
 	return string(result), nil
+}
+
+// Given the .env file at path (assumed to exist)
+// read through, and add any variables that are not in newVars with a value of TODO
+// e.g.
+// email=TODO
+func mergeParametersFiles(path string, newVars []string) (result string, err error) {
+	mappedVars := make(map[string]bool)
+	for i := range newVars {
+		varName := newVars[i]
+		mappedVars[varName] = true
+	}
+
+	fileData, err := ioutil.ReadFile(path)
+	if err != nil {
+		return
+	}
+
+	fileString := string(fileData)
+	result = ""
+
+	fileLines := strings.Split(fileString, "\n")
+	for i := range fileLines {
+		fileLine := fileLines[i]
+
+		envVarParts := strings.Split(fileLine, "=")
+		if len(envVarParts) > 1 {
+			varName := envVarParts[0]
+			if _, ok := mappedVars[varName]; ok {
+				delete(mappedVars, varName)
+			}
+		}
+
+		if i == (len(fileLines) - 1) {
+			result += fileLine
+		} else {
+			result += fileLine + "\n"
+		}
+	}
+
+	for key := range mappedVars {
+		result += fmt.Sprintf("\n%v=%v", key, "TODO")
+	}
+
+	return
 }

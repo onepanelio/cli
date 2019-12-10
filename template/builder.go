@@ -2,6 +2,8 @@ package template
 
 import (
 	"github.com/onepanelio/cli/config"
+	"gopkg.in/yaml.v2"
+	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -42,11 +44,16 @@ type Kustomize struct {
 	Configurations []string `yaml:"configurations"`
 }
 
+type VarsFile struct {
+	Vars []string `yaml:"vars"`
+}
+
 type Builder struct {
 	Sources map[string][]Source
 	KeyedComponents map[string]Component
 	KeyedOverlays map[string]Overlay
 	ManifestRoot string
+	Vars map[string]string
 }
 
 func createBuilder() Builder {
@@ -54,6 +61,7 @@ func createBuilder() Builder {
 		Sources:         make(map[string][]Source),
 		KeyedComponents: make(map[string]Component),
 		KeyedOverlays:   make(map[string]Overlay),
+		Vars: make(map[string]string),
 	}
 }
 
@@ -100,7 +108,13 @@ func (b *Builder) Build() error  {
 			return err
 		}
 
-		// Don't consider individual files, just overlays and components.
+		if info.Name() == "vars.yaml" {
+			if err := b.addVarsFile(path); err != nil {
+				return err
+			}
+		}
+
+		// Don't consider individual files unless its vars.yaml, just overlays and components.
 		if !info.IsDir() {
 			return nil
 		}
@@ -140,7 +154,13 @@ func (b *Builder) Build() error  {
 			return filepath.SkipDir
 		}
 
-		// Don't consider individual files, just overlays and components.
+		if info.Name() == "vars.yaml" {
+			if err := b.addVarsFile(path); err != nil {
+				return err
+			}
+		}
+
+		// Don't consider individual files unless its vars.yaml, just overlays and components.
 		if !info.IsDir() {
 			return nil
 		}
@@ -281,4 +301,40 @@ func (b* Builder) addOrReplaceSource(path, componentName string, order int, isOv
 	b.Sources[componentName] = append(b.Sources[componentName], newSource)
 
 	return nil
+}
+
+func (b *Builder) addVarsFile(path string) error {
+	data, err := ioutil.ReadFile(path)
+	if err != nil {
+		return err
+	}
+
+	varFile := VarsFile{[]string{}}
+	if err := yaml.Unmarshal(data, &varFile); err != nil {
+		return err
+	}
+
+	for i := range varFile.Vars {
+		varName := varFile.Vars[i]
+		b.addVar(path, varName)
+	}
+
+	return nil
+}
+
+// Adds a variable from the configuration.
+// We need the path of the file and the name of the variable.
+func (b* Builder) addVar(path, name string) {
+	b.Vars[name] = path
+}
+
+// Returns an array containing the var names
+func (b *Builder) VarsArray() []string {
+	result := make([]string, 0)
+
+	for key := range b.Vars {
+		result = append(result, key)
+	}
+
+	return result
 }
