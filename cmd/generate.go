@@ -33,14 +33,13 @@ import (
 // generateCmd represents the generate command
 var generateCmd = &cobra.Command{
 	Use:   "generate",
-	Short: "Generates a kubernetes yaml configuration file and updates params.env with needed variables.",
+	Short: "Generates a kubernetes yaml configuration file.",
 	Long: `Generates a kubernetes yaml configuration file given the 
-OpDef file, where you can customize components and overlays. This command will also update the params.env
-file with any variables that are required by the kustomization and not already set. These new variables will have the default value of TODO
+OpDef file and parameters file, where you can customize components and overlays.
 
 A sample usage is:
 
-op-cli generate sample.yaml
+op-cli generate config.yaml params.env
 `,
 	Run: func(cmd *cobra.Command, args []string) {
 		if len(args) < 1 {
@@ -48,7 +47,9 @@ op-cli generate sample.yaml
 			return
 		}
 
-		config, err := opConfig.FromFile(args[0])
+		configFilePath := args[0]
+
+		config, err := opConfig.FromFile(configFilePath)
 		if err != nil {
 			fmt.Printf("Unable to read configuration file: %v", err.Error())
 			return
@@ -60,37 +61,9 @@ op-cli generate sample.yaml
 			return
 		}
 
-		parametersFilePath := "params.env"
-		exists, err := files.Exists(parametersFilePath)
-		if err != nil {
-			fmt.Printf("error checking if params.env exists: %v", err.Error())
-			return
-		}
-
-		if !exists {
-			return
-		}
-
-		mergedParams, err := mergeParametersFiles(parametersFilePath, builder.VarsArray())
-		if err != nil {
-			log.Printf("Error merging parameters: %v", err.Error())
-			return
-		}
-
-		paramsFile, err := os.OpenFile(parametersFilePath, os.O_RDWR, 0)
-		if err != nil {
-			log.Printf("Error opening parameters file: %v", err.Error())
-			return
-		}
-
-		if _, err := paramsFile.WriteString(mergedParams); err != nil {
-			log.Printf("Error writing merged parameters: %v", err.Error())
-			return
-		}
-
 		kustomizeTemplate := builder.Template()
 
-		result, err := generateKustomizeResult(*config, kustomizeTemplate)
+		result, err := GenerateKustomizeResult(*config, kustomizeTemplate)
 		if err != nil {
 			log.Printf("Error generating result %v", err.Error())
 			return
@@ -117,7 +90,7 @@ func init() {
 // Given the path to the manifests, and a kustomize config, creates the final kustomization file.
 // It does this by copying the manifests into a temporary directory, inserting the kustomize template
 // and running the kustomize command
-func generateKustomizeResult(config opConfig.Config, kustomizeTemplate template.Kustomize) (string, error) {
+func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.Kustomize) (string, error) {
 	manifestPath := config.Spec.ManifestsRepo
 	localManifestsCopyPath := ".manifest"
 

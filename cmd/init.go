@@ -19,36 +19,62 @@ import (
 	"fmt"
 	"github.com/onepanelio/cli/config"
 	"github.com/onepanelio/cli/files"
+	"github.com/onepanelio/cli/template"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
 	"log"
 	"os"
 )
 
+var (
+	ConfigurationFilePath string
+	ParametersFilePath string
+	Provider string
+	Dns string
+)
+
 // initCmd represents the init command
 var initCmd = &cobra.Command{
-	Use:   "init",
+	Use:   "init <manifiests repo path>",
 	Short: "Generates a sample configuration file.",
 	Long: `Generates a sample configuration file and outputs it to the first argument.
 If there is no argument, configuration.yaml is used.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		paramsPath := "params.env"
-		configurationFilePath := "configuration.yaml"
-
-		if len(args) > 0 {
-			configurationFilePath = args[0]
+		if len(args) < 1 {
+			fmt.Println("missing: <manifests repo path> ")
+			return
 		}
 
-		exists, err := files.Exists(paramsPath)
+		manifestsRepoPath := args[0]
+
+		if Provider == "" {
+			Provider = "gcp"
+		}
+
+		if Dns == "" {
+			Dns = "aws"
+		}
+
+		if err := validateProvider(Provider); err != nil {
+			fmt.Println(err.Error())
+			return
+		}
+
+		if err := validateDns(Dns); err != nil {
+			fmt.Println(err.Error())
+			return
+		}
+
+		exists, err := files.Exists(ParametersFilePath)
 		if err != nil {
-			log.Printf("unable to check if params.env file exists: %v", err.Error())
+			log.Printf("unable to check if %v file exists: %v", ParametersFilePath, err.Error())
 			return
 		}
 
 		if !exists {
-			if _, err := os.Create(paramsPath); err != nil {
-				log.Printf("unable to create params.env file: %v", err.Error())
-				return;
+			if _, err := os.Create(ParametersFilePath); err != nil {
+				log.Printf("unable to create %v file: %v", ParametersFilePath, err.Error())
+				return
 			}
 		}
 
@@ -56,16 +82,49 @@ If there is no argument, configuration.yaml is used.`,
 			ApiVersion: "opdef.apps.onepanel.io/v1alpha1",
 			Kind:       "OpDef",
 			Spec:       config.ConfigSpec{
-				ManifestsRepo: "TODO",
-				Params:        "params.env",
-				Components:    []string{"isto", "argo", "storage"},
-				Overlays:      []string{"storage/overlays/gcp", "common/cert-manager/overlays/aws"},
+				Components:    []string{"storage"},
+				ManifestsRepo: manifestsRepoPath,
+				Params:        ParametersFilePath,
 			},
 		}
+		setup.SetCloudProvider(Provider)
+		setup.SetDnsProvider(Dns)
 
-		file, err := os.Create(configurationFilePath)
+
+		builder := template.NewBuilderFromConfig(setup)
+		if err := builder.Build(); err != nil {
+			log.Printf("err generating config. Error %v", err.Error())
+			return
+		}
+
+		mergedParams, err := mergeParametersFiles(ParametersFilePath, builder.VarsArray())
 		if err != nil {
-			log.Printf("unable to create configuration.yaml file: %v", err.Error())
+			log.Printf("Error merging parameters: %v", err.Error())
+			return
+		}
+
+		paramsFile, err := os.OpenFile(ParametersFilePath, os.O_RDWR, 0)
+		if err != nil {
+			log.Printf("Error opening parameters file: %v", err.Error())
+			return
+		}
+
+		if _, err := paramsFile.WriteString(mergedParams); err != nil {
+			log.Printf("Error writing merged parameters: %v", err.Error())
+			return
+		}
+
+		//temp
+
+
+
+
+
+
+
+		file, err := os.Create(ConfigurationFilePath)
+		if err != nil {
+			log.Printf("unable to create %v file: %v", ConfigurationFilePath, err.Error())
 			return
 		}
 
@@ -80,7 +139,8 @@ If there is no argument, configuration.yaml is used.`,
 			return
 		}
 
-		fmt.Printf("An example file has been generated: %v\n", configurationFilePath)
+		fmt.Printf("Your configuration file has been generated: %v\n", ConfigurationFilePath)
+		fmt.Printf("Your parameters file has been created with placeholders: %v\n", ParametersFilePath)
 	},
 }
 
@@ -88,13 +148,24 @@ If there is no argument, configuration.yaml is used.`,
 func init() {
 	rootCmd.AddCommand(initCmd)
 
-	// Here you will define your flags and configuration settings.
+	initCmd.Flags().StringVarP(&Provider, "provider", "p", "gcp", "Provider you are using. Valid values are: aws, gcp, azure, or minikube")
+	initCmd.Flags().StringVarP(&Dns, "dns", "d", "aws", "Provider for DNS. Valid values are: aws for route53")
+	initCmd.Flags().StringVarP(&ConfigurationFilePath, "config", "c", "config.yaml", "File path of the resulting config file")
+	initCmd.Flags().StringVarP(&ParametersFilePath, "params", "e", "params.env", "File path of the resulting parameters file")
+}
 
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// initCmd.PersistentFlags().String("foo", "", "A help for foo")
+func validateProvider(prov string) error {
+	if prov != "gcp" && prov != "aws" && prov != "azure" && prov != "minikube" {
+		return fmt.Errorf("unsupported provider %v", prov)
+	}
 
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// initCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	return nil
+}
+
+func validateDns(dns string) error {
+	if dns != "aws" {
+		return fmt.Errorf("unsupported dns %v", dns)
+	}
+
+	return nil
 }

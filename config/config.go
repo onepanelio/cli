@@ -58,3 +58,11 @@ func (c *Config) Validate() error {
 
 	return nil
 }
+
+func (c *Config) SetCloudProvider(provider string) {
+	c.Spec.Overlays = append(c.Spec.Overlays, "storage/overlays/" + provider)
+}
+
+func (c *Config) SetDnsProvider(dns string) {
+	c.Spec.Overlays = append(c.Spec.Overlays, "common/cert-manager/overlays/" + dns)
+}
