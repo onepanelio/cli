@@ -114,14 +114,6 @@ If there is no argument, configuration.yaml is used.`,
 			return
 		}
 
-		//temp
-
-
-
-
-
-
-
 		file, err := os.Create(ConfigurationFilePath)
 		if err != nil {
 			log.Printf("unable to create %v file: %v", ConfigurationFilePath, err.Error())
@@ -139,8 +131,9 @@ If there is no argument, configuration.yaml is used.`,
 			return
 		}
 
-		fmt.Printf("Your configuration file has been generated: %v\n", ConfigurationFilePath)
-		fmt.Printf("Your parameters file has been created with placeholders: %v\n", ParametersFilePath)
+		fmt.Printf("Configuration has been created with\nProvider: %v\nDns: %v\n\n", Provider, Dns)
+		fmt.Printf("Configuration file: %v\n", ConfigurationFilePath)
+		fmt.Printf("Parameters file has been created with placeholders: %v\n", ParametersFilePath)
 	},
 }
 
