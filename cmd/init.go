@@ -48,11 +48,7 @@ If there is no argument, configuration.yaml is used.`,
 		manifestsRepoPath := args[0]
 
 		if Provider == "" {
-			Provider = "gcp"
-		}
-
-		if Dns == "" {
-			Dns = "aws"
+			Provider = "minikube"
 		}
 
 		if err := validateProvider(Provider); err != nil {
@@ -82,7 +78,7 @@ If there is no argument, configuration.yaml is used.`,
 			ApiVersion: "opdef.apps.onepanel.io/v1alpha1",
 			Kind:       "OpDef",
 			Spec:       config.ConfigSpec{
-				Components:    []string{"storage"},
+				Components:    []string{},
 				ManifestsRepo: manifestsRepoPath,
 				Params:        ParametersFilePath,
 			},
@@ -90,6 +86,9 @@ If there is no argument, configuration.yaml is used.`,
 		setup.SetCloudProvider(Provider)
 		setup.SetDnsProvider(Dns)
 
+		if Provider != "minikube" {
+			setup.AddComponent("storage")
+		}
 
 		builder := template.NewBuilderFromConfig(setup)
 		if err := builder.Build(); err != nil {
@@ -131,9 +130,15 @@ If there is no argument, configuration.yaml is used.`,
 			return
 		}
 
-		fmt.Printf("Configuration has been created with\nProvider: %v\nDns: %v\n\n", Provider, Dns)
-		fmt.Printf("Configuration file: %v\n", ConfigurationFilePath)
-		fmt.Printf("Parameters file has been created with placeholders: %v\n", ParametersFilePath)
+		fmt.Printf("Configuration has been created with\n")
+		fmt.Printf("- Provider: %v\n", Provider)
+
+		if Dns != "" {
+			fmt.Printf("- Dns: %v\n", Dns)
+		}
+
+		fmt.Printf("- Configuration file: %v\n", ConfigurationFilePath)
+		fmt.Printf("- Parameters file has been created with placeholders: %v\n", ParametersFilePath)
 	},
 }
 
@@ -141,8 +146,8 @@ If there is no argument, configuration.yaml is used.`,
 func init() {
 	rootCmd.AddCommand(initCmd)
 
-	initCmd.Flags().StringVarP(&Provider, "provider", "p", "gcp", "Provider you are using. Valid values are: aws, gcp, azure, or minikube")
-	initCmd.Flags().StringVarP(&Dns, "dns", "d", "aws", "Provider for DNS. Valid values are: aws for route53")
+	initCmd.Flags().StringVarP(&Provider, "provider", "p", "minikube", "Provider you are using. Valid values are: aws, gcp, azure, or minikube")
+	initCmd.Flags().StringVarP(&Dns, "dns", "d", "", "Provider for DNS. Valid values are: aws for route53")
 	initCmd.Flags().StringVarP(&ConfigurationFilePath, "config", "c", "config.yaml", "File path of the resulting config file")
 	initCmd.Flags().StringVarP(&ParametersFilePath, "params", "e", "params.env", "File path of the resulting parameters file")
 }
@@ -156,7 +161,7 @@ func validateProvider(prov string) error {
 }
 
 func validateDns(dns string) error {
-	if dns != "aws" {
+	if dns != "aws" && dns != "" {
 		return fmt.Errorf("unsupported dns %v", dns)
 	}
 

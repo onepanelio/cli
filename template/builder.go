@@ -304,6 +304,7 @@ func (b* Builder) addOrReplaceSource(path, componentName string, order int, isOv
 }
 
 func (b *Builder) addVarsFile(path string) error {
+	// TODO skip env vars if the component or overlay is part of the ones considered
 	data, err := ioutil.ReadFile(path)
 	if err != nil {
 		return err
