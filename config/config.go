@@ -59,23 +59,10 @@ func (c *Config) Validate() error {
 	return nil
 }
 
-func (c *Config) SetCloudProvider(provider string) {
-	if provider == "minikube" {
-		return
-	}
-
-	c.Spec.Components = append(c.Spec.Components, "cert-manager/base")
-	c.Spec.Overlays = append(c.Spec.Overlays, "storage/overlays/" + provider)
-}
-
-func (c *Config) SetDnsProvider(dns string) {
-	if dns == "" {
-		return
-	}
-
-	c.Spec.Overlays = append(c.Spec.Overlays, "cert-manager/overlays/" + dns)
-}
-
 func (c *Config) AddComponent(name string) {
 	c.Spec.Components = append(c.Spec.Components, name)
+}
+
+func (c *Config) AddOverlay(name string) {
+	c.Spec.Overlays = append(c.Spec.Overlays, name)
 }

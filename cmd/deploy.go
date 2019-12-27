@@ -31,21 +31,21 @@ import (
 
 // applyCmd represents the apply command
 var applyCmd = &cobra.Command{
-	Use:   "apply",
-	Short: "Applies a kubernetes yaml configuration file to your kubernetes cluster.",
-	Long: `Apples a kubernetes yaml configuration file given the 
+	Use:   "deploy",
+	Short: "Deploy a kubernetes yaml configuration file to your kubernetes cluster.",
+	Long: `Deploys a kubernetes yaml configuration file given the 
 OpDef file and parameters file, 
 A sample usage is:
 
 op-cli apply config.yaml params.env
 `,
 	Run: func(cmd *cobra.Command, args []string) {
-		if len(args) < 1 {
-			fmt.Println("generate <path to config file>")
+		configFilePath := "config.yaml"
+
+		if len(args) > 1 {
+			configFilePath = args[0]
 			return
 		}
-
-		configFilePath := args[0]
 
 		config, err := opConfig.FromFile(configFilePath)
 		if err != nil {
@@ -95,7 +95,7 @@ op-cli apply config.yaml params.env
 			return
 		}
 
-		fmt.Printf("Applying...")
+		fmt.Printf("Deploying...")
 
 		res := ""
 		errRes := ""

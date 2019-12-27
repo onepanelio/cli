@@ -42,12 +42,12 @@ A sample usage is:
 op-cli generate config.yaml params.env
 `,
 	Run: func(cmd *cobra.Command, args []string) {
-		if len(args) < 1 {
-			fmt.Println("generate <path to config file>")
+		configFilePath := "config.yaml"
+
+		if len(args) > 1 {
+			configFilePath = args[0]
 			return
 		}
-
-		configFilePath := args[0]
 
 		config, err := opConfig.FromFile(configFilePath)
 		if err != nil {

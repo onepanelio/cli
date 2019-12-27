@@ -2,6 +2,7 @@ package template
 
 import (
 	"github.com/onepanelio/cli/config"
+	"github.com/onepanelio/cli/files"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"log"
@@ -42,10 +43,6 @@ type Kustomize struct {
 	Kind string `yaml:"kind"`
 	Resources []string `yaml:"resources"`
 	Configurations []string `yaml:"configurations"`
-}
-
-type VarsFile struct {
-	Vars []string `yaml:"vars"`
 }
 
 type Builder struct {
@@ -246,8 +243,8 @@ func (b *Builder) considerComponent(path, componentName string, order int) error
 	return b.addOrReplaceSource(path, componentName, order,false)
 }
 
-// Given an Overlay, checks if the builder uses it and replaces the component if it does.
-// If the overlay is not used in the builder, it is ignored.
+// Given an Overlay, checks if the manifest uses it and replaces the component if it does.
+// If the overlay is not used in the manifest, it is ignored.
 func (b *Builder) considerOverlay(path, componentName, overlayName string, order int) error {
 	relativePath, err := filepath.Rel(b.ManifestRoot, path)
 	if err != nil {
@@ -310,7 +307,7 @@ func (b *Builder) addVarsFile(path string) error {
 		return err
 	}
 
-	varFile := VarsFile{[]string{}}
+	varFile := files.VarsFile{[]string{}}
 	if err := yaml.Unmarshal(data, &varFile); err != nil {
 		return err
 	}

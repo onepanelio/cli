@@ -19,11 +19,18 @@ import (
 	"fmt"
 	"github.com/onepanelio/cli/config"
 	"github.com/onepanelio/cli/files"
+	"github.com/onepanelio/cli/github"
+	"github.com/onepanelio/cli/manifest"
 	"github.com/onepanelio/cli/template"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
 	"log"
 	"os"
+)
+
+const (
+	manifestsFilePath = ".manifests"
+	manifestsTargetDirectory = "manifests-feature-testing-restructure"
 )
 
 var (
@@ -35,17 +42,25 @@ var (
 
 // initCmd represents the init command
 var initCmd = &cobra.Command{
-	Use:   "init <manifiests repo path>",
+	Use:   "init",
 	Short: "Generates a sample configuration file.",
 	Long: `Generates a sample configuration file and outputs it to the first argument.
 If there is no argument, configuration.yaml is used.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		if len(args) < 1 {
-			fmt.Println("missing: <manifests repo path> ")
+		manifestExists, err := files.Exists(manifestsFilePath)
+		if err != nil {
+			log.Printf("[error] Unable to check if manifests cached directory exists %v", err.Error())
 			return
 		}
 
-		manifestsRepoPath := args[0]
+		if !manifestExists {
+			if err := downloadManifestFiles(); err != nil {
+				log.Printf("[error] downloading manifest files from github. Error %v", err.Error())
+				return
+			}
+		}
+
+		manifestsRepoPath := manifestsFilePath + string(os.PathSeparator) + manifestsTargetDirectory
 
 		if Provider == "" {
 			Provider = "minikube"
@@ -83,11 +98,40 @@ If there is no argument, configuration.yaml is used.`,
 				Params:        ParametersFilePath,
 			},
 		}
-		setup.SetCloudProvider(Provider)
-		setup.SetDnsProvider(Dns)
+
+		loadedManifest, err := manifest.LoadManifest(manifestsRepoPath)
+		if err != nil {
+			log.Printf("[error] LoadManifest %v", err.Error())
+		}
+
+		bld := manifest.CreateBuilder(loadedManifest)
+		if err := bld.AddCommonComponents(); err != nil {
+			log.Printf("[error] AddCommonComponents %v", err.Error())
+			return
+		}
 
 		if Provider != "minikube" {
-			setup.AddComponent("storage")
+			if err := bld.AddComponent("storage"); err != nil {
+				log.Printf("[error] Adding storage component: %v", err.Error())
+				return
+			}
+		}
+
+		if err := addCloudProviderToManifestBuilder(Provider, bld); err != nil {
+			log.Printf("[error] Adding Cloud Provider: %v", err.Error())
+			return
+		}
+
+		if err := addDnsProviderToManifestBuilder(Dns, bld); err != nil {
+			log.Printf("[error] Adding Dns Provider: %v", err.Error())
+			return
+		}
+
+		for _, overlayComponent := range bld.GetOverlayComponents() {
+			setup.AddComponent(overlayComponent.Component().PathWithBase())
+			for _, overlay := range overlayComponent.Overlays() {
+				setup.AddOverlay(overlay.Path())
+			}
 		}
 
 		builder := template.NewBuilderFromConfig(setup)
@@ -96,7 +140,7 @@ If there is no argument, configuration.yaml is used.`,
 			return
 		}
 
-		mergedParams, err := mergeParametersFiles(ParametersFilePath, builder.VarsArray())
+		mergedParams, err := mergeParametersFiles(ParametersFilePath, bld.GetVarsArray())
 		if err != nil {
 			log.Printf("Error merging parameters: %v", err.Error())
 			return
@@ -166,4 +210,49 @@ func validateDns(dns string) error {
 	}
 
 	return nil
+}
+
+func addCloudProviderToManifestBuilder(provider string, builder *manifest.Builder) error {
+	if provider == "minikube" {
+		return nil
+	}
+
+	if err := builder.AddComponent("cert-manager"); err != nil {
+		return err
+	}
+
+	if err := builder.AddOverlay("storage/overlays/" + provider); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func addDnsProviderToManifestBuilder(dns string, builder *manifest.Builder) error {
+	if dns == "" {
+		return nil
+	}
+
+	return builder.AddOverlay("cert-manager/overlays/" + dns)
+}
+
+func downloadManifestFiles() error {
+	downloader := github.Github{}
+
+	tempManifestsPath := ".temp_manifests"
+
+	defer func () {
+		_, err := files.DeleteIfExists(tempManifestsPath);
+		if err != nil {
+			log.Printf("[error] Deleting %v: %v", tempManifestsPath, err.Error())
+		}
+	}()
+
+	if err := downloader.DownloadManifests(tempManifestsPath); err != nil {
+		return err
+	}
+
+	_, err := files.Unzip(tempManifestsPath, manifestsFilePath)
+
+	return err
 }
