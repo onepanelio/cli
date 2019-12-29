@@ -300,6 +300,8 @@ func (b* Builder) addOrReplaceSource(path, componentName string, order int, isOv
 	return nil
 }
 
+
+// TODO remove?
 func (b *Builder) addVarsFile(path string) error {
 	// TODO skip env vars if the component or overlay is part of the ones considered
 	data, err := ioutil.ReadFile(path)
@@ -307,7 +309,7 @@ func (b *Builder) addVarsFile(path string) error {
 		return err
 	}
 
-	varFile := files.VarsFile{[]string{}}
+	varFile := files.CreateVarsFile()
 	if err := yaml.Unmarshal(data, &varFile); err != nil {
 		return err
 	}
@@ -322,8 +324,9 @@ func (b *Builder) addVarsFile(path string) error {
 
 // Adds a variable from the configuration.
 // We need the path of the file and the name of the variable.
-func (b* Builder) addVar(path, name string) {
-	b.Vars[name] = path
+func (b* Builder) addVar(path string, value *files.ConfigVar) {
+	// TODO remove?
+	b.Vars[path] = path
 }
 
 // Returns an array containing the var names

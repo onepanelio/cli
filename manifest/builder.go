@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"strings"
 )
 
 type OverlayedComponent struct {
@@ -106,8 +107,8 @@ func (b *Builder) GetOverlayComponents() []*OverlayedComponent {
 }
 
 
-func (b *Builder) GetVarsArray() []string {
-	varsArray := make([]string, 0)
+func (b *Builder) GetVarsArray() []*files.ComponentConfigVar {
+	varsArray := make([]*files.ComponentConfigVar, 0)
 
 	filePaths := b.GetVarsFilePaths()
 
@@ -118,14 +119,24 @@ func (b *Builder) GetVarsArray() []string {
 			continue
 		}
 
-		varFile := &files.VarsFile{[]string{}}
-		if err := yaml.Unmarshal(contents, varFile); err != nil {
+		varFile := files.CreateVarsFile()
+
+		tempMap := make(map[string](map[string]*files.ConfigVar))
+
+		if err := yaml.Unmarshal(contents, tempMap); err != nil {
 			log.Printf("[error] yaml.Unmarshal file %v. Error %v", path, err.Error())
 			continue
 		}
 
 		for _, item := range varFile.Vars {
-			varsArray = append(varsArray, item)
+			formattedPath := strings.TrimPrefix(path, b.manifest.path + "/")
+			formattedPath = strings.TrimSuffix(formattedPath, "/vars.yaml")
+
+			componentConfigVar := &files.ComponentConfigVar{
+				ComponantPath: formattedPath,
+				ConfigVar:     item,
+			}
+			varsArray = append(varsArray, componentConfigVar)
 		}
 	}
 

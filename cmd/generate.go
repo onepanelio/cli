@@ -27,7 +27,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 )
 
 // generateCmd represents the generate command
@@ -170,49 +169,4 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 	}
 
 	return string(result), nil
-}
-
-// Given the .env file at path (assumed to exist)
-// read through, and add any variables that are not in newVars with a value of TODO
-// e.g.
-// email=TODO
-func mergeParametersFiles(path string, newVars []string) (result string, err error) {
-	mappedVars := make(map[string]bool)
-	for i := range newVars {
-		varName := newVars[i]
-		mappedVars[varName] = true
-	}
-
-	fileData, err := ioutil.ReadFile(path)
-	if err != nil {
-		return
-	}
-
-	fileString := string(fileData)
-	result = ""
-
-	fileLines := strings.Split(fileString, "\n")
-	for i := range fileLines {
-		fileLine := fileLines[i]
-
-		envVarParts := strings.Split(fileLine, "=")
-		if len(envVarParts) > 1 {
-			varName := envVarParts[0]
-			if _, ok := mappedVars[varName]; ok {
-				delete(mappedVars, varName)
-			}
-		}
-
-		if i == (len(fileLines) - 1) {
-			result += fileLine
-		} else {
-			result += fileLine + "\n"
-		}
-	}
-
-	for key := range mappedVars {
-		result += fmt.Sprintf("\n%v=%v", key, "TODO")
-	}
-
-	return
 }

@@ -38,6 +38,7 @@ var (
 	ParametersFilePath string
 	Provider string
 	Dns string
+	LoggingComponent bool
 )
 
 // initCmd represents the init command
@@ -127,6 +128,13 @@ If there is no argument, configuration.yaml is used.`,
 			return
 		}
 
+		if LoggingComponent {
+			if err := bld.AddComponent("logging"); err != nil {
+				log.Printf("[error] Adding logging component: %v", err.Error())
+				return
+			}
+		}
+
 		for _, overlayComponent := range bld.GetOverlayComponents() {
 			setup.AddComponent(overlayComponent.Component().PathWithBase())
 			for _, overlay := range overlayComponent.Overlays() {
@@ -140,7 +148,7 @@ If there is no argument, configuration.yaml is used.`,
 			return
 		}
 
-		mergedParams, err := mergeParametersFiles(ParametersFilePath, bld.GetVarsArray())
+		mergedParams, err := files.MergeParametersFiles(ParametersFilePath, bld.GetVarsArray())
 		if err != nil {
 			log.Printf("Error merging parameters: %v", err.Error())
 			return
@@ -152,7 +160,8 @@ If there is no argument, configuration.yaml is used.`,
 			return
 		}
 
-		if _, err := paramsFile.WriteString(mergedParams); err != nil {
+
+		if err := mergedParams.WriteToFile(paramsFile); err != nil {
 			log.Printf("Error writing merged parameters: %v", err.Error())
 			return
 		}
@@ -194,6 +203,7 @@ func init() {
 	initCmd.Flags().StringVarP(&Dns, "dns", "d", "", "Provider for DNS. Valid values are: aws for route53")
 	initCmd.Flags().StringVarP(&ConfigurationFilePath, "config", "c", "config.yaml", "File path of the resulting config file")
 	initCmd.Flags().StringVarP(&ParametersFilePath, "params", "e", "params.env", "File path of the resulting parameters file")
+	initCmd.Flags().BoolVarP(&LoggingComponent, "logging", "l", false, "If set, adds a logging component")
 }
 
 func validateProvider(prov string) error {
