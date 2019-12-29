@@ -160,7 +160,6 @@ If there is no argument, configuration.yaml is used.`,
 			return
 		}
 
-
 		if err := mergedParams.WriteToFile(paramsFile); err != nil {
 			log.Printf("Error writing merged parameters: %v", err.Error())
 			return
@@ -202,7 +201,7 @@ func init() {
 	initCmd.Flags().StringVarP(&Provider, "provider", "p", "minikube", "Provider you are using. Valid values are: aws, gcp, azure, or minikube")
 	initCmd.Flags().StringVarP(&Dns, "dns", "d", "", "Provider for DNS. Valid values are: aws for route53")
 	initCmd.Flags().StringVarP(&ConfigurationFilePath, "config", "c", "config.yaml", "File path of the resulting config file")
-	initCmd.Flags().StringVarP(&ParametersFilePath, "params", "e", "params.env", "File path of the resulting parameters file")
+	initCmd.Flags().StringVarP(&ParametersFilePath, "params", "e", "params.yaml", "File path of the resulting parameters file")
 	initCmd.Flags().BoolVarP(&LoggingComponent, "logging", "l", false, "If set, adds a logging component")
 }
 

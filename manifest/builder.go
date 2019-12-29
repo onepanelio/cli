@@ -3,11 +3,9 @@ package manifest
 import (
 	"fmt"
 	"github.com/onepanelio/cli/files"
-	"gopkg.in/yaml.v2"
-	"io/ioutil"
+	"github.com/onepanelio/cli/util"
 	"log"
 	"os"
-	"strings"
 )
 
 type OverlayedComponent struct {
@@ -107,37 +105,22 @@ func (b *Builder) GetOverlayComponents() []*OverlayedComponent {
 }
 
 
-func (b *Builder) GetVarsArray() []*files.ComponentConfigVar {
-	varsArray := make([]*files.ComponentConfigVar, 0)
+func (b *Builder) GetVarsArray() []*files.ManifestVariable {
+	varsArray := make([]*files.ManifestVariable, 0)
 
 	filePaths := b.GetVarsFilePaths()
 
 	for _, path := range filePaths {
-		contents, err := ioutil.ReadFile(path)
+		temp, err := util.LoadDynamicYaml(path)
 		if err != nil {
-			log.Printf("[error] ioutil.ReadFile(%v): %v", path, err.Error())
+			log.Printf("[error] LoadDynamicYaml %v. Error %v", path, err.Error())
 			continue
 		}
 
-		varFile := files.CreateVarsFile()
+		varFile := files.VarsFile(*temp)
+		manifestVariables := varFile.GetVariables()
 
-		tempMap := make(map[string](map[string]*files.ConfigVar))
-
-		if err := yaml.Unmarshal(contents, tempMap); err != nil {
-			log.Printf("[error] yaml.Unmarshal file %v. Error %v", path, err.Error())
-			continue
-		}
-
-		for _, item := range varFile.Vars {
-			formattedPath := strings.TrimPrefix(path, b.manifest.path + "/")
-			formattedPath = strings.TrimSuffix(formattedPath, "/vars.yaml")
-
-			componentConfigVar := &files.ComponentConfigVar{
-				ComponantPath: formattedPath,
-				ConfigVar:     item,
-			}
-			varsArray = append(varsArray, componentConfigVar)
-		}
+		varsArray = append(varsArray, manifestVariables...)
 	}
 
 	return varsArray

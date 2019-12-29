@@ -3,8 +3,6 @@ package template
 import (
 	"github.com/onepanelio/cli/config"
 	"github.com/onepanelio/cli/files"
-	"gopkg.in/yaml.v2"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -304,20 +302,21 @@ func (b* Builder) addOrReplaceSource(path, componentName string, order int, isOv
 // TODO remove?
 func (b *Builder) addVarsFile(path string) error {
 	// TODO skip env vars if the component or overlay is part of the ones considered
-	data, err := ioutil.ReadFile(path)
-	if err != nil {
-		return err
-	}
+	//data, err := ioutil.ReadFile(path)
+	//if err != nil {
+	//	return err
+	//}
 
-	varFile := files.CreateVarsFile()
-	if err := yaml.Unmarshal(data, &varFile); err != nil {
-		return err
-	}
+	//varFile := files.CreateVarsFile()
+	//if err := yaml.Unmarshal(data, &varFile); err != nil {
+	//	return err
+	//}
 
-	for i := range varFile.Vars {
-		varName := varFile.Vars[i]
-		b.addVar(path, varName)
-	}
+	// TODO
+	//for i := range varFile.Vars {
+	//	varName := varFile.Vars[i]
+	//	b.addVar(path, varName)
+	//}
 
 	return nil
 }
