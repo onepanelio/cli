@@ -6,6 +6,7 @@ import (
 	"github.com/onepanelio/cli/util"
 	"log"
 	"os"
+	"strings"
 )
 
 type OverlayedComponent struct {
@@ -22,18 +23,28 @@ func (c *OverlayedComponent) Overlays() []*Overlay {
 }
 
 func (c *OverlayedComponent) AddOverlay(overlay *Overlay) {
+
+	// Don't add the same overlay twice.
+	for _, existingOverlay := range c.overlays {
+		if overlay.path == existingOverlay.path {
+			return
+		}
+	}
+
 	c.overlays = append(c.overlays, overlay)
 }
 
 type Builder struct {
 	manifest *Manifest
 	overlayedComponents map[string]*OverlayedComponent
+	overlayContenders []string
 }
 
 func CreateBuilder(manifest *Manifest) *Builder {
 	b := &Builder{
 		manifest: manifest,
 		overlayedComponents: make(map[string]*OverlayedComponent),
+		overlayContenders: make([]string, 0),
 	}
 
 	return b
@@ -104,6 +115,25 @@ func (b *Builder) GetOverlayComponents() []*OverlayedComponent {
 	return result
 }
 
+func (b *Builder) AddOverlayContender(contender string) {
+	b.overlayContenders = append(b.overlayContenders, contender)
+}
+
+func (b *Builder) Build() error  {
+	// Go through each overlay contender and component, and add the overlays
+	for _, overlayContender := range b.overlayContenders {
+		for key := range b.manifest.overlays {
+			overlay := b.manifest.overlays[key]
+			if strings.HasSuffix(overlay.path, overlayContender) {
+				if err := b.AddOverlay(overlay.path); err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	return nil
+}
 
 func (b *Builder) GetVarsArray() []*files.ManifestVariable {
 	varsArray := make([]*files.ManifestVariable, 0)

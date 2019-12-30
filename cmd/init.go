@@ -128,19 +128,16 @@ If there is no argument, configuration.yaml is used.`,
 			return
 		}
 
-		// TODO - what about minikube overlay? What about any kind of overlay?
 		if LoggingComponent {
 			if err := bld.AddComponent("logging"); err != nil {
 				log.Printf("[error] Adding logging component: %v", err.Error())
 				return
 			}
+		}
 
-			if Provider == "minikube" {
-				if err := bld.AddOverlay("logging/overlays/minikube"); err != nil {
-					log.Printf("[error] Adding logging minikube overlay: %v", err.Error())
-					return
-				}
-			}
+		if err := bld.Build(); err != nil {
+			log.Printf("[error] building components and overlays: %v", err.Error())
+			return
 		}
 
 		for _, overlayComponent := range bld.GetOverlayComponents() {
@@ -230,6 +227,8 @@ func validateDns(dns string) error {
 }
 
 func addCloudProviderToManifestBuilder(provider string, builder *manifest.Builder) error {
+	builder.AddOverlayContender(provider)
+
 	if provider == "minikube" {
 		return nil
 	}
@@ -238,7 +237,7 @@ func addCloudProviderToManifestBuilder(provider string, builder *manifest.Builde
 		return err
 	}
 
-	if err := builder.AddOverlay("storage/overlays/" + provider); err != nil {
+	if err := builder.AddComponent("storage"); err != nil {
 		return err
 	}
 
@@ -249,6 +248,8 @@ func addDnsProviderToManifestBuilder(dns string, builder *manifest.Builder) erro
 	if dns == "" {
 		return nil
 	}
+
+	builder.AddOverlayContender(dns)
 
 	return builder.AddOverlay("cert-manager/overlays/" + dns)
 }
