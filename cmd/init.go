@@ -128,10 +128,18 @@ If there is no argument, configuration.yaml is used.`,
 			return
 		}
 
+		// TODO - what about minikube overlay? What about any kind of overlay?
 		if LoggingComponent {
 			if err := bld.AddComponent("logging"); err != nil {
 				log.Printf("[error] Adding logging component: %v", err.Error())
 				return
+			}
+
+			if Provider == "minikube" {
+				if err := bld.AddOverlay("logging/overlays/minikube"); err != nil {
+					log.Printf("[error] Adding logging minikube overlay: %v", err.Error())
+					return
+				}
 			}
 		}
 
