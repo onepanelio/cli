@@ -9,6 +9,30 @@ import (
 	"strings"
 )
 
+// Path might be an empty string, denoting the start of a path.
+// In that case, it is expected that newPart in some formatted form will be return.
+// e.g. path = "", newPart = "root". Return: "root"
+//      path = "root", newPart = "child". Return: "root.child"
+type FlatMapKeyFormatter func(path, newPart string) string
+
+// e.g. path = "", newPart = "root". Return: "root"
+//      path = "root", newPart = "child". Return: "root.child"
+func AppendDotFlatMapKeyFormatter(path, newPart string) string {
+	if path == "" {
+		return newPart
+	}
+
+	return path + "." + newPart
+}
+
+func CapitalizeUnderscoreFlatMapKeyFormatter(path, newPart string) string {
+	if path == "" {
+		return strings.ToUpper(newPart)
+	}
+
+	return path + "_" + strings.ToUpper(newPart)
+}
+
 type DynamicYaml struct {
 	data map[interface{}]interface{}
 }
@@ -75,15 +99,15 @@ func (d *DynamicYaml) Put(value interface{}, path string) {
 	d.PutByString(value, path, ".")
 }
 
-func (d *DynamicYaml) Flatten() map[string]interface{} {
+func (d *DynamicYaml) Flatten(keyFormatter FlatMapKeyFormatter) map[string]interface{} {
 	results := make(map[string]interface{})
 
-	flattenMap("", d.data, results)
+	flattenMap("", keyFormatter, d.data, results)
 
 	return results
 }
 
-func flattenMap(path string, obj map[interface{}]interface{}, results map[string]interface{}) {
+func flattenMap(path string, keyFormatter FlatMapKeyFormatter,  obj map[interface{}]interface{}, results map[string]interface{}) {
 	for key := range obj {
 		newKeyAsString, stringOk := key.(string)
 		if !stringOk {
@@ -91,13 +115,7 @@ func flattenMap(path string, obj map[interface{}]interface{}, results map[string
 			continue
 		}
 
-		newPath := ""
-		if path == "" {
-			newPath = newKeyAsString
-		} else {
-			newPath = path + "." + newKeyAsString
-		}
-
+		newPath := keyFormatter(path, newKeyAsString)
 		newObj := obj[key]
 
 		objAsMap, ok := newObj.(map[interface{}]interface{})
@@ -106,7 +124,7 @@ func flattenMap(path string, obj map[interface{}]interface{}, results map[string
 			continue
 		}
 
-		flattenMap(newPath, objAsMap, results)
+		flattenMap(newPath, keyFormatter, objAsMap, results)
 	}
 }
 

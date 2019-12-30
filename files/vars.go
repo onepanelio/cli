@@ -31,7 +31,7 @@ func (v VarsFile) GetVariables() []*ManifestVariable {
 	result := make([]*ManifestVariable, 0)
 
 	dynamicYaml := util.DynamicYaml(v)
-	flatMap := dynamicYaml.Flatten()
+	flatMap := dynamicYaml.Flatten(util.AppendDotFlatMapKeyFormatter)
 
 	variableMap := make(map[string]bool)
 

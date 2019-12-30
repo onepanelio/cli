@@ -20,6 +20,7 @@ import (
 	opConfig "github.com/onepanelio/cli/config"
 	"github.com/onepanelio/cli/files"
 	"github.com/onepanelio/cli/template"
+	"github.com/onepanelio/cli/util"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
@@ -134,8 +135,24 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 		return "", err
 	}
 
-	if err := files.CopyFile(config.Spec.Params, paramsPath); err != nil {
+	paramsFile, err := os.Create(paramsPath)
+	if err != nil {
 		return "", err
+	}
+
+	yamlFile, err := util.LoadDynamicYaml(config.Spec.Params)
+	if err != nil {
+		return "", err
+	}
+
+	flatMap := yamlFile.Flatten(util.CapitalizeUnderscoreFlatMapKeyFormatter)
+
+	for key := range flatMap {
+		value := flatMap[key]
+		_, err := paramsFile.WriteString(fmt.Sprintf("%v=%v\n", key, value))
+		if err != nil {
+			return "", err
+		}
 	}
 
 	cmd := exec.Command("kustomize", "build", ".manifest",  "--load_restrictor",  "none")
