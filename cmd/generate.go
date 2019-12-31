@@ -19,6 +19,7 @@ import (
 	"fmt"
 	opConfig "github.com/onepanelio/cli/config"
 	"github.com/onepanelio/cli/files"
+	"github.com/onepanelio/cli/manifest"
 	"github.com/onepanelio/cli/template"
 	"github.com/onepanelio/cli/util"
 	"github.com/spf13/cobra"
@@ -39,7 +40,7 @@ OpDef file and parameters file, where you can customize components and overlays.
 
 A sample usage is:
 
-op-cli generate config.yaml params.env
+op-cli generate config.yaml params.yaml
 `,
 	Run: func(cmd *cobra.Command, args []string) {
 		configFilePath := "config.yaml"
@@ -55,13 +56,7 @@ op-cli generate config.yaml params.env
 			return
 		}
 
-		builder := template.NewBuilderFromConfig(*config)
-		if err := builder.Build(); err != nil {
-			log.Printf("err generating config. Error %v", err.Error())
-			return
-		}
-
-		kustomizeTemplate := builder.Template()
+		kustomizeTemplate := TemplateFromSimpleOverlayedComponents(config.GetOverlayComponents())
 
 		result, err := GenerateKustomizeResult(*config, kustomizeTemplate)
 		if err != nil {
@@ -186,4 +181,43 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 	}
 
 	return string(result), nil
+}
+
+func BuilderToTemplate(builder *manifest.Builder) template.Kustomize {
+	k := template.Kustomize{
+		ApiVersion: "kustomize.config.k8s.io/v1beta1",
+		Kind: "Kustomization",
+		Resources: make([]string, 0),
+		Configurations: []string{"configs/varreference.yaml"},
+	}
+
+	for _, overlayComponent := range builder.GetOverlayComponents() {
+		if !overlayComponent.HasOverlays() {
+			k.Resources = append(k.Resources, overlayComponent.Component().Path())
+			continue
+		}
+
+		for _, overlay := range overlayComponent.Overlays() {
+			k.Resources = append(k.Resources, overlay.Path())
+		}
+	}
+
+	return k
+}
+
+func TemplateFromSimpleOverlayedComponents(comps []*opConfig.SimpleOverlayedComponent) template.Kustomize {
+	k := template.Kustomize{
+		ApiVersion: "kustomize.config.k8s.io/v1beta1",
+		Kind: "Kustomization",
+		Resources: make([]string, 0),
+		Configurations: []string{"configs/varreference.yaml"},
+	}
+
+	for _, overlayComponent := range comps {
+		for _, item := range overlayComponent.PartsSkipFirst() {
+			k.Resources = append(k.Resources, *item)
+		}
+	}
+
+	return k
 }

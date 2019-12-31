@@ -19,7 +19,6 @@ import (
 	"fmt"
 	opConfig "github.com/onepanelio/cli/config"
 	"github.com/onepanelio/cli/files"
-	"github.com/onepanelio/cli/template"
 	"github.com/spf13/cobra"
 	"io/ioutil"
 	"log"
@@ -53,13 +52,7 @@ op-cli apply config.yaml params.env
 			return
 		}
 
-		builder := template.NewBuilderFromConfig(*config)
-		if err := builder.Build(); err != nil {
-			log.Printf("Error generating config:  %v", err.Error())
-			return
-		}
-
-		kustomizeTemplate := builder.Template()
+		kustomizeTemplate := TemplateFromSimpleOverlayedComponents(config.GetOverlayComponents())
 
 		result, err := GenerateKustomizeResult(*config, kustomizeTemplate)
 		if err != nil {

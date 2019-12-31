@@ -34,6 +34,10 @@ func (c *OverlayedComponent) AddOverlay(overlay *Overlay) {
 	c.overlays = append(c.overlays, overlay)
 }
 
+func (c *OverlayedComponent) HasOverlays() bool {
+	return len(c.overlays) != 0
+}
+
 type Builder struct {
 	manifest *Manifest
 	overlayedComponents map[string]*OverlayedComponent
@@ -91,8 +95,17 @@ func (b *Builder) AddOverlay(overlayPath string) error {
 	return nil
 }
 
-func (b *Builder) AddCommonComponents() error {
+func (b *Builder) AddCommonComponents(skipComponents ...string) error {
+	skipMap := make(map[string]bool)
+	for _, skip := range skipComponents {
+		skipMap[skip] = true
+	}
+
 	for key := range b.manifest.components {
+		if _, ok := skipMap[key]; ok {
+			continue
+		}
+
 		component := b.manifest.components[key]
 
 		if component.IsCommon() {
@@ -124,6 +137,10 @@ func (b *Builder) Build() error  {
 	for _, overlayContender := range b.overlayContenders {
 		for key := range b.manifest.overlays {
 			overlay := b.manifest.overlays[key]
+			if _, ok := b.overlayedComponents[overlay.component.path]; !ok {
+				continue
+			}
+
 			if strings.HasSuffix(overlay.path, overlayContender) {
 				if err := b.AddOverlay(overlay.path); err != nil {
 					return err

@@ -105,8 +105,13 @@ If there is no argument, configuration.yaml is used.`,
 			log.Printf("[error] LoadManifest %v", err.Error())
 		}
 
+		skipList := make([]string, 0)
+		if Provider == "minikube" {
+			skipList = append(skipList, "common/istio")
+		}
+
 		bld := manifest.CreateBuilder(loadedManifest)
-		if err := bld.AddCommonComponents(); err != nil {
+		if err := bld.AddCommonComponents(skipList...); err != nil {
 			log.Printf("[error] AddCommonComponents %v", err.Error())
 			return
 		}
