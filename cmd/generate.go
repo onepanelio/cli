@@ -87,7 +87,7 @@ func init() {
 // and running the kustomize command
 func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.Kustomize) (string, error) {
 	manifestPath := config.Spec.ManifestsRepo
-	localManifestsCopyPath := ".manifest"
+	localManifestsCopyPath := ".manifests/cache"
 
 	exists, err := files.Exists(localManifestsCopyPath)
 	if err != nil {
@@ -150,7 +150,7 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 		}
 	}
 
-	cmd := exec.Command("kustomize", "build", ".manifest",  "--load_restrictor",  "none")
+	cmd := exec.Command("kustomize", "build", localManifestsCopyPath,  "--load_restrictor",  "none")
 	stdOut, err := cmd.StdoutPipe()
 	if err != nil {
 		return "", err
