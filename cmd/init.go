@@ -48,7 +48,7 @@ var initCmd = &cobra.Command{
 	Long: `Generates a sample configuration file and outputs it to the first argument.
 If there is no argument, configuration.yaml is used.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		manifestExists, err := files.Exists(manifestsFilePath)
+		manifestExists, err := files.Exists(manifestsFilePath + string(os.PathSeparator) + manifestsTargetDirectory)
 		if err != nil {
 			log.Printf("[error] Unable to check if manifests cached directory exists %v", err.Error())
 			return
@@ -114,13 +114,6 @@ If there is no argument, configuration.yaml is used.`,
 		if err := bld.AddCommonComponents(skipList...); err != nil {
 			log.Printf("[error] AddCommonComponents %v", err.Error())
 			return
-		}
-
-		if Provider != "minikube" {
-			if err := bld.AddComponent("storage"); err != nil {
-				log.Printf("[error] Adding storage component: %v", err.Error())
-				return
-			}
 		}
 
 		if err := addCloudProviderToManifestBuilder(Provider, bld); err != nil {
