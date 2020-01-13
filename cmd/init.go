@@ -26,6 +26,7 @@ import (
 	"gopkg.in/yaml.v2"
 	"log"
 	"os"
+	"strings"
 )
 
 const (
@@ -107,7 +108,7 @@ If there is no argument, configuration.yaml is used.`,
 
 		skipList := make([]string, 0)
 		if Provider == "minikube" {
-			skipList = append(skipList, "common/istio")
+			skipList = append(skipList, "common" + string(os.PathSeparator) + "istio")
 		}
 
 		bld := manifest.CreateBuilder(loadedManifest)
@@ -249,7 +250,8 @@ func addDnsProviderToManifestBuilder(dns string, builder *manifest.Builder) erro
 
 	builder.AddOverlayContender(dns)
 
-	return builder.AddOverlay("cert-manager/overlays/" + dns)
+	overlay := strings.Join([]string{"cert-manager","overlays",dns},string(os.PathSeparator))
+	return builder.AddOverlay(overlay)
 }
 
 func downloadManifestFiles() error {

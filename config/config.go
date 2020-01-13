@@ -5,6 +5,7 @@ import (
 	"github.com/ghodss/yaml"
 	"github.com/onepanelio/cli/files"
 	"io/ioutil"
+	"os"
 	"strings"
 )
 
@@ -104,12 +105,12 @@ func (c *Config) GetOverlayComponents() []*SimpleOverlayedComponent {
 	mappedComponents := make(map[string]*SimpleOverlayedComponent)
 
 	for _, component := range c.Spec.Components {
-		formattedName := strings.TrimSuffix(component, "/base")
+		formattedName := strings.TrimSuffix(component, string(os.PathSeparator) + "base")
 		mappedComponents[formattedName] = CreateSimpleOverlayedComponent(component)
 	}
 
 	for _, overlay := range c.Spec.Overlays {
-		overlaysIndex := strings.Index(overlay, "/overlays")
+		overlaysIndex := strings.Index(overlay, string(os.PathSeparator) + "overlays")
 		formattedName := overlay[:overlaysIndex]
 
 		if _, ok := mappedComponents[formattedName]; ok {
