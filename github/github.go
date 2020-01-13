@@ -15,8 +15,7 @@ type Github struct {
 }
 
 func (g *Github) DownloadManifests(toPath string) error {
-	//url := "https://github.com/onepanelio/manifests/archive/master.zip"
-	url := "https://github.com/onepanelio/manifests/archive/feature/testing-restructure.zip"
+	url := "https://github.com/onepanelio/manifests/archive/master.zip"
 
 	return downloadFile(toPath, url)
 }
