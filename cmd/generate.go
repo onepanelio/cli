@@ -140,7 +140,7 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 		return "", err
 	}
 
-	flatMap := yamlFile.Flatten(util.CapitalizeUnderscoreFlatMapKeyFormatter)
+	flatMap := yamlFile.Flatten(util.LowerCamelCaseFlatMapKeyFormatter)
 
 	for key := range flatMap {
 		value := flatMap[key]

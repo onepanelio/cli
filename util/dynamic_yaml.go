@@ -1,6 +1,7 @@
 package util
 
 import (
+	"github.com/iancoleman/strcase"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"log"
@@ -23,6 +24,14 @@ func AppendDotFlatMapKeyFormatter(path, newPart string) string {
 	}
 
 	return path + "." + newPart
+}
+
+func LowerCamelCaseFlatMapKeyFormatter(path, newPart string) string {
+	if path == "" {
+		return strcase.ToLowerCamel(newPart)
+	}
+
+	return path + strcase.ToCamel(newPart)
 }
 
 func CapitalizeUnderscoreFlatMapKeyFormatter(path, newPart string) string {
