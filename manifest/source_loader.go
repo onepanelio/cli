@@ -23,7 +23,7 @@ type GithubSourceConfig struct {
 }
 
 type DirectorySourceConfig struct {
-	From string `yaml:"folder"`
+	From string
 	OverrideCache *bool `yaml:"overrideCache,omitempty"` // default is false
 }
 
