@@ -126,6 +126,56 @@ func CopyDir(src string, dst string) (err error) {
 	return
 }
 
+// CopyDirChildren recursively copies a directory tree's children, attempting to preserve permissions.
+// Source directory must exist, destination directory must exist.
+// Symlinks are ignored and skipped.
+func CopyDirChildren(src string, dst string) (err error) {
+	src = filepath.Clean(src)
+	dst = filepath.Clean(dst)
+
+	si, err := os.Stat(src)
+	if err != nil {
+		return err
+	}
+	if !si.IsDir() {
+		return fmt.Errorf("source is not a directory")
+	}
+
+	_, err = os.Stat(dst)
+	if err != nil {
+		return err
+	}
+
+	entries, err := ioutil.ReadDir(src)
+	if err != nil {
+		return
+	}
+
+	for _, entry := range entries {
+		srcPath := filepath.Join(src, entry.Name())
+		dstPath := filepath.Join(dst, entry.Name())
+
+		if entry.IsDir() {
+			err = CopyDir(srcPath, dstPath)
+			if err != nil {
+				return
+			}
+		} else {
+			// Skip symlinks.
+			if entry.Mode()&os.ModeSymlink != 0 {
+				continue
+			}
+
+			err = CopyFile(srcPath, dstPath)
+			if err != nil {
+				return
+			}
+		}
+	}
+
+	return
+}
+
 // Delete a file if it exists. If it doesn't, nothing happens.
 // Returns if the file existed. If there was an error, existed is set to false, and err is set.
 func DeleteIfExists(path string) (existed bool, err error) {

@@ -31,7 +31,6 @@ import (
 
 const (
 	manifestsFilePath = ".manifests"
-	manifestsTargetDirectory = "manifests-feature-testing-restructure"
 )
 
 var (
@@ -49,20 +48,32 @@ var initCmd = &cobra.Command{
 	Long: `Generates a sample configuration file and outputs it to the first argument.
 If there is no argument, configuration.yaml is used.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		manifestExists, err := files.Exists(manifestsFilePath + string(os.PathSeparator) + manifestsTargetDirectory)
+		githubApi, err := github.New("https://api.github.com/repos/onepanelio/manifests")
+		if err != nil {
+			log.Printf("[error] creating new Github Client: %v", err.Error())
+			return
+		}
+
+		latestRelease, err := githubApi.GetLatestRelease()
+		if err != nil {
+			log.Printf("[error] getting latest release: %v", err.Error())
+			return
+		}
+
+		manifestsRepoPath := manifestsFilePath + string(os.PathSeparator) + latestRelease.TagName
+		manifestExists, err := files.Exists(manifestsRepoPath)
 		if err != nil {
 			log.Printf("[error] Unable to check if manifests cached directory exists %v", err.Error())
 			return
 		}
 
 		if !manifestExists {
-			if err := downloadManifestFiles(); err != nil {
-				log.Printf("[error] downloading manifest files from github. Error %v", err.Error())
+			src, _ := manifest.CreateGithubSource(latestRelease.ZipBallUrl)
+			if err := src.MoveToDirectory(manifestsRepoPath, false); err != nil {
+				log.Printf("[error] moving manifest files: %v", err.Error())
 				return
 			}
 		}
-
-		manifestsRepoPath := manifestsFilePath + string(os.PathSeparator) + manifestsTargetDirectory
 
 		if Provider == "" {
 			Provider = "minikube"
@@ -252,25 +263,4 @@ func addDnsProviderToManifestBuilder(dns string, builder *manifest.Builder) erro
 
 	overlay := strings.Join([]string{"cert-manager","overlays",dns},string(os.PathSeparator))
 	return builder.AddOverlay(overlay)
-}
-
-func downloadManifestFiles() error {
-	downloader := github.Github{}
-
-	tempManifestsPath := ".temp_manifests"
-
-	defer func () {
-		_, err := files.DeleteIfExists(tempManifestsPath);
-		if err != nil {
-			log.Printf("[error] Deleting %v: %v", tempManifestsPath, err.Error())
-		}
-	}()
-
-	if err := downloader.DownloadManifests(tempManifestsPath); err != nil {
-		return err
-	}
-
-	_, err := files.Unzip(tempManifestsPath, manifestsFilePath)
-
-	return err
 }
