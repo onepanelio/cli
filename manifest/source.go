@@ -10,9 +10,7 @@ import (
 )
 
 type Source interface {
-	// If keep root directory is true, all of the manifest files will be under a directory like the
-	// release name for Github. If False, just the manifest files are moved over.
-	MoveToDirectory(destinationPath string, keepRootDirectory bool) error
+	MoveToDirectory(destinationPath string) error
 	// Get the resulting manifest path. Should only be called after MoveToDirectory
 	GetManifestPath() (string, error)
 }
@@ -74,7 +72,7 @@ func (g* GithubSource) GetManifestPath() (string, error) {
 	return g.getManifestPath(g.destination), nil
 }
 
-func (g* GithubSource) MoveToDirectory(directoryPath string, keepRootDirectory bool) error {
+func (g* GithubSource) MoveToDirectory(directoryPath string,) error {
 	g.destination = directoryPath
 
 	tempManifestsPath := ".temp_manifests"
@@ -121,24 +119,13 @@ func (g* GithubSource) MoveToDirectory(directoryPath string, keepRootDirectory b
 		return nil
 	}
 
-	if keepRootDirectory {
-		if err := os.Rename(unzippedFiles[0], directoryPath + string(os.PathSeparator) +  g.release.TagName); err != nil {
-			return err
-		}
-		return nil
-	}
-
-	rootFolder := unzippedFiles[0]
-
-	if err := files.CopyDirChildren(rootFolder, directoryPath); err != nil {
+	if err := os.Rename(unzippedFiles[0], directoryPath + string(os.PathSeparator) +  g.release.TagName); err != nil {
 		return err
 	}
 
-	err = os.RemoveAll(rootFolder)
-
 	g.moved = true
 
-	return err
+	return nil
 }
 
 type DirectorySource struct {
@@ -177,8 +164,7 @@ func (d* DirectorySource) GetManifestPath() (string, error) {
 	return d.getManifestPath(d.destination), nil
 }
 
-// TODO remove keep root directory
-func (d* DirectorySource) MoveToDirectory(directoryPath string, keepRootDirectory bool) error {
+func (d* DirectorySource) MoveToDirectory(directoryPath string) error {
 	d.destination = directoryPath
 
 	finalManifestPath := d.getManifestPath(directoryPath)

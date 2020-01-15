@@ -67,7 +67,7 @@ If there is no argument, configuration.yaml is used.`,
 			return
 		}
 
-		if err := source.MoveToDirectory(manifestsFilePath, true); err != nil {
+		if err := source.MoveToDirectory(manifestsFilePath); err != nil {
 			log.Printf("[error] %v", err.Error())
 			return
 		}
