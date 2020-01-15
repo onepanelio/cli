@@ -123,11 +123,4 @@ func (c *Config) GetOverlayComponents() []*SimpleOverlayedComponent {
 	}
 
 	return overlayedComponents
-//	TODO
-//	Next part is to update the templatization process to use this new array of SimpleOverlayedComponent
-// You can even add a method to return an array of all items except the first one - the component.
-// make sure the :overlaysIndex is working properly,
-// then go ahead and generate the new kustomization file and make sure it all works with minikube.
-// no istio.
-// Then, maybe delete the old template code, since we don't really need it anymore.
 }

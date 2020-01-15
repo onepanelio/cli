@@ -23,8 +23,8 @@ func New(url string) (*Github, error) {
 	return &Github{repoUrl: url}, nil
 }
 
-func (g *Github) GetLatestRelease() (release *Release, err error) {
-	response, err := http.Get(g.repoUrl + "/releases/latest")
+func (g *Github) GetRelease(url string) (release *Release, err error) {
+	response, err := http.Get(url)
 	if err != nil {
 		return
 	}
@@ -38,4 +38,12 @@ func (g *Github) GetLatestRelease() (release *Release, err error) {
 	err = json.Unmarshal(data, release)
 
 	return
+}
+
+func (g *Github) GetLatestRelease() (release *Release, err error) {
+	return g.GetRelease(g.repoUrl + "/releases/latest")
+}
+
+func (g *Github) GetReleaseByTag(tag string) (release *Release, err error) {
+	return g.GetRelease(g.repoUrl + "/releases/tags/" + tag)
 }

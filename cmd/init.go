@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"github.com/onepanelio/cli/config"
 	"github.com/onepanelio/cli/files"
-	"github.com/onepanelio/cli/github"
 	"github.com/onepanelio/cli/manifest"
 	"github.com/onepanelio/cli/template"
 	"github.com/spf13/cobra"
@@ -48,31 +47,35 @@ var initCmd = &cobra.Command{
 	Long: `Generates a sample configuration file and outputs it to the first argument.
 If there is no argument, configuration.yaml is used.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		githubApi, err := github.New("https://api.github.com/repos/onepanelio/manifests")
+		configFile := ".cli_config.yaml"
+		exists, err := files.Exists(configFile)
 		if err != nil {
-			log.Printf("[error] creating new Github Client: %v", err.Error())
+			log.Printf("[error] checking for config file %v", configFile)
 			return
 		}
 
-		latestRelease, err := githubApi.GetLatestRelease()
-		if err != nil {
-			log.Printf("[error] getting latest release: %v", err.Error())
-			return
-		}
-
-		manifestsRepoPath := manifestsFilePath + string(os.PathSeparator) + latestRelease.TagName
-		manifestExists, err := files.Exists(manifestsRepoPath)
-		if err != nil {
-			log.Printf("[error] Unable to check if manifests cached directory exists %v", err.Error())
-			return
-		}
-
-		if !manifestExists {
-			src, _ := manifest.CreateGithubSource(latestRelease.ZipBallUrl)
-			if err := src.MoveToDirectory(manifestsRepoPath, false); err != nil {
-				log.Printf("[error] moving manifest files: %v", err.Error())
+		if !exists {
+			if err := manifest.CreateGithubSourceConfigFile(configFile); err != nil {
+				log.Printf("[error] creating default source config: %v", err.Error())
 				return
 			}
+		}
+
+		source, err := manifest.LoadManifestSourceFromFileConfig(configFile);
+		if err != nil {
+			log.Printf("[error] loading manifest source: %v", err.Error())
+			return
+		}
+
+		if err := source.MoveToDirectory(manifestsFilePath, true); err != nil {
+			log.Printf("[error] %v", err.Error())
+			return
+		}
+
+		manifestsRepoPath, err := source.GetManifestPath()
+		if err != nil {
+			log.Printf("[error] %v", err.Error())
+			return
 		}
 
 		if Provider == "" {
@@ -89,7 +92,7 @@ If there is no argument, configuration.yaml is used.`,
 			return
 		}
 
-		exists, err := files.Exists(ParametersFilePath)
+		exists, err = files.Exists(ParametersFilePath)
 		if err != nil {
 			log.Printf("unable to check if %v file exists: %v", ParametersFilePath, err.Error())
 			return
