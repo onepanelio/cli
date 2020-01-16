@@ -151,7 +151,7 @@ func (d* DirectorySource) getManifestPath(directoryPath string) string {
 		return directoryPath + string(os.PathSeparator) + d.sourceDirectory
 	}
 
-	destinationDirectoryName := d.sourceDirectory[lastPathSeparatorIndex:]
+	destinationDirectoryName := d.sourceDirectory[lastPathSeparatorIndex + 1:]
 
 	return directoryPath + string(os.PathSeparator) + destinationDirectoryName
 }
