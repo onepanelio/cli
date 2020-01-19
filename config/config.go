@@ -109,7 +109,8 @@ func (c *Config) GetOverlayComponents() []*SimpleOverlayedComponent {
 		mappedComponents[formattedName] = CreateSimpleOverlayedComponent(component)
 	}
 
-	for _, overlay := range c.Spec.Overlays {
+	for i := range c.Spec.Overlays {
+		overlay := c.Spec.Overlays[i]
 		overlaysIndex := strings.Index(overlay, string(os.PathSeparator) + "overlays")
 		formattedName := overlay[:overlaysIndex]
 
