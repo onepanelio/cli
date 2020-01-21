@@ -88,7 +88,7 @@ op-cli apply config.yaml params.env
 			return
 		}
 
-		fmt.Printf("Deploying...")
+		fmt.Printf("Deploying...\n")
 
 		res := ""
 		errRes := ""
