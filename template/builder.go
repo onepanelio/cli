@@ -36,11 +36,33 @@ type BuilderConfig struct {
 	Overlays []Overlay
 }
 
+type ConfigMapItem struct {
+	Name string `yaml:"name"`
+	Envs []string `yaml:"envs"`
+}
+
+type ObjectRef struct {
+	Kind string `yaml:"kind"`
+	Name string `yaml:"name"`
+	ApiVersion string `yaml:"apiVersion"`
+}
+
+type FieldRef struct {
+	FieldPath string `yaml:"fieldpath"`
+}
+type VarItem struct {
+	Name string `yaml:"name"`
+	ObjRef ObjectRef `yaml:"objref"`
+	FieldRef FieldRef `yaml:"fieldref"`
+}
+
 type Kustomize struct {
 	ApiVersion string `yaml:"apiVersion"`
 	Kind string `yaml:"kind"`
 	Resources []string `yaml:"resources"`
 	Configurations []string `yaml:"configurations"`
+	ConfigMapItems []ConfigMapItem `yaml:"configMapGenerator"`
+	Vars []VarItem `yaml:"vars"`
 }
 
 type Builder struct {
