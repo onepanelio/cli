@@ -212,17 +212,17 @@ func TemplateFromSimpleOverlayedComponents(comps []*opConfig.SimpleOverlayedComp
 		Resources: make([]string, 0),
 		Configurations: []string{"configs/varreference.yaml"},
 		ConfigMapItems: []template.ConfigMapItem{
-			{"onepanel-base-parameters",[]string{"./common/argo/base/params.env","./vars/params.env"}},
+			{"onepanel",[]string{"./common/argo/base/params.env","./vars/params.env"}},
 		},
 		Vars: []template.VarItem{
 			{
-				Name:     "onepanelNamespace",
+				Name:     "defaultNamespace",
 				ObjRef:   template.ObjectRef{
 					Kind:       "ConfigMap",
-					Name:       "onepanel-base-parameters",
+					Name:       "onepanel",
 					ApiVersion: "v1",
 				},
-				FieldRef: template.FieldRef{FieldPath:"data.onepanelNamespace"},
+				FieldRef: template.FieldRef{FieldPath:"data.defaultNamespace"},
 			},
 		},
 	}
