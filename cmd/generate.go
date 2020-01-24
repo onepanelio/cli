@@ -176,7 +176,7 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 				valueStr, ok := value.(string)
 				if !ok {
 					valueBool, _ := value.(bool)
-					valueStr = strconv.FormatBool(valueBool)
+					valueStr = "\"" + strconv.FormatBool(valueBool) + "\""
 				}
 				secretFileContentStr = strings.Replace(secretFileContentStr,oldString,valueStr,1)
 				writeFileErr := ioutil.WriteFile(secretFileComponentPath,[]byte(secretFileContentStr),0644)
