@@ -70,6 +70,10 @@ func (d *DynamicYaml) Get(path string) interface{} {
 	return d.GetByString(path, ".")
 }
 
+func (d *DynamicYaml) GetData() map[interface{}]interface{} {
+	return d.data
+}
+
 func (d *DynamicYaml) GetByString(path, separator string) interface{} {
 	keys := strings.Split(path, separator)
 

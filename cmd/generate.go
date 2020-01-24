@@ -28,6 +28,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 )
 
@@ -140,6 +141,10 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 		return "", err
 	}
 
+	yamlSafe := verifyYamlSecrets(yamlFile, localManifestsCopyPath)
+	if yamlSafe == false {
+		log.Fatalf("Error encountered when verifying Yaml and component secrets.")
+	}
 	flatMap := yamlFile.Flatten(util.LowerCamelCaseFlatMapKeyFormatter)
 
 	for key := range flatMap {
@@ -181,6 +186,46 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 	}
 
 	return string(result), nil
+}
+
+func verifyYamlSecrets(yamlFile *util.DynamicYaml, localManifestsCopyPath string) bool {
+	var yamlPath string
+	var secretsData interface{}
+	var rootComponentStr string
+	var componentBasePath string
+	yamlFileData := yamlFile.GetData()
+	for rootComponentInter := range yamlFileData {
+		rootComponentStr = rootComponentInter.(string)
+		rootCompSpecificArea := yamlFileData[rootComponentInter]
+		rootCompSpecificAreaAsMap, ok := rootCompSpecificArea.(map[interface{}]interface{})
+		if !ok {
+			log.Fatalf("Error converting to Map. %v",rootComponentInter)
+		}
+		for specificArea := range rootCompSpecificAreaAsMap {
+			specificAreaStr := specificArea.(string)
+			//Check if we need the secrets.yaml file present in the given overlay component
+			yamlPath = rootComponentStr + "." + specificAreaStr + ".secrets"
+			secretsData = yamlFile.Get(yamlPath)
+			if secretsData != nil {
+				//Check component for secrets.yaml
+				componentBasePath = rootComponentStr
+				if componentBasePath == "workflow" {
+					componentBasePath = "onepanel"
+				}
+				componentBasePath = path.Join(localManifestsCopyPath,"common",componentBasePath,"base","secrets.yaml")
+				componentExists, fileErr := files.Exists(componentBasePath)
+				if fileErr != nil {
+					fmt.Printf("Error with checking the manifest component: %v %v",componentBasePath,fileErr.Error())
+					return false
+				}
+				if componentExists == false {
+					log.Fatalf("Component secrets.yaml does not exist: %v",componentBasePath)
+				}
+			}
+			secretsData = nil
+		}
+	}
+	return true
 }
 
 func BuilderToTemplate(builder *manifest.Builder) template.Kustomize {
