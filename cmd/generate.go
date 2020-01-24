@@ -199,7 +199,6 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 	for key := range flatMap {
 		component = re.FindString(key)
 		if strings.Contains(key,"ConfigMap") {
-			envFiles[component] = struct{}{}
 			//write to specific env file
 			value := flatMap[key]
 			paramsFile = paramsFiles[component]
