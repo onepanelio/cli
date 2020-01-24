@@ -31,6 +31,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -172,7 +173,12 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 			value := flatMap[key]
 			oldString := "$(" + key + ")"
 			if strings.Contains(secretFileContentStr,key) {
-				secretFileContentStr = strings.Replace(secretFileContentStr,oldString,value.(string),1)
+				valueStr, ok := value.(string)
+				if !ok {
+					valueBool, _ := value.(bool)
+					valueStr = strconv.FormatBool(valueBool)
+				}
+				secretFileContentStr = strings.Replace(secretFileContentStr,oldString,valueStr,1)
 				writeFileErr := ioutil.WriteFile(secretFileComponentPath,[]byte(secretFileContentStr),0644)
 				if writeFileErr != nil {
 					return "", writeFileErr
