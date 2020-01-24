@@ -30,6 +30,8 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"regexp"
+	"strings"
 )
 
 // generateCmd represents the generate command
@@ -126,15 +128,7 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 		return "", err
 	}
 
-	paramsPath := filepath.Join(localManifestsCopyPath, "vars", "params.env")
-	if _, err := files.DeleteIfExists(paramsPath); err != nil {
-		return "", err
-	}
 
-	paramsFile, err := os.Create(paramsPath)
-	if err != nil {
-		return "", err
-	}
 
 	yamlFile, err := util.LoadDynamicYaml(config.Spec.Params)
 	if err != nil {
@@ -147,13 +141,54 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 	}
 	flatMap := yamlFile.Flatten(util.LowerCamelCaseFlatMapKeyFormatter)
 
+	//This will match all lowercase words, not just the first one.
+	re := regexp.MustCompile(`(\b[a-z]+)`)
+	var component string
+	var envFiles map[string]interface{}
+	envFiles = make(map[string]interface{})
+	var paramsFiles map[string]*os.File
+	paramsFiles = make(map[string]*os.File)
+	var secretFiles map[string]interface{}
+	secretFiles = make(map[string]interface{})
 	for key := range flatMap {
-		value := flatMap[key]
-		_, err := paramsFile.WriteString(fmt.Sprintf("%v=%v\n", key, value))
+		component = re.FindString(key)
+		if strings.Contains(key,"ConfigMap") {
+			envFiles[component] = struct{}{}
+		}
+		if strings.Contains(key,"Secrets") {
+			secretFiles[component] = struct{}{}
+
+			//todo write to secrets.yaml file
+		}
+	}
+	for key := range envFiles {
+		//Clear previous env file
+		paramsPath := filepath.Join(localManifestsCopyPath, "vars", key + "-config-map.env")
+		if _, err := files.DeleteIfExists(paramsPath); err != nil {
+			return "", err
+		}
+		paramsFile, err := os.Create(paramsPath)
 		if err != nil {
 			return "", err
 		}
+		paramsFiles[key] = paramsFile
 	}
+	var paramsFile *os.File
+	//update env files
+	for key := range flatMap {
+		component = re.FindString(key)
+		if strings.Contains(key,"ConfigMap") {
+			envFiles[component] = struct{}{}
+			//write to specific env file
+			value := flatMap[key]
+			paramsFile = paramsFiles[component]
+			_, err := paramsFile.WriteString(fmt.Sprintf("%v=%v\n", key, value))
+			if err != nil {
+				return "", err
+			}
+		}
+	}
+
 
 	cmd := exec.Command("kustomize", "build", localManifestsCopyPath,  "--load_restrictor",  "none")
 	stdOut, err := cmd.StdoutPipe()
