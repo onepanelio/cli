@@ -148,17 +148,38 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 	envFiles = make(map[string]interface{})
 	var paramsFiles map[string]*os.File
 	paramsFiles = make(map[string]*os.File)
-	var secretFiles map[string]interface{}
-	secretFiles = make(map[string]interface{})
+	var secretFileComponent string
+	var secretFileComponentPath string
 	for key := range flatMap {
 		component = re.FindString(key)
 		if strings.Contains(key,"ConfigMap") {
 			envFiles[component] = struct{}{}
 		}
 		if strings.Contains(key,"Secrets") {
-			secretFiles[component] = struct{}{}
-
-			//todo write to secrets.yaml file
+			//Write this value to the secrets.yaml file
+			secretFileComponent = component
+			if component == "workflow" {
+				secretFileComponent = "onepanel"
+			}
+			//Build path to the secret file
+			secretFileComponentPath = path.Join(localManifestsCopyPath,"common",secretFileComponent,"base","secrets.yaml")
+			//Read the file, replace the specific value, write the file back
+			secretFileContent, secretFileOpenErr := ioutil.ReadFile(secretFileComponentPath)
+			if secretFileOpenErr != nil {
+				return "",secretFileOpenErr
+			}
+			secretFileContentStr := string(secretFileContent)
+			value := flatMap[key]
+			oldString := "$(" + key + ")"
+			if strings.Contains(secretFileContentStr,key) {
+				secretFileContentStr = strings.Replace(secretFileContentStr,oldString,value.(string),1)
+				writeFileErr := ioutil.WriteFile(secretFileComponentPath,[]byte(secretFileContentStr),0644)
+				if writeFileErr != nil {
+					return "", writeFileErr
+				}
+			} else {
+				fmt.Printf("Key: %v not present in %v, not used.\n",key,secretFileComponentPath)
+			}
 		}
 	}
 	for key := range envFiles {
