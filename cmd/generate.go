@@ -220,7 +220,40 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 		log.Fatal("Missing required values in params.yaml, defaultNamespace")
 	}
 	//Write to secret files
-
+	//common/onepanel/base/secrets.yaml
+	var secretKeysValues []string
+	if yamlFile.Get("artifactRepository.accessKeyValue") != nil &&
+		yamlFile.Get("artifactRepository.secretKeyValue") != nil {
+		secretKeysValues = append(secretKeysValues, "artifactRepositoryAccessKeyValue","artifactRepositorySecretKeyValue")
+		for _, key := range secretKeysValues {
+			//Path to secrets file
+			secretsPath := filepath.Join(localManifestsCopyPath, "common","onepanel","base","secrets.yaml")
+			//Read the file, replace the specific value, write the file back
+			secretFileContent, secretFileOpenErr := ioutil.ReadFile(secretsPath)
+			if secretFileOpenErr != nil {
+				return "",secretFileOpenErr
+			}
+			secretFileContentStr := string(secretFileContent)
+			value := flatMap[key]
+			oldString := "$(" + key + ")"
+			if strings.Contains(secretFileContentStr,key) {
+				valueStr, ok := value.(string)
+				if !ok {
+					valueBool, _ := value.(bool)
+					valueStr = "\"" + strconv.FormatBool(valueBool) + "\""
+				}
+				secretFileContentStr = strings.Replace(secretFileContentStr,oldString,valueStr,1)
+				writeFileErr := ioutil.WriteFile(secretsPath,[]byte(secretFileContentStr),0644)
+				if writeFileErr != nil {
+					return "", writeFileErr
+				}
+			} else {
+				fmt.Printf("Key: %v not present in %v, not used.\n",key,secretsPath)
+			}
+		}
+	} else {
+		log.Fatal("Missing required values in params.yaml, artifactRepository. Check accessKeyValue, or secretKeyValue.")
+	}
 	//This will match all lowercase words, not just the first one.
 	re := regexp.MustCompile(`(\b[a-z]+)`)
 	var component string
