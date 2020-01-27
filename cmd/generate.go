@@ -175,7 +175,50 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 	} else {
 		log.Fatal("Missing required values in params.yaml, artifactRepository. Check bucket, endpoint, or insecure.")
 	}
-
+	//logging-config-map.env
+	if yamlFile.Get("logging.image") != nil &&
+		yamlFile.Get("logging.volumeStorage") != nil {
+		//Clear previous env file
+		paramsPath := filepath.Join(localManifestsCopyPath, "vars", "logging-config-map.env")
+		if _, err := files.DeleteIfExists(paramsPath); err != nil {
+			return "", err
+		}
+		paramsFile, err := os.Create(paramsPath)
+		if err != nil {
+			return "", err
+		}
+		var stringToWrite = fmt.Sprintf("%v=%v\n%v=%v\n",
+			"loggingImage",keysAndValues["loggingImage"],
+			"loggingVolumeStorage",keysAndValues["loggingVolumeStorage"],
+		)
+		_, err = paramsFile.WriteString(stringToWrite)
+		if err != nil {
+			return "", err
+		}
+	} else {
+		log.Fatal("Missing required values in params.yaml, logging. Check image, or volumeStorage.")
+	}
+	//onepanel-config-map.env
+	if yamlFile.Get("defaultNamespace") != nil {
+		//Clear previous env file
+		paramsPath := filepath.Join(localManifestsCopyPath, "vars", "onepanel-config-map.env")
+		if _, err := files.DeleteIfExists(paramsPath); err != nil {
+			return "", err
+		}
+		paramsFile, err := os.Create(paramsPath)
+		if err != nil {
+			return "", err
+		}
+		var stringToWrite = fmt.Sprintf("%v=%v\n",
+			"defaultNamespace",keysAndValues["defaultNamespace"],
+		)
+		_, err = paramsFile.WriteString(stringToWrite)
+		if err != nil {
+			return "", err
+		}
+	} else {
+		log.Fatal("Missing required values in params.yaml, defaultNamespace")
+	}
 	//Write to secret files
 
 	//This will match all lowercase words, not just the first one.
