@@ -28,9 +28,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
-	"path"
 	"path/filepath"
-	"regexp"
 	"strconv"
 	"strings"
 )
@@ -254,79 +252,6 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 	} else {
 		log.Fatal("Missing required values in params.yaml, artifactRepository. Check accessKeyValue, or secretKeyValue.")
 	}
-	//This will match all lowercase words, not just the first one.
-	re := regexp.MustCompile(`(\b[a-z]+)`)
-	var component string
-	var envFiles map[string]interface{}
-	envFiles = make(map[string]interface{})
-	var paramsFiles map[string]*os.File
-	paramsFiles = make(map[string]*os.File)
-	var secretFileComponent string
-	var secretFileComponentPath string
-	for key := range flatMap {
-		component = re.FindString(key)
-		if strings.Contains(key,"ConfigMap") {
-			envFiles[component] = struct{}{}
-		}
-		if strings.Contains(key,"Secrets") {
-			//Write this value to the secrets.yaml file
-			secretFileComponent = component
-			if component == "workflow" {
-				secretFileComponent = "onepanel"
-			}
-			//Build path to the secret file
-			secretFileComponentPath = path.Join(localManifestsCopyPath,"common",secretFileComponent,"base","secrets.yaml")
-			//Read the file, replace the specific value, write the file back
-			secretFileContent, secretFileOpenErr := ioutil.ReadFile(secretFileComponentPath)
-			if secretFileOpenErr != nil {
-				return "",secretFileOpenErr
-			}
-			secretFileContentStr := string(secretFileContent)
-			value := flatMap[key]
-			oldString := "$(" + key + ")"
-			if strings.Contains(secretFileContentStr,key) {
-				valueStr, ok := value.(string)
-				if !ok {
-					valueBool, _ := value.(bool)
-					valueStr = "\"" + strconv.FormatBool(valueBool) + "\""
-				}
-				secretFileContentStr = strings.Replace(secretFileContentStr,oldString,valueStr,1)
-				writeFileErr := ioutil.WriteFile(secretFileComponentPath,[]byte(secretFileContentStr),0644)
-				if writeFileErr != nil {
-					return "", writeFileErr
-				}
-			} else {
-				fmt.Printf("Key: %v not present in %v, not used.\n",key,secretFileComponentPath)
-			}
-		}
-	}
-	for key := range envFiles {
-		//Clear previous env file
-		paramsPath := filepath.Join(localManifestsCopyPath, "vars", key + "-config-map.env")
-		if _, err := files.DeleteIfExists(paramsPath); err != nil {
-			return "", err
-		}
-		paramsFile, err := os.Create(paramsPath)
-		if err != nil {
-			return "", err
-		}
-		paramsFiles[key] = paramsFile
-	}
-	var paramsFile *os.File
-	//update env files
-	for key := range flatMap {
-		component = re.FindString(key)
-		if strings.Contains(key,"ConfigMap") {
-			//write to specific env file
-			value := flatMap[key]
-			paramsFile = paramsFiles[component]
-			_, err := paramsFile.WriteString(fmt.Sprintf("%v=%v\n", key, value))
-			if err != nil {
-				return "", err
-			}
-		}
-	}
-
 
 	cmd := exec.Command("kustomize", "build", localManifestsCopyPath,  "--load_restrictor",  "none")
 	stdOut, err := cmd.StdoutPipe()
