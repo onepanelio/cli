@@ -136,10 +136,6 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 		return "", err
 	}
 
-	yamlSafe := verifyYamlSecrets(yamlFile, localManifestsCopyPath)
-	if yamlSafe == false {
-		log.Fatalf("Error encountered when verifying Yaml and component secrets.")
-	}
 	flatMap := yamlFile.Flatten(util.LowerCamelCaseFlatMapKeyFormatter)
 
 	//This will match all lowercase words, not just the first one.
