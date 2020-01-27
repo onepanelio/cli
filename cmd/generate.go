@@ -137,6 +137,46 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 	}
 
 	flatMap := yamlFile.Flatten(util.LowerCamelCaseFlatMapKeyFormatter)
+	//Organize flatmap
+	var keysAndValues map[string]string
+	keysAndValues = make(map[string]string)
+	for key := range flatMap {
+		valueStr, ok := flatMap[key].(string)
+		if !ok {
+			valueBool, _ := flatMap[key].(bool)
+			valueStr = "\"" + strconv.FormatBool(valueBool) + "\""
+		}
+		keysAndValues[key] = valueStr
+	}
+
+	//Write to env files
+	//workflow-config-map.env
+	if yamlFile.Get("artifactRepository.bucket") != nil &&
+	yamlFile.Get("artifactRepository.endpoint") != nil &&
+	yamlFile.Get("artifactRepository.insecure") != nil {
+		//Clear previous env file
+		paramsPath := filepath.Join(localManifestsCopyPath, "vars", "workflow-config-map.env")
+		if _, err := files.DeleteIfExists(paramsPath); err != nil {
+			return "", err
+		}
+		paramsFile, err := os.Create(paramsPath)
+		if err != nil {
+			return "", err
+		}
+		var stringToWrite = fmt.Sprintf("%v=%v\n%v=%v\n%v=%v\n",
+			"artifactRepositoryBucket",keysAndValues["artifactRepositoryBucket"],
+			"artifactRepositoryEndpoint",keysAndValues["artifactRepositoryEndpoint"],
+			"artifactRepositoryInsecure",keysAndValues["artifactRepositoryInsecure"],
+		)
+		_, err = paramsFile.WriteString(stringToWrite)
+		if err != nil {
+			return "", err
+		}
+	} else {
+		log.Fatal("Missing required values in params.yaml, artifactRepository. Check bucket, endpoint, or insecure.")
+	}
+
+	//Write to secret files
 
 	//This will match all lowercase words, not just the first one.
 	re := regexp.MustCompile(`(\b[a-z]+)`)
