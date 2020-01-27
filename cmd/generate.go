@@ -325,7 +325,7 @@ func TemplateFromSimpleOverlayedComponents(comps []*opConfig.SimpleOverlayedComp
 					Name:       "onepanel",
 					ApiVersion: "v1",
 				},
-				FieldRef: template.FieldRef{FieldPath:"data.onepanelDefaultConfigMapNamespace"},
+				FieldRef: template.FieldRef{FieldPath:"data.defaultNamespace"},
 			},
 		},
 	}
