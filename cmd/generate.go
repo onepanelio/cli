@@ -317,6 +317,9 @@ func TemplateFromSimpleOverlayedComponents(comps []*opConfig.SimpleOverlayedComp
 		ConfigMapItems: []template.ConfigMapItem{
 			{"onepanel",[]string{"./vars/workflow-config-map.env","./vars/onepanel-config-map.env","./vars/logging-config-map.env"}},
 		},
+		GeneratorOptions: template.GeneratorItem{
+			DisableNameSuffixHash: true,
+		},
 		Vars: []template.VarItem{
 			{
 				Name:     "defaultNamespace",

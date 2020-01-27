@@ -36,6 +36,9 @@ type BuilderConfig struct {
 	Overlays []Overlay
 }
 
+type GeneratorItem struct {
+	DisableNameSuffixHash bool `yaml:"disableNameSuffixHash"`
+}
 type ConfigMapItem struct {
 	Name string `yaml:"name"`
 	Envs []string `yaml:"envs"`
