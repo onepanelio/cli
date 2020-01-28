@@ -167,7 +167,7 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 	if yamlFile.Get("artifactRepository.bucket") != nil &&
 	yamlFile.Get("artifactRepository.endpoint") != nil &&
 	yamlFile.Get("artifactRepository.insecure") != nil &&
-	yamlFile.Get("artifactRepository.s3Region") != nil {
+	yamlFile.Get("artifactRepository.region") != nil {
 		//Clear previous env file
 		paramsPath := filepath.Join(localManifestsCopyPath, "vars", "workflow-config-map.env")
 		if _, err := files.DeleteIfExists(paramsPath); err != nil {
@@ -181,7 +181,7 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 			"artifactRepositoryBucket",keysAndValues["artifactRepositoryBucket"],
 			"artifactRepositoryEndpoint",keysAndValues["artifactRepositoryEndpoint"],
 			"artifactRepositoryInsecure",keysAndValues["artifactRepositoryInsecure"],
-			"artifactRepositoryS3Region",keysAndValues["artifactRepositoryS3Region"],
+			"artifactRepositoryRegion",keysAndValues["artifactRepositoryRegion"],
 		)
 		_, err = paramsFile.WriteString(stringToWrite)
 		if err != nil {
@@ -237,9 +237,9 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 	//Write to secret files
 	//common/onepanel/base/secrets.yaml
 	var secretKeysValues []string
-	if yamlFile.Get("artifactRepository.accessKeyValue") != nil &&
-		yamlFile.Get("artifactRepository.secretKeyValue") != nil {
-		secretKeysValues = append(secretKeysValues, "artifactRepositoryAccessKeyValue","artifactRepositorySecretKeyValue")
+	if yamlFile.Get("artifactRepository.accessKey") != nil &&
+		yamlFile.Get("artifactRepository.secretKey") != nil {
+		secretKeysValues = append(secretKeysValues, "artifactRepositoryAccessKey","artifactRepositorySecretKey")
 		for _, key := range secretKeysValues {
 			//Path to secrets file
 			secretsPath := filepath.Join(localManifestsCopyPath, "common","onepanel","base","secrets.yaml")
@@ -267,7 +267,7 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 			}
 		}
 	} else {
-		log.Fatal("Missing required values in params.yaml, artifactRepository. Check accessKeyValue, or secretKeyValue.")
+		log.Fatal("Missing required values in params.yaml, artifactRepository. Check accessKey, or secretKey.")
 	}
 
 	//To properly replace $(defaultNamespace), we need to update it in quite a few files.
