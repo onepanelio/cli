@@ -277,8 +277,6 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 		return "", err
 	}
 
-	key := "defaultNamespace"
-	valueStr := keysAndValues[key]
 	for _, filePath := range listOfFiles {
 		secretFileContent, secretFileOpenErr := ioutil.ReadFile(filePath)
 		if secretFileOpenErr != nil {
@@ -286,13 +284,15 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 		}
 		secretFileContentStr := string(secretFileContent)
 		//"defaultNamespace",keysAndValues["defaultNamespace"]
-		oldString := "$(" + key + ")"
-		if strings.Contains(secretFileContentStr,key) {
-			secretFileContentStr = strings.Replace(secretFileContentStr,oldString,valueStr,-1)
-			writeFileErr := ioutil.WriteFile(filePath,[]byte(secretFileContentStr),0644)
-			if writeFileErr != nil {
-				return "", writeFileErr
+		for key, valueStr := range keysAndValues {
+			oldString := "$(" + key + ")"
+			if strings.Contains(secretFileContentStr, key) {
+				secretFileContentStr = strings.Replace(secretFileContentStr, oldString, valueStr, -1)
 			}
+		}
+		writeFileErr := ioutil.WriteFile(filePath,[]byte(secretFileContentStr),0644)
+		if writeFileErr != nil {
+			return "", writeFileErr
 		}
 	}
 
