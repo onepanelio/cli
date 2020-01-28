@@ -146,6 +146,21 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 		}
 		keysAndValues[key] = valueStr
 	}
+	//Read workflow-config-map-hidden for the rest of the values
+	workflowEnvHiddenPath := filepath.Join(localManifestsCopyPath, "vars", "workflow-config-map-hidden.env")
+	workflowEnvCont, workflowEnvFileErr := ioutil.ReadFile(workflowEnvHiddenPath)
+	if workflowEnvFileErr != nil {
+		return "", workflowEnvFileErr
+	}
+	workflowEnvContStr := string(workflowEnvCont)
+	//Add these keys and values
+	for _, line := range strings.Split(workflowEnvContStr,"\n") {
+		keyValArr := strings.Split(line,"=")
+		if len(keyValArr) != 2 {
+			continue
+		}
+		keysAndValues[keyValArr[0]] = keyValArr[1]
+	}
 
 	//Write to env files
 	//workflow-config-map.env
