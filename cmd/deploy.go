@@ -106,6 +106,9 @@ op-cli apply config.yaml params.env
 		}
 
 		log.Printf("%v", res)
+		if errRes != "" {
+			log.Printf("%v", errRes)
+		}
 
 		if err != nil {
 			fmt.Printf("\nFailed: %v", err.Error())
