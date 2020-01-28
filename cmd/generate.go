@@ -278,19 +278,19 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 	}
 
 	for _, filePath := range listOfFiles {
-		secretFileContent, secretFileOpenErr := ioutil.ReadFile(filePath)
-		if secretFileOpenErr != nil {
-			return "",secretFileOpenErr
+		manifestFileContent, manifestFileOpenErr := ioutil.ReadFile(filePath)
+		if manifestFileOpenErr != nil {
+			return "", manifestFileOpenErr
 		}
-		secretFileContentStr := string(secretFileContent)
+		manifestFileContentStr := string(manifestFileContent)
 		//"defaultNamespace",keysAndValues["defaultNamespace"]
 		for key, valueStr := range keysAndValues {
 			oldString := "$(" + key + ")"
-			if strings.Contains(secretFileContentStr, key) {
-				secretFileContentStr = strings.Replace(secretFileContentStr, oldString, valueStr, -1)
+			if strings.Contains(manifestFileContentStr, key) {
+				manifestFileContentStr = strings.Replace(manifestFileContentStr, oldString, valueStr, -1)
 			}
 		}
-		writeFileErr := ioutil.WriteFile(filePath,[]byte(secretFileContentStr),0644)
+		writeFileErr := ioutil.WriteFile(filePath,[]byte(manifestFileContentStr),0644)
 		if writeFileErr != nil {
 			return "", writeFileErr
 		}
