@@ -65,6 +65,7 @@ type Kustomize struct {
 	Resources []string `yaml:"resources"`
 	Configurations []string `yaml:"configurations"`
 	ConfigMapItems []ConfigMapItem `yaml:"configMapGenerator"`
+	GeneratorOptions GeneratorItem `yaml:"generatorOptions"`
 	Vars []VarItem `yaml:"vars"`
 }
 
