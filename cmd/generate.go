@@ -253,6 +253,34 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 		log.Fatal("Missing required values in params.yaml, artifactRepository. Check accessKeyValue, or secretKeyValue.")
 	}
 
+	//To properly replace $(defaultNamespace), we need to update it in quite a few files.
+	//Find those files
+	listOfFiles, errorWalking := FilePathWalkDir(localManifestsCopyPath)
+	if errorWalking != nil {
+		return "", err
+	}
+
+	key := "defaultNamespace"
+	valueStr := keysAndValues[key]
+	for _, filePath := range listOfFiles {
+		secretFileContent, secretFileOpenErr := ioutil.ReadFile(filePath)
+		if secretFileOpenErr != nil {
+			return "",secretFileOpenErr
+		}
+		secretFileContentStr := string(secretFileContent)
+		//"defaultNamespace",keysAndValues["defaultNamespace"]
+		oldString := "$(" + key + ")"
+		if strings.Contains(secretFileContentStr,key) {
+			secretFileContentStr = strings.Replace(secretFileContentStr,oldString,valueStr,-1)
+			writeFileErr := ioutil.WriteFile(filePath,[]byte(secretFileContentStr),0644)
+			if writeFileErr != nil {
+				return "", writeFileErr
+			}
+		}
+	}
+
+	//Update the values in those files
+
 	cmd := exec.Command("kustomize", "build", localManifestsCopyPath,  "--load_restrictor",  "none")
 	stdOut, err := cmd.StdoutPipe()
 	if err != nil {
@@ -340,4 +368,17 @@ func TemplateFromSimpleOverlayedComponents(comps []*opConfig.SimpleOverlayedComp
 	}
 
 	return k
+}
+
+func FilePathWalkDir(root string) ([]string, error) {
+	var filesFound []string
+	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+		if !info.IsDir() {
+			if !strings.Contains(path,".git") {
+				filesFound = append(filesFound, path)
+			}
+		}
+		return nil
+	})
+	return filesFound, err
 }
