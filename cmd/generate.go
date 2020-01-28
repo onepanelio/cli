@@ -151,7 +151,8 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 	//workflow-config-map.env
 	if yamlFile.Get("artifactRepository.bucket") != nil &&
 	yamlFile.Get("artifactRepository.endpoint") != nil &&
-	yamlFile.Get("artifactRepository.insecure") != nil {
+	yamlFile.Get("artifactRepository.insecure") != nil &&
+	yamlFile.Get("artifactRepository.s3Region") != nil {
 		//Clear previous env file
 		paramsPath := filepath.Join(localManifestsCopyPath, "vars", "workflow-config-map.env")
 		if _, err := files.DeleteIfExists(paramsPath); err != nil {
@@ -161,10 +162,11 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 		if err != nil {
 			return "", err
 		}
-		var stringToWrite = fmt.Sprintf("%v=%v\n%v=%v\n%v=%v\n",
+		var stringToWrite = fmt.Sprintf("%v=%v\n%v=%v\n%v=%v\n%v=%v\n",
 			"artifactRepositoryBucket",keysAndValues["artifactRepositoryBucket"],
 			"artifactRepositoryEndpoint",keysAndValues["artifactRepositoryEndpoint"],
 			"artifactRepositoryInsecure",keysAndValues["artifactRepositoryInsecure"],
+			"artifactRepositoryS3Region",keysAndValues["artifactRepositoryS3Region"],
 		)
 		_, err = paramsFile.WriteString(stringToWrite)
 		if err != nil {
