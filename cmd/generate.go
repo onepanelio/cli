@@ -342,23 +342,6 @@ func TemplateFromSimpleOverlayedComponents(comps []*opConfig.SimpleOverlayedComp
 		Kind: "Kustomization",
 		Resources: make([]string, 0),
 		Configurations: []string{"configs/varreference.yaml"},
-		ConfigMapItems: []template.ConfigMapItem{
-			{"onepanel",[]string{"./vars/workflow-config-map.env","./vars/onepanel-config-map.env","./vars/logging-config-map.env"}},
-		},
-		GeneratorOptions: template.GeneratorItem{
-			DisableNameSuffixHash: true,
-		},
-		Vars: []template.VarItem{
-			{
-				Name:     "defaultNamespace",
-				ObjRef:   template.ObjectRef{
-					Kind:       "ConfigMap",
-					Name:       "onepanel",
-					ApiVersion: "v1",
-				},
-				FieldRef: template.FieldRef{FieldPath:"data.defaultNamespace"},
-			},
-		},
 	}
 
 	for _, overlayComponent := range comps {
