@@ -7,7 +7,7 @@ import (
 )
 
 type Component struct {
-	path string
+	path     string
 	overlays []*Overlay
 }
 

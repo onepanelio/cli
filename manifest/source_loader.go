@@ -13,18 +13,18 @@ type SourceConfig struct {
 }
 
 type ManifestSourceConfig struct {
-	Github *GithubSourceConfig `yaml:"github,omitempty"`
+	Github    *GithubSourceConfig    `yaml:"github,omitempty"`
 	Directory *DirectorySourceConfig `yaml:"directory,omitempty"`
 }
 
 type GithubSourceConfig struct {
-	Tag *string
+	Tag           *string
 	OverrideCache *bool `yaml:"overrideCache,omitempty"` // default is false
 }
 
 type DirectorySourceConfig struct {
-	From string `yaml:"folder"`
-	OverrideCache *bool `yaml:"overrideCache,omitempty"` // default is false
+	From          string `yaml:"folder"`
+	OverrideCache *bool  `yaml:"overrideCache,omitempty"` // default is false
 }
 
 // This will override the file that already exists at path
@@ -39,7 +39,7 @@ func CreateGithubSourceConfigFile(path string) error {
 	sourceConfig := SourceConfig{
 		ManifestSourceConfig: ManifestSourceConfig{
 			Github: &GithubSourceConfig{
-				Tag:          &latest,
+				Tag:           &latest,
 				OverrideCache: nil,
 			},
 		},
