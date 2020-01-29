@@ -282,9 +282,19 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 		}
 		manifestFileContentStr := string(manifestFileContent)
 		//"defaultNamespace",keysAndValues["defaultNamespace"]
+		configMapCheck := "kind: ConfigMap"
+		configMapFile := false
+		if strings.Contains(manifestFileContentStr, configMapCheck) {
+			configMapFile = true
+		}
 		for key, valueStr := range keysAndValues {
 			oldString := "$(" + key + ")"
 			if strings.Contains(manifestFileContentStr, key) {
+				if configMapFile && valueStr == "false" {
+					if !strings.Contains(manifestFileContentStr,"config: |") {
+						valueStr = "\"false\""
+					}
+				}
 				manifestFileContentStr = strings.Replace(manifestFileContentStr, oldString, valueStr, -1)
 			}
 		}
@@ -292,6 +302,8 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 		if writeFileErr != nil {
 			return "", writeFileErr
 		}
+		//reset for next file
+		configMapFile = false
 	}
 
 	//Update the values in those files
