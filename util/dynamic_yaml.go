@@ -58,7 +58,7 @@ func LoadDynamicYaml(filePath string) (*DynamicYaml, error) {
 	}
 
 	dynamicYaml := &DynamicYaml{
-		data:data,
+		data: data,
 	}
 
 	return dynamicYaml, nil
@@ -88,7 +88,7 @@ func (d *DynamicYaml) PutByParts(value interface{}, keys ...string) {
 	queryObj := d.data
 
 	for i, key := range keys {
-		if i == len(keys) - 1 {
+		if i == len(keys)-1 {
 			queryObj[key] = value
 			continue
 		}
@@ -120,7 +120,7 @@ func (d *DynamicYaml) Flatten(keyFormatter FlatMapKeyFormatter) map[string]inter
 	return results
 }
 
-func flattenMap(path string, keyFormatter FlatMapKeyFormatter,  obj map[interface{}]interface{}, results map[string]interface{}) {
+func flattenMap(path string, keyFormatter FlatMapKeyFormatter, obj map[interface{}]interface{}, results map[string]interface{}) {
 	for key := range obj {
 		newKeyAsString, stringOk := key.(string)
 		if !stringOk {

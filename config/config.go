@@ -40,16 +40,16 @@ func (s *SimpleOverlayedComponent) PartsSkipFirst() []*string {
 }
 
 type Config struct {
-	ApiVersion string `yaml:"apiVersion"`
-	Kind string `yaml:"kind"`
-	Spec ConfigSpec `yaml:"spec"`
+	ApiVersion string     `yaml:"apiVersion"`
+	Kind       string     `yaml:"kind"`
+	Spec       ConfigSpec `yaml:"spec"`
 }
 
 type ConfigSpec struct {
-	ManifestsRepo string `yaml:"manifestsRepo"`
-	Params string `yaml:"params"`
-	Components []string `yaml:"components"`
-	Overlays []string `yaml:"overlays"`
+	ManifestsRepo string   `yaml:"manifestsRepo"`
+	Params        string   `yaml:"params"`
+	Components    []string `yaml:"components"`
+	Overlays      []string `yaml:"overlays"`
 }
 
 func FromFile(path string) (config *Config, err error) {
@@ -105,13 +105,13 @@ func (c *Config) GetOverlayComponents() []*SimpleOverlayedComponent {
 	mappedComponents := make(map[string]*SimpleOverlayedComponent)
 
 	for _, component := range c.Spec.Components {
-		formattedName := strings.TrimSuffix(component, string(os.PathSeparator) + "base")
+		formattedName := strings.TrimSuffix(component, string(os.PathSeparator)+"base")
 		mappedComponents[formattedName] = CreateSimpleOverlayedComponent(component)
 	}
 
 	for i := range c.Spec.Overlays {
 		overlay := c.Spec.Overlays[i]
-		overlaysIndex := strings.Index(overlay, string(os.PathSeparator) + "overlays")
+		overlaysIndex := strings.Index(overlay, string(os.PathSeparator)+"overlays")
 		formattedName := overlay[:overlaysIndex]
 
 		if _, ok := mappedComponents[formattedName]; ok {

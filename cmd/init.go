@@ -1,18 +1,3 @@
-/*
-Copyright © 2019 NAME HERE <EMAIL ADDRESS>
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
 package cmd
 
 import (
@@ -34,10 +19,10 @@ const (
 
 var (
 	ConfigurationFilePath string
-	ParametersFilePath string
-	Provider string
-	Dns string
-	LoggingComponent bool
+	ParametersFilePath    string
+	Provider              string
+	DNS                   string
+	LoggingComponent      bool
 )
 
 // initCmd represents the init command
@@ -61,7 +46,7 @@ If there is no argument, configuration.yaml is used.`,
 			}
 		}
 
-		source, err := manifest.LoadManifestSourceFromFileConfig(configFile);
+		source, err := manifest.LoadManifestSourceFromFileConfig(configFile)
 		if err != nil {
 			log.Printf("[error] loading manifest source: %v", err.Error())
 			return
@@ -87,7 +72,7 @@ If there is no argument, configuration.yaml is used.`,
 			return
 		}
 
-		if err := validateDns(Dns); err != nil {
+		if err := validateDNS(DNS); err != nil {
 			fmt.Println(err.Error())
 			return
 		}
@@ -108,7 +93,7 @@ If there is no argument, configuration.yaml is used.`,
 		setup := config.Config{
 			ApiVersion: "opdef.apps.onepanel.io/v1alpha1",
 			Kind:       "OpDef",
-			Spec:       config.ConfigSpec{
+			Spec: config.ConfigSpec{
 				Components:    []string{},
 				ManifestsRepo: manifestsRepoPath,
 				Params:        ParametersFilePath,
@@ -122,7 +107,7 @@ If there is no argument, configuration.yaml is used.`,
 
 		skipList := make([]string, 0)
 		if Provider == "minikube" {
-			skipList = append(skipList, "common" + string(os.PathSeparator) + "istio")
+			skipList = append(skipList, "common"+string(os.PathSeparator)+"istio")
 		}
 
 		bld := manifest.CreateBuilder(loadedManifest)
@@ -136,7 +121,7 @@ If there is no argument, configuration.yaml is used.`,
 			return
 		}
 
-		if err := addDnsProviderToManifestBuilder(Dns, bld); err != nil {
+		if err := addDNSProviderToManifestBuilder(DNS, bld); err != nil {
 			log.Printf("[error] Adding Dns Provider: %v", err.Error())
 			return
 		}
@@ -203,8 +188,8 @@ If there is no argument, configuration.yaml is used.`,
 		fmt.Printf("Configuration has been created with\n")
 		fmt.Printf("- Provider: %v\n", Provider)
 
-		if Dns != "" {
-			fmt.Printf("- Dns: %v\n", Dns)
+		if DNS != "" {
+			fmt.Printf("- Dns: %v\n", DNS)
 		}
 
 		fmt.Printf("- Configuration file: %v\n", ConfigurationFilePath)
@@ -212,12 +197,11 @@ If there is no argument, configuration.yaml is used.`,
 	},
 }
 
-
 func init() {
 	rootCmd.AddCommand(initCmd)
 
 	initCmd.Flags().StringVarP(&Provider, "provider", "p", "minikube", "Provider you are using. Valid values are: aws, gcp, azure, or minikube")
-	initCmd.Flags().StringVarP(&Dns, "dns", "d", "", "Provider for DNS. Valid values are: aws for route53")
+	initCmd.Flags().StringVarP(&DNS, "dns", "d", "", "Provider for DNS. Valid values are: aws for route53")
 	initCmd.Flags().StringVarP(&ConfigurationFilePath, "config", "c", "config.yaml", "File path of the resulting config file")
 	initCmd.Flags().StringVarP(&ParametersFilePath, "params", "e", "params.yaml", "File path of the resulting parameters file")
 	initCmd.Flags().BoolVarP(&LoggingComponent, "logging", "l", false, "If set, adds a logging component")
@@ -231,7 +215,7 @@ func validateProvider(prov string) error {
 	return nil
 }
 
-func validateDns(dns string) error {
+func validateDNS(dns string) error {
 	if dns != "aws" && dns != "" {
 		return fmt.Errorf("unsupported dns %v", dns)
 	}
@@ -257,13 +241,13 @@ func addCloudProviderToManifestBuilder(provider string, builder *manifest.Builde
 	return nil
 }
 
-func addDnsProviderToManifestBuilder(dns string, builder *manifest.Builder) error {
+func addDNSProviderToManifestBuilder(dns string, builder *manifest.Builder) error {
 	if dns == "" {
 		return nil
 	}
 
 	builder.AddOverlayContender(dns)
 
-	overlay := strings.Join([]string{"cert-manager","overlays",dns},string(os.PathSeparator))
+	overlay := strings.Join([]string{"cert-manager", "overlays", dns}, string(os.PathSeparator))
 	return builder.AddOverlay(overlay)
 }

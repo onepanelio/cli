@@ -16,24 +16,24 @@ type Source interface {
 }
 
 type GithubSource struct {
-	tag string // The tag of the release. latest is also accepted.
-	overrideCache bool // if true, will override the local cached files.
-	release *github.Release
-	moved bool // true if MoveToDirectory has been called
-	destination string // the directory to move the manifest files to
+	tag           string // The tag of the release. latest is also accepted.
+	overrideCache bool   // if true, will override the local cached files.
+	release       *github.Release
+	moved         bool   // true if MoveToDirectory has been called
+	destination   string // the directory to move the manifest files to
 }
 
 func CreateGithubSource(tag string, overrideCache bool) (*GithubSource, error) {
 	source := &GithubSource{
-		tag:tag,
-		overrideCache:overrideCache,
-		moved: false,
+		tag:           tag,
+		overrideCache: overrideCache,
+		moved:         false,
 	}
 
 	return source, nil
 }
 
-func (g* GithubSource) getTagDownloadUrl() (string, error) {
+func (g *GithubSource) getTagDownloadUrl() (string, error) {
 	if g.release == nil {
 		githubApi, err := github.New("https://api.github.com/repos/onepanelio/manifests")
 		if err != nil {
@@ -64,7 +64,7 @@ func (g *GithubSource) getManifestPath(directoryPath string) string {
 	return directoryPath + string(os.PathSeparator) + g.release.TagName
 }
 
-func (g* GithubSource) GetManifestPath() (string, error) {
+func (g *GithubSource) GetManifestPath() (string, error) {
 	if !g.moved {
 		return "", fmt.Errorf("files not yet moved. Unable to get manifest path")
 	}
@@ -72,12 +72,12 @@ func (g* GithubSource) GetManifestPath() (string, error) {
 	return g.getManifestPath(g.destination), nil
 }
 
-func (g* GithubSource) MoveToDirectory(directoryPath string,) error {
+func (g *GithubSource) MoveToDirectory(directoryPath string) error {
 	g.destination = directoryPath
 
 	tempManifestsPath := ".temp_manifests"
 
-	defer func () {
+	defer func() {
 		_, err := files.DeleteIfExists(tempManifestsPath)
 		if err != nil {
 			log.Printf("[error] Deleting %v: %v", tempManifestsPath, err.Error())
@@ -119,7 +119,7 @@ func (g* GithubSource) MoveToDirectory(directoryPath string,) error {
 		return nil
 	}
 
-	if err := os.Rename(unzippedFiles[0], directoryPath + string(os.PathSeparator) +  g.release.TagName); err != nil {
+	if err := os.Rename(unzippedFiles[0], directoryPath+string(os.PathSeparator)+g.release.TagName); err != nil {
 		return err
 	}
 
@@ -130,33 +130,33 @@ func (g* GithubSource) MoveToDirectory(directoryPath string,) error {
 
 type DirectorySource struct {
 	sourceDirectory string
-	overrideCache bool // if true, will override the local cached files.
-	moved bool // true if MoveToDirectory has been called
-	destination string // the directory to move the manifest files to
+	overrideCache   bool   // if true, will override the local cached files.
+	moved           bool   // true if MoveToDirectory has been called
+	destination     string // the directory to move the manifest files to
 }
 
 func CreateDirectorySource(sourceDirectory string, overrideCache bool) (*DirectorySource, error) {
 	source := &DirectorySource{
 		sourceDirectory: sourceDirectory,
-		overrideCache:overrideCache,
-		moved: false,
+		overrideCache:   overrideCache,
+		moved:           false,
 	}
 
 	return source, nil
 }
 
-func (d* DirectorySource) getManifestPath(directoryPath string) string {
+func (d *DirectorySource) getManifestPath(directoryPath string) string {
 	lastPathSeparatorIndex := strings.LastIndex(d.sourceDirectory, string(os.PathSeparator))
-	if lastPathSeparatorIndex < 0  {
+	if lastPathSeparatorIndex < 0 {
 		return directoryPath + string(os.PathSeparator) + d.sourceDirectory
 	}
 
-	destinationDirectoryName := d.sourceDirectory[lastPathSeparatorIndex + 1:]
+	destinationDirectoryName := d.sourceDirectory[lastPathSeparatorIndex+1:]
 
 	return directoryPath + string(os.PathSeparator) + destinationDirectoryName
 }
 
-func (d* DirectorySource) GetManifestPath() (string, error) {
+func (d *DirectorySource) GetManifestPath() (string, error) {
 	if !d.moved {
 		return "", fmt.Errorf("files not yet moved. Unable to get manifest path")
 	}
@@ -164,7 +164,7 @@ func (d* DirectorySource) GetManifestPath() (string, error) {
 	return d.getManifestPath(d.destination), nil
 }
 
-func (d* DirectorySource) MoveToDirectory(directoryPath string) error {
+func (d *DirectorySource) MoveToDirectory(directoryPath string) error {
 	d.destination = directoryPath
 
 	finalManifestPath := d.getManifestPath(directoryPath)

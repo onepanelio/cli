@@ -14,9 +14,9 @@ import (
 type Source struct {
 	AbsolutePath string // path in the filesystem to the file used
 	ManifestPath string // path relative to the manifests root directory
-	Name string // name of the configuration. E.g. istio, istio-crds. This is a configuration which must have a base directory under it.
-	IsOverlay bool
-	Order int
+	Name         string // name of the configuration. E.g. istio, istio-crds. This is a configuration which must have a base directory under it.
+	IsOverlay    bool
+	Order        int
 }
 
 // A component used for the configuration, such as istio, istio-crds, argo, etc.
@@ -32,21 +32,21 @@ type Overlay struct {
 
 type BuilderConfig struct {
 	ManifestRoot string // absolute path to the manifests directory containing the kustomize files.
-	Components []Component
-	Overlays []Overlay
+	Components   []Component
+	Overlays     []Overlay
 }
 
 type GeneratorItem struct {
 	DisableNameSuffixHash bool `yaml:"disableNameSuffixHash"`
 }
 type ConfigMapItem struct {
-	Name string `yaml:"name"`
+	Name string   `yaml:"name"`
 	Envs []string `yaml:"envs"`
 }
 
 type ObjectRef struct {
-	Kind string `yaml:"kind"`
-	Name string `yaml:"name"`
+	Kind       string `yaml:"kind"`
+	Name       string `yaml:"name"`
 	ApiVersion string `yaml:"apiVersion"`
 }
 
@@ -54,27 +54,27 @@ type FieldRef struct {
 	FieldPath string `yaml:"fieldpath"`
 }
 type VarItem struct {
-	Name string `yaml:"name"`
-	ObjRef ObjectRef `yaml:"objref"`
-	FieldRef FieldRef `yaml:"fieldref"`
+	Name     string    `yaml:"name"`
+	ObjRef   ObjectRef `yaml:"objref"`
+	FieldRef FieldRef  `yaml:"fieldref"`
 }
 
 type Kustomize struct {
-	ApiVersion string `yaml:"apiVersion"`
-	Kind string `yaml:"kind"`
-	Resources []string `yaml:"resources"`
-	Configurations []string `yaml:"configurations"`
-	ConfigMapItems []ConfigMapItem `yaml:"configMapGenerator"`
-	GeneratorOptions GeneratorItem `yaml:"generatorOptions"`
-	Vars []VarItem `yaml:"vars"`
+	ApiVersion       string          `yaml:"apiVersion"`
+	Kind             string          `yaml:"kind"`
+	Resources        []string        `yaml:"resources"`
+	Configurations   []string        `yaml:"configurations"`
+	ConfigMapItems   []ConfigMapItem `yaml:"configMapGenerator"`
+	GeneratorOptions GeneratorItem   `yaml:"generatorOptions"`
+	Vars             []VarItem       `yaml:"vars"`
 }
 
 type Builder struct {
-	Sources map[string][]Source
+	Sources         map[string][]Source
 	KeyedComponents map[string]Component
-	KeyedOverlays map[string]Overlay
-	ManifestRoot string
-	Vars map[string]string
+	KeyedOverlays   map[string]Overlay
+	ManifestRoot    string
+	Vars            map[string]string
 }
 
 func createBuilder() Builder {
@@ -82,7 +82,7 @@ func createBuilder() Builder {
 		Sources:         make(map[string][]Source),
 		KeyedComponents: make(map[string]Component),
 		KeyedOverlays:   make(map[string]Overlay),
-		Vars: make(map[string]string),
+		Vars:            make(map[string]string),
 	}
 }
 
@@ -109,18 +109,18 @@ func NewBuilderFromConfig(config config.Config) Builder {
 
 	for i := range config.Spec.Components {
 		component := config.Spec.Components[i]
-		b.KeyedComponents[component] = Component{Name:component}
+		b.KeyedComponents[component] = Component{Name: component}
 	}
 
 	for i := range config.Spec.Overlays {
 		overlay := config.Spec.Overlays[i]
-		b.KeyedOverlays[overlay] = Overlay{Name:overlay}
+		b.KeyedOverlays[overlay] = Overlay{Name: overlay}
 	}
 
 	return b
 }
 
-func (b *Builder) Build() error  {
+func (b *Builder) Build() error {
 	root := b.ManifestRoot
 	commonComponentsRoot := filepath.Join(root, "common")
 
@@ -200,9 +200,9 @@ func (b *Builder) Build() error  {
 				return b.considerComponent(path, componentName, 1)
 			}
 
-			if part == "overlays" && i > 0 && i != (len(parts) -1) {
-				componentName := parts[i - 1]
-				overlayName := parts[i + 1]
+			if part == "overlays" && i > 0 && i != (len(parts)-1) {
+				componentName := parts[i-1]
+				overlayName := parts[i+1]
 				return b.considerOverlay(path, componentName, overlayName, 1)
 			}
 		}
@@ -215,9 +215,9 @@ func (b *Builder) Build() error  {
 
 func (b *Builder) Template() Kustomize {
 	k := Kustomize{
-		ApiVersion: "kustomize.config.k8s.io/v1beta1",
-		Kind: "Kustomization",
-		Resources: make([]string, 0),
+		ApiVersion:     "kustomize.config.k8s.io/v1beta1",
+		Kind:           "Kustomization",
+		Resources:      make([]string, 0),
 		Configurations: []string{"configs/varreference.yaml"},
 	}
 
@@ -253,7 +253,7 @@ func (b *Builder) flattenSources() []Source {
 
 func (b *Builder) addComponent(path, componentName string, order int) error {
 	b.KeyedComponents[componentName] = Component{
-		Name:componentName,
+		Name: componentName,
 	}
 
 	return b.addOrReplaceSource(path, componentName, order, false)
@@ -264,7 +264,7 @@ func (b *Builder) considerComponent(path, componentName string, order int) error
 		return nil
 	}
 
-	return b.addOrReplaceSource(path, componentName, order,false)
+	return b.addOrReplaceSource(path, componentName, order, false)
 }
 
 // Given an Overlay, checks if the manifest uses it and replaces the component if it does.
@@ -287,7 +287,7 @@ func (b *Builder) considerOverlay(path, componentName, overlayName string, order
 	return b.addOrReplaceSource(path, componentName, order, true)
 }
 
-func (b* Builder) addOrReplaceSource(path, componentName string, order int, isOverlay bool) error {
+func (b *Builder) addOrReplaceSource(path, componentName string, order int, isOverlay bool) error {
 	manifestPath, err := filepath.Rel(b.ManifestRoot, path)
 	if err != nil {
 		return err
@@ -301,8 +301,8 @@ func (b* Builder) addOrReplaceSource(path, componentName string, order int, isOv
 		AbsolutePath: path,
 		ManifestPath: manifestPath,
 		Name:         componentName,
-		IsOverlay: isOverlay,
-		Order: order,
+		IsOverlay:    isOverlay,
+		Order:        order,
 	}
 
 	if !isOverlay || len(b.Sources[componentName]) == 0 {
@@ -323,7 +323,6 @@ func (b* Builder) addOrReplaceSource(path, componentName string, order int, isOv
 
 	return nil
 }
-
 
 // TODO remove?
 func (b *Builder) addVarsFile(path string) error {
@@ -349,7 +348,7 @@ func (b *Builder) addVarsFile(path string) error {
 
 // Adds a variable from the configuration.
 // We need the path of the file and the name of the variable.
-func (b* Builder) addVar(path string, value *files.ConfigVar) {
+func (b *Builder) addVar(path string, value *files.ConfigVar) {
 	// TODO remove?
 	b.Vars[path] = path
 }

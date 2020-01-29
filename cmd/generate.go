@@ -1,18 +1,3 @@
-/*
-Copyright © 2019 NAME HERE <EMAIL ADDRESS>
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
 package cmd
 
 import (
@@ -127,8 +112,6 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 		return "", err
 	}
 
-
-
 	yamlFile, err := util.LoadDynamicYaml(config.Spec.Params)
 	if err != nil {
 		return "", err
@@ -154,8 +137,8 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 	}
 	workflowEnvContStr := string(workflowEnvCont)
 	//Add these keys and values
-	for _, line := range strings.Split(workflowEnvContStr,"\n") {
-		keyValArr := strings.Split(line,"=")
+	for _, line := range strings.Split(workflowEnvContStr, "\n") {
+		keyValArr := strings.Split(line, "=")
 		if len(keyValArr) != 2 {
 			continue
 		}
@@ -165,9 +148,9 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 	//Write to env files
 	//workflow-config-map.env
 	if yamlFile.Get("artifactRepository.bucket") != nil &&
-	yamlFile.Get("artifactRepository.endpoint") != nil &&
-	yamlFile.Get("artifactRepository.insecure") != nil &&
-	yamlFile.Get("artifactRepository.region") != nil {
+		yamlFile.Get("artifactRepository.endpoint") != nil &&
+		yamlFile.Get("artifactRepository.insecure") != nil &&
+		yamlFile.Get("artifactRepository.region") != nil {
 		//Clear previous env file
 		paramsPath := filepath.Join(localManifestsCopyPath, "vars", "workflow-config-map.env")
 		if _, err := files.DeleteIfExists(paramsPath); err != nil {
@@ -178,10 +161,10 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 			return "", err
 		}
 		var stringToWrite = fmt.Sprintf("%v=%v\n%v=%v\n%v=%v\n%v=%v\n",
-			"artifactRepositoryBucket",keysAndValues["artifactRepositoryBucket"],
-			"artifactRepositoryEndpoint",keysAndValues["artifactRepositoryEndpoint"],
-			"artifactRepositoryInsecure",keysAndValues["artifactRepositoryInsecure"],
-			"artifactRepositoryRegion",keysAndValues["artifactRepositoryRegion"],
+			"artifactRepositoryBucket", keysAndValues["artifactRepositoryBucket"],
+			"artifactRepositoryEndpoint", keysAndValues["artifactRepositoryEndpoint"],
+			"artifactRepositoryInsecure", keysAndValues["artifactRepositoryInsecure"],
+			"artifactRepositoryRegion", keysAndValues["artifactRepositoryRegion"],
 		)
 		_, err = paramsFile.WriteString(stringToWrite)
 		if err != nil {
@@ -203,8 +186,8 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 			return "", err
 		}
 		var stringToWrite = fmt.Sprintf("%v=%v\n%v=%v\n",
-			"loggingImage",keysAndValues["loggingImage"],
-			"loggingVolumeStorage",keysAndValues["loggingVolumeStorage"],
+			"loggingImage", keysAndValues["loggingImage"],
+			"loggingVolumeStorage", keysAndValues["loggingVolumeStorage"],
 		)
 		_, err = paramsFile.WriteString(stringToWrite)
 		if err != nil {
@@ -223,7 +206,7 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 			return "", err
 		}
 		var stringToWrite = fmt.Sprintf("%v=%v\n",
-			"defaultNamespace",keysAndValues["defaultNamespace"],
+			"defaultNamespace", keysAndValues["defaultNamespace"],
 		)
 		_, err = paramsFile.WriteString(stringToWrite)
 		if err != nil {
@@ -237,31 +220,31 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 	var secretKeysValues []string
 	if yamlFile.Get("artifactRepository.accessKey") != nil &&
 		yamlFile.Get("artifactRepository.secretKey") != nil {
-		secretKeysValues = append(secretKeysValues, "artifactRepositoryAccessKey","artifactRepositorySecretKey")
+		secretKeysValues = append(secretKeysValues, "artifactRepositoryAccessKey", "artifactRepositorySecretKey")
 		for _, key := range secretKeysValues {
 			//Path to secrets file
-			secretsPath := filepath.Join(localManifestsCopyPath, "common","onepanel","base","secrets.yaml")
+			secretsPath := filepath.Join(localManifestsCopyPath, "common", "onepanel", "base", "secrets.yaml")
 			//Read the file, replace the specific value, write the file back
 			secretFileContent, secretFileOpenErr := ioutil.ReadFile(secretsPath)
 			if secretFileOpenErr != nil {
-				return "",secretFileOpenErr
+				return "", secretFileOpenErr
 			}
 			secretFileContentStr := string(secretFileContent)
 			value := flatMap[key]
 			oldString := "$(" + key + ")"
-			if strings.Contains(secretFileContentStr,key) {
+			if strings.Contains(secretFileContentStr, key) {
 				valueStr, ok := value.(string)
 				if !ok {
 					valueBool, _ := value.(bool)
 					valueStr = strconv.FormatBool(valueBool)
 				}
-				secretFileContentStr = strings.Replace(secretFileContentStr,oldString,valueStr,1)
-				writeFileErr := ioutil.WriteFile(secretsPath,[]byte(secretFileContentStr),0644)
+				secretFileContentStr = strings.Replace(secretFileContentStr, oldString, valueStr, 1)
+				writeFileErr := ioutil.WriteFile(secretsPath, []byte(secretFileContentStr), 0644)
 				if writeFileErr != nil {
 					return "", writeFileErr
 				}
 			} else {
-				fmt.Printf("Key: %v not present in %v, not used.\n",key,secretsPath)
+				fmt.Printf("Key: %v not present in %v, not used.\n", key, secretsPath)
 			}
 		}
 	} else {
@@ -291,14 +274,14 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 			oldString := "$(" + key + ")"
 			if strings.Contains(manifestFileContentStr, key) {
 				if configMapFile && valueStr == "false" {
-					if !strings.Contains(manifestFileContentStr,"config: |") {
+					if !strings.Contains(manifestFileContentStr, "config: |") {
 						valueStr = "\"false\""
 					}
 				}
 				manifestFileContentStr = strings.Replace(manifestFileContentStr, oldString, valueStr, -1)
 			}
 		}
-		writeFileErr := ioutil.WriteFile(filePath,[]byte(manifestFileContentStr),0644)
+		writeFileErr := ioutil.WriteFile(filePath, []byte(manifestFileContentStr), 0644)
 		if writeFileErr != nil {
 			return "", writeFileErr
 		}
@@ -308,7 +291,7 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 
 	//Update the values in those files
 
-	cmd := exec.Command("kustomize", "build", localManifestsCopyPath,  "--load_restrictor",  "none")
+	cmd := exec.Command("kustomize", "build", localManifestsCopyPath, "--load_restrictor", "none")
 	stdOut, err := cmd.StdoutPipe()
 	if err != nil {
 		return "", err
@@ -343,9 +326,9 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 
 func BuilderToTemplate(builder *manifest.Builder) template.Kustomize {
 	k := template.Kustomize{
-		ApiVersion: "kustomize.config.k8s.io/v1beta1",
-		Kind: "Kustomization",
-		Resources: make([]string, 0),
+		ApiVersion:     "kustomize.config.k8s.io/v1beta1",
+		Kind:           "Kustomization",
+		Resources:      make([]string, 0),
 		Configurations: []string{"configs/varreference.yaml"},
 	}
 
@@ -365,9 +348,9 @@ func BuilderToTemplate(builder *manifest.Builder) template.Kustomize {
 
 func TemplateFromSimpleOverlayedComponents(comps []*opConfig.SimpleOverlayedComponent) template.Kustomize {
 	k := template.Kustomize{
-		ApiVersion: "kustomize.config.k8s.io/v1beta1",
-		Kind: "Kustomization",
-		Resources: make([]string, 0),
+		ApiVersion:     "kustomize.config.k8s.io/v1beta1",
+		Kind:           "Kustomization",
+		Resources:      make([]string, 0),
 		Configurations: []string{"configs/varreference.yaml"},
 	}
 
@@ -384,7 +367,7 @@ func FilePathWalkDir(root string) ([]string, error) {
 	var filesFound []string
 	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		if !info.IsDir() {
-			if !strings.Contains(path,".git") {
+			if !strings.Contains(path, ".git") {
 				filesFound = append(filesFound, path)
 			}
 		}

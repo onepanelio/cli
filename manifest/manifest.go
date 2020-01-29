@@ -8,12 +8,12 @@ import (
 )
 
 type Manifest struct {
-	path string // where the manifest directory is located
+	path       string // where the manifest directory is located
 	components map[string]*Component
-	overlays map[string]*Overlay
+	overlays   map[string]*Overlay
 }
 
-func LoadManifest(manifestRoot string) (*Manifest, error)  {
+func LoadManifest(manifestRoot string) (*Manifest, error) {
 	m := &Manifest{
 		path:       manifestRoot,
 		components: make(map[string]*Component),
@@ -45,14 +45,13 @@ func LoadManifest(manifestRoot string) (*Manifest, error)  {
 			}
 
 			if i > 0 && parts[i-1] == "overlays" {
-				pathUpToOverlay := strings.Join(parts[:i + 1], string(os.PathSeparator))
+				pathUpToOverlay := strings.Join(parts[:i+1], string(os.PathSeparator))
 				m.addOverlay(pathUpToOverlay)
 			}
 		}
 
 		return nil
 	})
-
 
 	return m, err
 }
@@ -78,7 +77,7 @@ func (m *Manifest) addOverlay(relativePath string) *Overlay {
 	}
 
 	startOfOverlaysIndex := strings.LastIndex(relativePath, "overlays")
-	componentPath := relativePath[:startOfOverlaysIndex - 1]
+	componentPath := relativePath[:startOfOverlaysIndex-1]
 
 	component := m.addComponent(componentPath)
 
