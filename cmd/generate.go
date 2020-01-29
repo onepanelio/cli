@@ -190,7 +190,7 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 	} else {
 		log.Fatal("Missing required values in params.yaml, artifactRepository. Check bucket, endpoint, or insecure.")
 	}
-	//logging-config-map.env
+	//logging-config-map.env, optional component
 	if yamlFile.Get("logging.image") != nil &&
 		yamlFile.Get("logging.volumeStorage") != nil {
 		//Clear previous env file
@@ -210,8 +210,6 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 		if err != nil {
 			return "", err
 		}
-	} else {
-		log.Fatal("Missing required values in params.yaml, logging. Check image, or volumeStorage.")
 	}
 	//onepanel-config-map.env
 	if yamlFile.Get("defaultNamespace") != nil {
