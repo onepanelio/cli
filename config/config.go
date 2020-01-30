@@ -99,14 +99,48 @@ func (c *Config) AddOverlay(name string) {
 	c.Spec.Overlays = append(c.Spec.Overlays, name)
 }
 
-func (c *Config) GetOverlayComponents() []*SimpleOverlayedComponent {
+func (c *Config) GetOverlayComponents(skipOverlayComponent string) []*SimpleOverlayedComponent {
 	overlayedComponents := make([]*SimpleOverlayedComponent, 0)
 
 	mappedComponents := make(map[string]*SimpleOverlayedComponent)
 
 	for _, component := range c.Spec.Components {
+		if component == skipOverlayComponent {
+			continue
+		}
 		formattedName := strings.TrimSuffix(component, string(os.PathSeparator)+"base")
 		mappedComponents[formattedName] = CreateSimpleOverlayedComponent(component)
+	}
+
+	for i := range c.Spec.Overlays {
+		overlay := c.Spec.Overlays[i]
+		overlaysIndex := strings.Index(overlay, string(os.PathSeparator)+"overlays")
+		formattedName := overlay[:overlaysIndex]
+
+		if _, ok := mappedComponents[formattedName]; ok {
+			mappedComponents[formattedName].AddPart(&overlay)
+		}
+	}
+
+	for key := range mappedComponents {
+		overlayedComponents = append(overlayedComponents, mappedComponents[key])
+	}
+
+	return overlayedComponents
+}
+
+//overlayComponent is form of "common/application/base"
+func (c *Config) GetOverlayComponent(overlayComponentGet string) []*SimpleOverlayedComponent {
+	overlayedComponents := make([]*SimpleOverlayedComponent, 0)
+
+	mappedComponents := make(map[string]*SimpleOverlayedComponent)
+
+	for _, component := range c.Spec.Components {
+		if overlayComponentGet == component {
+			formattedName := strings.TrimSuffix(component, string(os.PathSeparator)+"base")
+			mappedComponents[formattedName] = CreateSimpleOverlayedComponent(component)
+			break
+		}
 	}
 
 	for i := range c.Spec.Overlays {

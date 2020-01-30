@@ -43,7 +43,7 @@ op-cli generate config.yaml params.yaml
 			return
 		}
 
-		kustomizeTemplate := TemplateFromSimpleOverlayedComponents(config.GetOverlayComponents())
+		kustomizeTemplate := TemplateFromSimpleOverlayedComponents(config.GetOverlayComponents(""))
 
 		result, err := GenerateKustomizeResult(*config, kustomizeTemplate)
 		if err != nil {

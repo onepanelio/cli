@@ -37,7 +37,73 @@ op-cli apply config.yaml params.env
 			return
 		}
 
-		kustomizeTemplate := TemplateFromSimpleOverlayedComponents(config.GetOverlayComponents())
+		overlayComponentFirst := "common/application/base"
+		baseOverlayComponent := config.GetOverlayComponent(overlayComponentFirst)
+		applicationBaseKustomizeTemplate := TemplateFromSimpleOverlayedComponents(baseOverlayComponent)
+		applicationResult, err := GenerateKustomizeResult(*config, applicationBaseKustomizeTemplate)
+		if err != nil {
+			log.Printf("Error generating result %v", err.Error())
+			return
+		}
+
+		applicationKubernetesYamlFilePath := ".application.kubernetes.yaml"
+
+		existsApp, err := files.Exists(applicationKubernetesYamlFilePath)
+		if err != nil {
+			log.Printf("Unable to check if file %v exists", applicationKubernetesYamlFilePath)
+			return
+		}
+
+		var applicationKubernetesFile *os.File = nil
+		if !existsApp {
+			applicationKubernetesFile, err = os.Create(applicationKubernetesYamlFilePath)
+			if err != nil {
+				log.Printf("Unable to create file: error %v", err.Error())
+				return
+			}
+		} else {
+			applicationKubernetesFile, err = os.OpenFile(applicationKubernetesYamlFilePath, os.O_RDWR|os.O_TRUNC, 0)
+			if err != nil {
+				log.Printf("Unable to open file: error %v", err.Error())
+				return
+			}
+		}
+
+		if _, err := applicationKubernetesFile.WriteString(applicationResult); err != nil {
+			log.Printf("Error writing to temporary file: %v", err.Error())
+			return
+		}
+
+		fmt.Printf("Deploying application...\n")
+
+		resApp := ""
+		errResApp := ""
+
+		for i := 0; i < 5; i++ {
+			resApp, errResApp, err = applyKubernetesFile(applicationKubernetesYamlFilePath)
+			if !strings.Contains(errResApp, "no matches for kind") {
+				break
+			}
+
+			fmt.Printf(".")
+			fmt.Printf(".")
+
+			time.Sleep(time.Second * 3)
+		}
+
+		log.Printf("%v", resApp)
+		if errResApp != "" {
+			log.Printf("%v", errResApp)
+		}
+
+		if err != nil {
+			fmt.Printf("\nFailed: %v", err.Error())
+			return
+		}
+		fmt.Printf("\nFinished applying application.\n")
+
+		//Apply the rest of the yaml
+		kustomizeTemplate := TemplateFromSimpleOverlayedComponents(config.GetOverlayComponents(overlayComponentFirst))
 
 		result, err := GenerateKustomizeResult(*config, kustomizeTemplate)
 		if err != nil {
