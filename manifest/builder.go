@@ -11,7 +11,7 @@ import (
 
 type OverlayedComponent struct {
 	component *Component
-	overlays []*Overlay
+	overlays  []*Overlay
 }
 
 func (c *OverlayedComponent) Component() *Component {
@@ -39,16 +39,16 @@ func (c *OverlayedComponent) HasOverlays() bool {
 }
 
 type Builder struct {
-	manifest *Manifest
+	manifest            *Manifest
 	overlayedComponents map[string]*OverlayedComponent
-	overlayContenders []string
+	overlayContenders   []string
 }
 
 func CreateBuilder(manifest *Manifest) *Builder {
 	b := &Builder{
-		manifest: manifest,
+		manifest:            manifest,
 		overlayedComponents: make(map[string]*OverlayedComponent),
-		overlayContenders: make([]string, 0),
+		overlayContenders:   make([]string, 0),
 	}
 
 	return b
@@ -132,7 +132,7 @@ func (b *Builder) AddOverlayContender(contender string) {
 	b.overlayContenders = append(b.overlayContenders, contender)
 }
 
-func (b *Builder) Build() error  {
+func (b *Builder) Build() error {
 	// Go through each overlay contender and component, and add the overlays
 	for _, overlayContender := range b.overlayContenders {
 		for key := range b.manifest.overlays {

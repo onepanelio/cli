@@ -6,14 +6,14 @@ import (
 )
 
 type ConfigVar struct {
-	Required bool `yaml:"required"`
-	Default *string `yaml:"default"`
+	Required bool    `yaml:"required"`
+	Default  *string `yaml:"default"`
 }
 
 type ManifestVariable struct {
-	Key string
-	Required bool `yaml:"required"`
-	Default *interface{} `yaml:"default"`
+	Key      string
+	Required bool         `yaml:"required"`
+	Default  *interface{} `yaml:"default"`
 }
 
 func (c *ConfigVar) HasDefault() bool {
@@ -22,7 +22,7 @@ func (c *ConfigVar) HasDefault() bool {
 
 type ComponentConfigVar struct {
 	ComponantPath string
-	ConfigVar *ConfigVar
+	ConfigVar     *ConfigVar
 }
 
 type VarsFile util.DynamicYaml
@@ -48,7 +48,7 @@ func (v VarsFile) GetVariables() []*ManifestVariable {
 		defaultKey := key + ".default"
 
 		newVar := &ManifestVariable{
-			Key:      key,
+			Key: key,
 		}
 
 		if requiredValue, ok := flatMap[requiredKey]; ok {

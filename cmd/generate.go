@@ -1,18 +1,3 @@
-/*
-Copyright © 2019 NAME HERE <EMAIL ADDRESS>
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
 package cmd
 
 import (
@@ -29,6 +14,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
+	"strings"
 )
 
 // generateCmd represents the generate command
@@ -56,7 +43,7 @@ op-cli generate config.yaml params.yaml
 			return
 		}
 
-		kustomizeTemplate := TemplateFromSimpleOverlayedComponents(config.GetOverlayComponents())
+		kustomizeTemplate := TemplateFromSimpleOverlayedComponents(config.GetOverlayComponents(""))
 
 		result, err := GenerateKustomizeResult(*config, kustomizeTemplate)
 		if err != nil {
@@ -70,16 +57,6 @@ op-cli generate config.yaml params.yaml
 
 func init() {
 	rootCmd.AddCommand(generateCmd)
-
-	// Here you will define your flags and configuration settings.
-	//generateCmd.Flags().StringVarP(&configPath, "configPath", "c", "minikube", "Cloud provider to use. Example: AWS|GCP|Azure|Minikube")
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// generateCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// generateCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
 
 // Given the path to the manifests, and a kustomize config, creates the final kustomization file.
@@ -125,32 +102,186 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 		return "", err
 	}
 
-	paramsPath := filepath.Join(localManifestsCopyPath, "vars", "params.env")
-	if _, err := files.DeleteIfExists(paramsPath); err != nil {
-		return "", err
-	}
-
-	paramsFile, err := os.Create(paramsPath)
-	if err != nil {
-		return "", err
-	}
-
 	yamlFile, err := util.LoadDynamicYaml(config.Spec.Params)
 	if err != nil {
 		return "", err
 	}
 
 	flatMap := yamlFile.Flatten(util.LowerCamelCaseFlatMapKeyFormatter)
-
+	//Organize flatmap
+	var keysAndValues map[string]string
+	keysAndValues = make(map[string]string)
 	for key := range flatMap {
-		value := flatMap[key]
-		_, err := paramsFile.WriteString(fmt.Sprintf("%v=%v\n", key, value))
+		valueStr, ok := flatMap[key].(string)
+		if !ok {
+			valueBool, _ := flatMap[key].(bool)
+			valueStr = strconv.FormatBool(valueBool)
+		}
+		keysAndValues[key] = valueStr
+	}
+	//Read workflow-config-map-hidden for the rest of the values
+	workflowEnvHiddenPath := filepath.Join(localManifestsCopyPath, "vars", "workflow-config-map-hidden.env")
+	workflowEnvCont, workflowEnvFileErr := ioutil.ReadFile(workflowEnvHiddenPath)
+	if workflowEnvFileErr != nil {
+		return "", workflowEnvFileErr
+	}
+	workflowEnvContStr := string(workflowEnvCont)
+	//Add these keys and values
+	for _, line := range strings.Split(workflowEnvContStr, "\n") {
+		keyValArr := strings.Split(line, "=")
+		if len(keyValArr) != 2 {
+			continue
+		}
+		keysAndValues[keyValArr[0]] = keyValArr[1]
+	}
+
+	//Write to env files
+	//workflow-config-map.env
+	if yamlFile.Get("artifactRepository.bucket") != nil &&
+		yamlFile.Get("artifactRepository.endpoint") != nil &&
+		yamlFile.Get("artifactRepository.insecure") != nil &&
+		yamlFile.Get("artifactRepository.region") != nil {
+		//Clear previous env file
+		paramsPath := filepath.Join(localManifestsCopyPath, "vars", "workflow-config-map.env")
+		if _, err := files.DeleteIfExists(paramsPath); err != nil {
+			return "", err
+		}
+		paramsFile, err := os.Create(paramsPath)
+		if err != nil {
+			return "", err
+		}
+		var stringToWrite = fmt.Sprintf("%v=%v\n%v=%v\n%v=%v\n%v=%v\n",
+			"artifactRepositoryBucket", keysAndValues["artifactRepositoryBucket"],
+			"artifactRepositoryEndpoint", keysAndValues["artifactRepositoryEndpoint"],
+			"artifactRepositoryInsecure", keysAndValues["artifactRepositoryInsecure"],
+			"artifactRepositoryRegion", keysAndValues["artifactRepositoryRegion"],
+		)
+		_, err = paramsFile.WriteString(stringToWrite)
+		if err != nil {
+			return "", err
+		}
+	} else {
+		log.Fatal("Missing required values in params.yaml, artifactRepository. Check bucket, endpoint, or insecure.")
+	}
+	//logging-config-map.env, optional component
+	if yamlFile.Get("logging.image") != nil &&
+		yamlFile.Get("logging.volumeStorage") != nil {
+		//Clear previous env file
+		paramsPath := filepath.Join(localManifestsCopyPath, "vars", "logging-config-map.env")
+		if _, err := files.DeleteIfExists(paramsPath); err != nil {
+			return "", err
+		}
+		paramsFile, err := os.Create(paramsPath)
+		if err != nil {
+			return "", err
+		}
+		var stringToWrite = fmt.Sprintf("%v=%v\n%v=%v\n",
+			"loggingImage", keysAndValues["loggingImage"],
+			"loggingVolumeStorage", keysAndValues["loggingVolumeStorage"],
+		)
+		_, err = paramsFile.WriteString(stringToWrite)
 		if err != nil {
 			return "", err
 		}
 	}
+	//onepanel-config-map.env
+	if yamlFile.Get("defaultNamespace") != nil {
+		//Clear previous env file
+		paramsPath := filepath.Join(localManifestsCopyPath, "vars", "onepanel-config-map.env")
+		if _, err := files.DeleteIfExists(paramsPath); err != nil {
+			return "", err
+		}
+		paramsFile, err := os.Create(paramsPath)
+		if err != nil {
+			return "", err
+		}
+		var stringToWrite = fmt.Sprintf("%v=%v\n",
+			"defaultNamespace", keysAndValues["defaultNamespace"],
+		)
+		_, err = paramsFile.WriteString(stringToWrite)
+		if err != nil {
+			return "", err
+		}
+	} else {
+		log.Fatal("Missing required values in params.yaml, defaultNamespace")
+	}
+	//Write to secret files
+	//common/onepanel/base/secrets.yaml
+	var secretKeysValues []string
+	if yamlFile.Get("artifactRepository.accessKey") != nil &&
+		yamlFile.Get("artifactRepository.secretKey") != nil {
+		secretKeysValues = append(secretKeysValues, "artifactRepositoryAccessKey", "artifactRepositorySecretKey")
+		for _, key := range secretKeysValues {
+			//Path to secrets file
+			secretsPath := filepath.Join(localManifestsCopyPath, "common", "onepanel", "base", "secrets.yaml")
+			//Read the file, replace the specific value, write the file back
+			secretFileContent, secretFileOpenErr := ioutil.ReadFile(secretsPath)
+			if secretFileOpenErr != nil {
+				return "", secretFileOpenErr
+			}
+			secretFileContentStr := string(secretFileContent)
+			value := flatMap[key]
+			oldString := "$(" + key + ")"
+			if strings.Contains(secretFileContentStr, key) {
+				valueStr, ok := value.(string)
+				if !ok {
+					valueBool, _ := value.(bool)
+					valueStr = strconv.FormatBool(valueBool)
+				}
+				secretFileContentStr = strings.Replace(secretFileContentStr, oldString, valueStr, 1)
+				writeFileErr := ioutil.WriteFile(secretsPath, []byte(secretFileContentStr), 0644)
+				if writeFileErr != nil {
+					return "", writeFileErr
+				}
+			} else {
+				fmt.Printf("Key: %v not present in %v, not used.\n", key, secretsPath)
+			}
+		}
+	} else {
+		log.Fatal("Missing required values in params.yaml, artifactRepository. Check accessKey, or secretKey.")
+	}
 
-	cmd := exec.Command("kustomize", "build", localManifestsCopyPath,  "--load_restrictor",  "none")
+	//To properly replace $(defaultNamespace), we need to update it in quite a few files.
+	//Find those files
+	listOfFiles, errorWalking := FilePathWalkDir(localManifestsCopyPath)
+	if errorWalking != nil {
+		return "", err
+	}
+
+	for _, filePath := range listOfFiles {
+		manifestFileContent, manifestFileOpenErr := ioutil.ReadFile(filePath)
+		if manifestFileOpenErr != nil {
+			return "", manifestFileOpenErr
+		}
+		manifestFileContentStr := string(manifestFileContent)
+		//"defaultNamespace",keysAndValues["defaultNamespace"]
+		configMapCheck := "kind: ConfigMap"
+		configMapFile := false
+		if strings.Contains(manifestFileContentStr, configMapCheck) {
+			configMapFile = true
+		}
+		for key, valueStr := range keysAndValues {
+			oldString := "$(" + key + ")"
+			if strings.Contains(manifestFileContentStr, key) {
+				if configMapFile && valueStr == "false" {
+					if !strings.Contains(manifestFileContentStr, "config: |") {
+						valueStr = "\"false\""
+					}
+				}
+				manifestFileContentStr = strings.Replace(manifestFileContentStr, oldString, valueStr, -1)
+			}
+		}
+		writeFileErr := ioutil.WriteFile(filePath, []byte(manifestFileContentStr), 0644)
+		if writeFileErr != nil {
+			return "", writeFileErr
+		}
+		//reset for next file
+		configMapFile = false
+	}
+
+	//Update the values in those files
+
+	cmd := exec.Command("kustomize", "build", localManifestsCopyPath, "--load_restrictor", "none")
 	stdOut, err := cmd.StdoutPipe()
 	if err != nil {
 		return "", err
@@ -185,9 +316,9 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 
 func BuilderToTemplate(builder *manifest.Builder) template.Kustomize {
 	k := template.Kustomize{
-		ApiVersion: "kustomize.config.k8s.io/v1beta1",
-		Kind: "Kustomization",
-		Resources: make([]string, 0),
+		ApiVersion:     "kustomize.config.k8s.io/v1beta1",
+		Kind:           "Kustomization",
+		Resources:      make([]string, 0),
 		Configurations: []string{"configs/varreference.yaml"},
 	}
 
@@ -207,9 +338,9 @@ func BuilderToTemplate(builder *manifest.Builder) template.Kustomize {
 
 func TemplateFromSimpleOverlayedComponents(comps []*opConfig.SimpleOverlayedComponent) template.Kustomize {
 	k := template.Kustomize{
-		ApiVersion: "kustomize.config.k8s.io/v1beta1",
-		Kind: "Kustomization",
-		Resources: make([]string, 0),
+		ApiVersion:     "kustomize.config.k8s.io/v1beta1",
+		Kind:           "Kustomization",
+		Resources:      make([]string, 0),
 		Configurations: []string{"configs/varreference.yaml"},
 	}
 
@@ -220,4 +351,17 @@ func TemplateFromSimpleOverlayedComponents(comps []*opConfig.SimpleOverlayedComp
 	}
 
 	return k
+}
+
+func FilePathWalkDir(root string) ([]string, error) {
+	var filesFound []string
+	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+		if !info.IsDir() {
+			if !strings.Contains(path, ".git") {
+				filesFound = append(filesFound, path)
+			}
+		}
+		return nil
+	})
+	return filesFound, err
 }

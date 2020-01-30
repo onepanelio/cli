@@ -1,18 +1,3 @@
-/*
-Copyright © 2019 NAME HERE <EMAIL ADDRESS>
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
 package cmd
 
 import (
@@ -52,7 +37,92 @@ op-cli apply config.yaml params.env
 			return
 		}
 
-		kustomizeTemplate := TemplateFromSimpleOverlayedComponents(config.GetOverlayComponents())
+		overlayComponentFirst := "common/application/base"
+		baseOverlayComponent := config.GetOverlayComponent(overlayComponentFirst)
+		applicationBaseKustomizeTemplate := TemplateFromSimpleOverlayedComponents(baseOverlayComponent)
+		applicationResult, err := GenerateKustomizeResult(*config, applicationBaseKustomizeTemplate)
+		if err != nil {
+			log.Printf("Error generating result %v", err.Error())
+			return
+		}
+
+		applicationKubernetesYamlFilePath := ".application.kubernetes.yaml"
+
+		existsApp, err := files.Exists(applicationKubernetesYamlFilePath)
+		if err != nil {
+			log.Printf("Unable to check if file %v exists", applicationKubernetesYamlFilePath)
+			return
+		}
+
+		var applicationKubernetesFile *os.File = nil
+		if !existsApp {
+			applicationKubernetesFile, err = os.Create(applicationKubernetesYamlFilePath)
+			if err != nil {
+				log.Printf("Unable to create file: error %v", err.Error())
+				return
+			}
+		} else {
+			applicationKubernetesFile, err = os.OpenFile(applicationKubernetesYamlFilePath, os.O_RDWR|os.O_TRUNC, 0)
+			if err != nil {
+				log.Printf("Unable to open file: error %v", err.Error())
+				return
+			}
+		}
+
+		if _, err := applicationKubernetesFile.WriteString(applicationResult); err != nil {
+			log.Printf("Error writing to temporary file: %v", err.Error())
+			return
+		}
+
+		fmt.Printf("Starting deployment...\n\n")
+
+		resApp := ""
+		errResApp := ""
+
+		resApp, errResApp, err = applyKubernetesFile(applicationKubernetesYamlFilePath)
+
+		log.Printf("%v", resApp)
+		if errResApp != "" {
+			log.Printf("%v", errResApp)
+		}
+
+		if err != nil {
+			fmt.Printf("\nFailed: %v", err.Error())
+			return
+		}
+		//Once applied, verify the application is running before moving on with the rest
+		//of the yaml.
+		applicationRunning := false
+		podName := "application-controller-manager-0"
+		podNamespace := "application-system"
+		podInfoRes := ""
+		podInfoErrRes := ""
+		var podInfoErr error
+		for !applicationRunning {
+			podInfoRes, podInfoErrRes, podInfoErr = getPodInfo(podName, podNamespace)
+			if podInfoErr != nil {
+				fmt.Printf("\nFailed: %v", podInfoErr.Error())
+				return
+			}
+			if podInfoErrRes != "" {
+				fmt.Printf("\n: %v", podInfoErrRes)
+				return
+			}
+			if podInfoRes == "" {
+				fmt.Printf("\nNo response from first pod check.")
+				return
+			}
+
+			lines := strings.Split(podInfoRes, "\n")
+			if len(lines) > 1 {
+				if strings.Contains(lines[1], "Running") {
+					applicationRunning = true
+				}
+			}
+		}
+
+		//Apply the rest of the yaml
+		kustomizeTemplate := TemplateFromSimpleOverlayedComponents(config.GetOverlayComponents(overlayComponentFirst))
 
 		result, err := GenerateKustomizeResult(*config, kustomizeTemplate)
 		if err != nil {
@@ -88,8 +158,6 @@ op-cli apply config.yaml params.env
 			return
 		}
 
-		fmt.Printf("Deploying...")
-
 		res := ""
 		errRes := ""
 
@@ -106,31 +174,24 @@ op-cli apply config.yaml params.env
 		}
 
 		log.Printf("%v", res)
+		if errRes != "" {
+			log.Printf("%v", errRes)
+		}
 
 		if err != nil {
-			fmt.Printf("\nFailed: %v", err.Error())
+			fmt.Printf("\nDeployment failed: %v", err.Error())
 		} else {
-			fmt.Printf("\nFinished applying\n")
+			fmt.Printf("\nDeployment is complete.\n")
 		}
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(applyCmd)
-
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// applyCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// applyCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
 
-func applyKubernetesFile(filePath string) (res string, errMessage string, err error) {
-	cmd := exec.Command("kubectl", "apply", "-f", filePath,  "--validate=false")
+func getPodInfo(podName string, podNamespace string) (res string, errMessage string, err error) {
+	cmd := exec.Command("kubectl", "get", "pod", podName, "-n", podNamespace)
 	stdOut, err := cmd.StdoutPipe()
 	if err != nil {
 		return "", "", err
@@ -142,7 +203,7 @@ func applyKubernetesFile(filePath string) (res string, errMessage string, err er
 	}
 
 	if err := cmd.Start(); err != nil {
-		return "","", err
+		return "", "", err
 	}
 
 	result, err := ioutil.ReadAll(stdOut)
@@ -150,6 +211,39 @@ func applyKubernetesFile(filePath string) (res string, errMessage string, err er
 		return "", "", err
 	}
 
+	errRes, err := ioutil.ReadAll(stdErr)
+	if err != nil {
+		return "", "", err
+	}
+
+	if err := cmd.Wait(); err != nil {
+		return string(result), string(errRes), err
+	}
+
+	return string(result), string(errRes), nil
+
+}
+
+func applyKubernetesFile(filePath string) (res string, errMessage string, err error) {
+	cmd := exec.Command("kubectl", "apply", "-f", filePath, "--validate=false")
+	stdOut, err := cmd.StdoutPipe()
+	if err != nil {
+		return "", "", err
+	}
+
+	stdErr, err := cmd.StderrPipe()
+	if err != nil {
+		return "", "", err
+	}
+
+	if err := cmd.Start(); err != nil {
+		return "", "", err
+	}
+
+	result, err := ioutil.ReadAll(stdOut)
+	if err != nil {
+		return "", "", err
+	}
 
 	errRes, err := ioutil.ReadAll(stdErr)
 	if err != nil {

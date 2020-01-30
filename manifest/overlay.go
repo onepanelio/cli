@@ -6,7 +6,7 @@ import (
 )
 
 type Overlay struct {
-	path string
+	path      string
 	component *Component
 }
 

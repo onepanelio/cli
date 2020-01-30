@@ -7,10 +7,10 @@ import (
 )
 
 type Release struct {
-	Url string `json:"url"`
-	Name string `json:"name"`
-	TagName string `json:"tag_name"`
-	CreatedAt string `json:"created_at"`
+	Url        string `json:"url"`
+	Name       string `json:"name"`
+	TagName    string `json:"tag_name"`
+	CreatedAt  string `json:"created_at"`
 	TarBallUrl string `json:"tarball_url"`
 	ZipBallUrl string `json:"zipball_url"`
 }
