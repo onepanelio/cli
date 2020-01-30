@@ -79,17 +79,7 @@ op-cli apply config.yaml params.env
 		resApp := ""
 		errResApp := ""
 
-		for i := 0; i < 5; i++ {
-			resApp, errResApp, err = applyKubernetesFile(applicationKubernetesYamlFilePath)
-			if !strings.Contains(errResApp, "no matches for kind") {
-				break
-			}
-
-			fmt.Printf(".")
-			fmt.Printf(".")
-
-			time.Sleep(time.Second * 3)
-		}
+		resApp, errResApp, err = applyKubernetesFile(applicationKubernetesYamlFilePath)
 
 		log.Printf("%v", resApp)
 		if errResApp != "" {
