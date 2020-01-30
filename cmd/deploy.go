@@ -74,7 +74,7 @@ op-cli apply config.yaml params.env
 			return
 		}
 
-		fmt.Printf("Deploying application...\n")
+		fmt.Printf("Starting deployment...\n\n")
 
 		resApp := ""
 		errResApp := ""
@@ -121,8 +121,6 @@ op-cli apply config.yaml params.env
 			}
 		}
 
-		fmt.Printf("\nFinished applying application.\n")
-
 		//Apply the rest of the yaml
 		kustomizeTemplate := TemplateFromSimpleOverlayedComponents(config.GetOverlayComponents(overlayComponentFirst))
 
@@ -160,8 +158,6 @@ op-cli apply config.yaml params.env
 			return
 		}
 
-		fmt.Printf("Deploying the rest...\n")
-
 		res := ""
 		errRes := ""
 
@@ -183,9 +179,9 @@ op-cli apply config.yaml params.env
 		}
 
 		if err != nil {
-			fmt.Printf("\nFailed: %v", err.Error())
+			fmt.Printf("\nDeployment failed: %v", err.Error())
 		} else {
-			fmt.Printf("\nFinished applying\n")
+			fmt.Printf("\nDeployment is complete.\n")
 		}
 	},
 }
