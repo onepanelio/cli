@@ -111,12 +111,12 @@ op-cli apply config.yaml params.env
 			if podInfoRes == "" {
 				fmt.Printf("\nNo response from first pod check.")
 				return
-			} else {
-				lines := strings.Split(podInfoRes, "\n")
-				if len(lines) > 1 {
-					if strings.Contains(lines[1], "Running") {
-						applicationRunning = true
-					}
+			}
+
+			lines := strings.Split(podInfoRes, "\n")
+			if len(lines) > 1 {
+				if strings.Contains(lines[1], "Running") {
+					applicationRunning = true
 				}
 			}
 		}
