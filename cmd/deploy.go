@@ -90,6 +90,37 @@ op-cli apply config.yaml params.env
 			fmt.Printf("\nFailed: %v", err.Error())
 			return
 		}
+		//Once applied, verify the application is running before moving on with the rest
+		//of the yaml.
+		applicationRunning := false
+		podName := "application-controller-manager-0"
+		podNamespace := "application-system"
+		podInfoRes := ""
+		podInfoErrRes := ""
+		var podInfoErr error
+		for !applicationRunning {
+			podInfoRes, podInfoErrRes, podInfoErr = getPodInfo(podName, podNamespace)
+			if podInfoErr != nil {
+				fmt.Printf("\nFailed: %v", podInfoErr.Error())
+				return
+			}
+			if podInfoErrRes != "" {
+				fmt.Printf("\n: %v", podInfoErrRes)
+				return
+			}
+			if podInfoRes == "" {
+				fmt.Printf("\nNo response from first pod check.")
+				return
+			} else {
+				lines := strings.Split(podInfoRes, "\n")
+				if len(lines) > 1 {
+					if strings.Contains(lines[1], "Running") {
+						applicationRunning = true
+					}
+				}
+			}
+		}
+
 		fmt.Printf("\nFinished applying application.\n")
 
 		//Apply the rest of the yaml
@@ -129,7 +160,7 @@ op-cli apply config.yaml params.env
 			return
 		}
 
-		fmt.Printf("Deploying...\n")
+		fmt.Printf("Deploying the rest...\n")
 
 		res := ""
 		errRes := ""
@@ -171,6 +202,40 @@ func init() {
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
 	// applyCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+}
+
+func getPodInfo(podName string, podNamespace string) (res string, errMessage string, err error) {
+	cmd := exec.Command("kubectl", "get", "pod", podName, "-n", podNamespace)
+	stdOut, err := cmd.StdoutPipe()
+	if err != nil {
+		return "", "", err
+	}
+
+	stdErr, err := cmd.StderrPipe()
+	if err != nil {
+		return "", "", err
+	}
+
+	if err := cmd.Start(); err != nil {
+		return "", "", err
+	}
+
+	result, err := ioutil.ReadAll(stdOut)
+	if err != nil {
+		return "", "", err
+	}
+
+	errRes, err := ioutil.ReadAll(stdErr)
+	if err != nil {
+		return "", "", err
+	}
+
+	if err := cmd.Wait(); err != nil {
+		return string(result), string(errRes), err
+	}
+
+	return string(result), string(errRes), nil
+
 }
 
 func applyKubernetesFile(filePath string) (res string, errMessage string, err error) {
