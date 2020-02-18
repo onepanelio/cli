@@ -249,30 +249,31 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 		if strings.Contains(manifestFileContentStr, configMapCheck) {
 			configMapFile = true
 		}
+		useStr := ""
 		for key := range flatMap {
-			valueStr, ok := flatMap[key].(string)
-			if !ok {
-				valueBool, okBool := flatMap[key].(bool)
-				if okBool {
-					valueStr = strconv.FormatBool(valueBool)
+			valueBool, okBool := flatMap[key].(bool)
+			if okBool {
+				useStr = strconv.FormatBool(valueBool)
+			} else {
+				valueInt, okInt := flatMap[key].(int)
+				if okInt {
+					useStr = "\"" + strconv.FormatInt(int64(valueInt), 10) + "\""
 				} else {
-					valueInt, okInt := flatMap[key].(int)
-					if okInt {
-						valueStr = strconv.FormatInt(int64(valueInt), 10)
-					} else {
+					valueStr, ok := flatMap[key].(string)
+					if !ok {
 						log.Fatal("Unrecognized value in flatmap. Check type assertions.")
-
 					}
+					useStr = valueStr
 				}
 			}
 			oldString := "$(" + key + ")"
 			if strings.Contains(manifestFileContentStr, key) {
-				if configMapFile && valueStr == "false" {
+				if configMapFile && useStr == "false" {
 					if !strings.Contains(manifestFileContentStr, "config: |") {
-						valueStr = "\"false\""
+						useStr = "\"false\""
 					}
 				}
-				manifestFileContentStr = strings.Replace(manifestFileContentStr, oldString, valueStr, -1)
+				manifestFileContentStr = strings.Replace(manifestFileContentStr, oldString, useStr, -1)
 			}
 		}
 		writeFileErr := ioutil.WriteFile(filePath, []byte(manifestFileContentStr), 0644)
