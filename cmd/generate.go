@@ -108,17 +108,6 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 	}
 
 	flatMap := yamlFile.Flatten(util.LowerCamelCaseFlatMapKeyFormatter)
-	//Organize flatmap
-	var keysAndValues map[string]string
-	keysAndValues = make(map[string]string)
-	for key := range flatMap {
-		valueStr, ok := flatMap[key].(string)
-		if !ok {
-			valueBool, _ := flatMap[key].(bool)
-			valueStr = strconv.FormatBool(valueBool)
-		}
-		keysAndValues[key] = valueStr
-	}
 	//Read workflow-config-map-hidden for the rest of the values
 	workflowEnvHiddenPath := filepath.Join(localManifestsCopyPath, "vars", "workflow-config-map-hidden.env")
 	workflowEnvCont, workflowEnvFileErr := ioutil.ReadFile(workflowEnvHiddenPath)
@@ -132,7 +121,7 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 		if len(keyValArr) != 2 {
 			continue
 		}
-		keysAndValues[keyValArr[0]] = keyValArr[1]
+		flatMap[keyValArr[0]] = keyValArr[1]
 	}
 
 	//Write to env files
@@ -151,10 +140,10 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 			return "", err
 		}
 		var stringToWrite = fmt.Sprintf("%v=%v\n%v=%v\n%v=%v\n%v=%v\n",
-			"artifactRepositoryBucket", keysAndValues["artifactRepositoryBucket"],
-			"artifactRepositoryEndpoint", keysAndValues["artifactRepositoryEndpoint"],
-			"artifactRepositoryInsecure", keysAndValues["artifactRepositoryInsecure"],
-			"artifactRepositoryRegion", keysAndValues["artifactRepositoryRegion"],
+			"artifactRepositoryBucket", flatMap["artifactRepositoryBucket"],
+			"artifactRepositoryEndpoint", flatMap["artifactRepositoryEndpoint"],
+			"artifactRepositoryInsecure", flatMap["artifactRepositoryInsecure"],
+			"artifactRepositoryRegion", flatMap["artifactRepositoryRegion"],
 		)
 		_, err = paramsFile.WriteString(stringToWrite)
 		if err != nil {
@@ -176,8 +165,8 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 			return "", err
 		}
 		var stringToWrite = fmt.Sprintf("%v=%v\n%v=%v\n",
-			"loggingImage", keysAndValues["loggingImage"],
-			"loggingVolumeStorage", keysAndValues["loggingVolumeStorage"],
+			"loggingImage", flatMap["loggingImage"],
+			"loggingVolumeStorage", flatMap["loggingVolumeStorage"],
 		)
 		_, err = paramsFile.WriteString(stringToWrite)
 		if err != nil {
@@ -196,7 +185,7 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 			return "", err
 		}
 		var stringToWrite = fmt.Sprintf("%v=%v\n",
-			"defaultNamespace", keysAndValues["defaultNamespace"],
+			"defaultNamespace", flatMap["defaultNamespace"],
 		)
 		_, err = paramsFile.WriteString(stringToWrite)
 		if err != nil {
@@ -254,21 +243,37 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 			return "", manifestFileOpenErr
 		}
 		manifestFileContentStr := string(manifestFileContent)
-		//"defaultNamespace",keysAndValues["defaultNamespace"]
+		//"defaultNamespace",flatMap["defaultNamespace"]
 		configMapCheck := "kind: ConfigMap"
 		configMapFile := false
 		if strings.Contains(manifestFileContentStr, configMapCheck) {
 			configMapFile = true
 		}
-		for key, valueStr := range keysAndValues {
+		useStr := ""
+		for key := range flatMap {
+			valueBool, okBool := flatMap[key].(bool)
+			if okBool {
+				useStr = strconv.FormatBool(valueBool)
+			} else {
+				valueInt, okInt := flatMap[key].(int)
+				if okInt {
+					useStr = "\"" + strconv.FormatInt(int64(valueInt), 10) + "\""
+				} else {
+					valueStr, ok := flatMap[key].(string)
+					if !ok {
+						log.Fatal("Unrecognized value in flatmap. Check type assertions.")
+					}
+					useStr = valueStr
+				}
+			}
 			oldString := "$(" + key + ")"
 			if strings.Contains(manifestFileContentStr, key) {
-				if configMapFile && valueStr == "false" {
+				if configMapFile && useStr == "false" {
 					if !strings.Contains(manifestFileContentStr, "config: |") {
-						valueStr = "\"false\""
+						useStr = "\"false\""
 					}
 				}
-				manifestFileContentStr = strings.Replace(manifestFileContentStr, oldString, valueStr, -1)
+				manifestFileContentStr = strings.Replace(manifestFileContentStr, oldString, useStr, -1)
 			}
 		}
 		writeFileErr := ioutil.WriteFile(filePath, []byte(manifestFileContentStr), 0644)
