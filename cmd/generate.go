@@ -250,20 +250,24 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 			configMapFile = true
 		}
 		useStr := ""
+		rawStr := ""
 		for key := range flatMap {
 			valueBool, okBool := flatMap[key].(bool)
 			if okBool {
 				useStr = strconv.FormatBool(valueBool)
+				rawStr = strconv.FormatBool(valueBool)
 			} else {
 				valueInt, okInt := flatMap[key].(int)
 				if okInt {
 					useStr = "\"" + strconv.FormatInt(int64(valueInt), 10) + "\""
+					rawStr = strconv.FormatInt(int64(valueInt), 10)
 				} else {
 					valueStr, ok := flatMap[key].(string)
 					if !ok {
 						log.Fatal("Unrecognized value in flatmap. Check type assertions.")
 					}
 					useStr = valueStr
+					rawStr = valueStr
 				}
 			}
 			oldString := "$(" + key + ")"
@@ -274,6 +278,10 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 					}
 				}
 				manifestFileContentStr = strings.Replace(manifestFileContentStr, oldString, useStr, -1)
+			}
+			oldRawString := "$raw(" + key + ")"
+			if strings.Contains(manifestFileContentStr, key) {
+				manifestFileContentStr = strings.Replace(manifestFileContentStr, oldRawString, rawStr, -1)
 			}
 		}
 		writeFileErr := ioutil.WriteFile(filePath, []byte(manifestFileContentStr), 0644)
