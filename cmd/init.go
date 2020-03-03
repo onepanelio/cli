@@ -208,7 +208,7 @@ func init() {
 }
 
 func validateProvider(prov string) error {
-	if prov != "gcp" && prov != "aws" && prov != "azure" && prov != "minikube" {
+	if prov != "gcp" && prov != "aws" && prov != "azure" && prov != "minikube" && prov != "microk8s" {
 		return fmt.Errorf("unsupported provider %v", prov)
 	}
 
