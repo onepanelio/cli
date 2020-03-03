@@ -202,7 +202,7 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 		secretKeysValues = append(secretKeysValues, "artifactRepositoryAccessKey", "artifactRepositorySecretKey")
 		for _, key := range secretKeysValues {
 			//Path to secrets file
-			secretsPath := filepath.Join(localManifestsCopyPath, "common", "onepanel", "base", "secrets.yaml")
+			secretsPath := filepath.Join(localManifestsCopyPath, "common", "onepanel", "base", "secret-onepanel-defaultnamespace.yaml")
 			//Read the file, replace the specific value, write the file back
 			secretFileContent, secretFileOpenErr := ioutil.ReadFile(secretsPath)
 			if secretFileOpenErr != nil {
