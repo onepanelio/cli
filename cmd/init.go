@@ -226,12 +226,10 @@ func validateDNS(dns string) error {
 func addCloudProviderToManifestBuilder(provider string, builder *manifest.Builder) error {
 	builder.AddOverlayContender(provider)
 
-	if provider == "minikube" {
-		return nil
-	}
-
-	if err := builder.AddComponent("cert-manager"); err != nil {
-		return err
+	if provider != "minikube" && provider != "microk8s" {
+		if err := builder.AddComponent("cert-manager"); err != nil {
+			return err
+		}
 	}
 
 	if err := builder.AddComponent("storage"); err != nil {
