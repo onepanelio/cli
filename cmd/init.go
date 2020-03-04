@@ -237,12 +237,8 @@ func init() {
 }
 
 func validateProvider(prov string) error {
-<<<<<<< HEAD
 	_, ok := providerProperties[prov]
 	if !ok {
-=======
-	if prov != "gke" && prov != "eks" && prov != "aks" && prov != "minikube" && prov != "microk8s" {
->>>>>>> change flags and values
 		return fmt.Errorf("unsupported provider %v", prov)
 	}
 
