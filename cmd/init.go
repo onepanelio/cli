@@ -46,9 +46,6 @@ var providerProperties = map[string]ProviderProperties{
 	"aks": {
 		IsCloud: true,
 	},
-	"azure": {
-		IsCloud: true,
-	},
 }
 
 // initCmd represents the init command
