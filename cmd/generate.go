@@ -2,13 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	opConfig "github.com/onepanelio/cli/config"
-	"github.com/onepanelio/cli/files"
-	"github.com/onepanelio/cli/manifest"
-	"github.com/onepanelio/cli/template"
-	"github.com/onepanelio/cli/util"
-	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"log"
 	"os"
@@ -16,6 +9,14 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	opConfig "github.com/onepanelio/cli/config"
+	"github.com/onepanelio/cli/files"
+	"github.com/onepanelio/cli/manifest"
+	"github.com/onepanelio/cli/template"
+	"github.com/onepanelio/cli/util"
+	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v2"
 )
 
 // generateCmd represents the generate command
