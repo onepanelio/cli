@@ -114,12 +114,12 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 	if yamlFile.Get("application.local") != nil {
 		applicationApiHttpPort := yamlFile.Get("application.local.apiHTTPPort").(int)
 		applicationApiGrpcPort := yamlFile.Get("application.local.apiGRPCPort").(int)
-		applicationWebPort := yamlFile.Get("application.local.webHTTPPort").(int)
+		applicationWebPort := yamlFile.Get("application.local.uiHTTPPort").(int)
 
 		yamlFile.PutByString(host, "applicationApiHost", ".")
 		yamlFile.PutByString(applicationApiHttpPort, "applicationApiHttpPort", ".")
 		yamlFile.PutByString(applicationApiGrpcPort, "applicationApiGrpcPort", ".")
-		yamlFile.PutByString(applicationWebPort, "applicationWebPort", ".")
+		yamlFile.PutByString(applicationWebPort, "applicationUIPort", ".")
 	} else {
 		log.Printf("cloud\n")
 
