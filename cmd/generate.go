@@ -107,7 +107,26 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 		return "", err
 	}
 
+	host, ok := yamlFile.Get("application.host").(string)
+	if !ok {
+		return "", fmt.Errorf("application.host is not a string")
+	}
+	if yamlFile.Get("application.local") != nil {
+		applicationApiHttpPort := yamlFile.Get("application.local.apiHTTPPort").(int)
+		applicationApiGrpcPort := yamlFile.Get("application.local.apiGRPCPort").(int)
+		applicationWebPort := yamlFile.Get("application.local.uiHTTPPort").(int)
+
+		yamlFile.PutByString(host, "applicationApiHost", ".")
+		yamlFile.PutByString(applicationApiHttpPort, "applicationApiHttpPort", ".")
+		yamlFile.PutByString(applicationApiGrpcPort, "applicationApiGrpcPort", ".")
+		yamlFile.PutByString(applicationWebPort, "applicationUIPort", ".")
+	} else {
+		log.Printf("cloud\n")
+
+	}
+
 	flatMap := yamlFile.Flatten(util.LowerCamelCaseFlatMapKeyFormatter)
+
 	//Read workflow-config-map-hidden for the rest of the values
 	workflowEnvHiddenPath := filepath.Join(localManifestsCopyPath, "vars", "workflow-config-map-hidden.env")
 	workflowEnvCont, workflowEnvFileErr := ioutil.ReadFile(workflowEnvHiddenPath)
