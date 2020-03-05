@@ -126,9 +126,7 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 		applicationApiGrpcPort := yamlFile.Get("application.cloud.apiGRPCPort").(int)
 		applicationUiPath := yamlFile.Get("application.cloud.uiPath")
 
-		applicationApiUrl := fmt.Sprintf("%v%v", host, applicationApiPath)
-
-		yamlFile.PutByString(applicationApiUrl, "applicationApiPath", ".")
+		yamlFile.PutByString(applicationApiPath, "applicationApiPath", ".")
 		yamlFile.PutByString(applicationUiPath, "applicationUiPath", ".")
 		yamlFile.PutByString(applicationApiGrpcPort, "applicationApiGrpcPort", ".")
 	}
