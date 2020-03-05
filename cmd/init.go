@@ -2,6 +2,10 @@ package cmd
 
 import (
 	"fmt"
+	"log"
+	"os"
+	"strings"
+
 	"github.com/onepanelio/cli/config"
 	"github.com/onepanelio/cli/files"
 	"github.com/onepanelio/cli/manifest"
@@ -9,9 +13,6 @@ import (
 	"github.com/onepanelio/cli/util"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
-	"log"
-	"os"
-	"strings"
 )
 
 const (
@@ -228,8 +229,8 @@ If there is no argument, configuration.yaml is used.`,
 func init() {
 	rootCmd.AddCommand(initCmd)
 
-	initCmd.Flags().StringVarP(&Provider, "provider", "p", "minikube", "Provider you are using. Valid values are: aws, gcp, azure, or minikube")
-	initCmd.Flags().StringVarP(&DNS, "dns", "d", "", "Provider for DNS. Valid values are: aws for route53")
+	initCmd.Flags().StringVarP(&Provider, "provider", "p", "", "Cloud or local provider. Valid values are: minikube, microk8s, aks, gke, eks")
+	initCmd.Flags().StringVarP(&DNS, "dns-provider", "d", "", "Provider for DNS. Valid values are: route53")
 	initCmd.Flags().StringVarP(&ConfigurationFilePath, "config", "c", "config.yaml", "File path of the resulting config file")
 	initCmd.Flags().StringVarP(&ParametersFilePath, "params", "e", "params.yaml", "File path of the resulting parameters file")
 	initCmd.Flags().BoolVarP(&LoggingComponent, "logging", "l", false, "If set, adds a logging component")
@@ -245,7 +246,7 @@ func validateProvider(prov string) error {
 }
 
 func validateDNS(dns string) error {
-	if dns != "aws" && dns != "" {
+	if dns != "route53" && dns != "" {
 		return fmt.Errorf("unsupported dns %v", dns)
 	}
 
