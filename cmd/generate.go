@@ -107,7 +107,26 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 		return "", err
 	}
 
+	host, ok := yamlFile.Get("application.host").(string)
+	if !ok {
+		return "", fmt.Errorf("application.host is not a string")
+	}
+	if yamlFile.Get("application.local") != nil {
+		applicationApiHttpPort := yamlFile.Get("application.local.apiHTTPPort").(int)
+		applicationApiGrpcPort := yamlFile.Get("application.local.apiGRPCPort").(int)
+		applicationWebPort := yamlFile.Get("application.local.uiHTTPPort").(int)
+
+		yamlFile.PutByString(host, "applicationApiHost", ".")
+		yamlFile.PutByString(applicationApiHttpPort, "applicationApiHttpPort", ".")
+		yamlFile.PutByString(applicationApiGrpcPort, "applicationApiGrpcPort", ".")
+		yamlFile.PutByString(applicationWebPort, "applicationUIPort", ".")
+	} else {
+		log.Printf("cloud\n")
+
+	}
+
 	flatMap := yamlFile.Flatten(util.LowerCamelCaseFlatMapKeyFormatter)
+
 	//Read workflow-config-map-hidden for the rest of the values
 	workflowEnvHiddenPath := filepath.Join(localManifestsCopyPath, "vars", "workflow-config-map-hidden.env")
 	workflowEnvCont, workflowEnvFileErr := ioutil.ReadFile(workflowEnvHiddenPath)
@@ -202,7 +221,7 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 		secretKeysValues = append(secretKeysValues, "artifactRepositoryAccessKey", "artifactRepositorySecretKey")
 		for _, key := range secretKeysValues {
 			//Path to secrets file
-			secretsPath := filepath.Join(localManifestsCopyPath, "common", "onepanel", "base", "secrets.yaml")
+			secretsPath := filepath.Join(localManifestsCopyPath, "common", "onepanel", "base", "secret-onepanel-defaultnamespace.yaml")
 			//Read the file, replace the specific value, write the file back
 			secretFileContent, secretFileOpenErr := ioutil.ReadFile(secretsPath)
 			if secretFileOpenErr != nil {
@@ -250,20 +269,24 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 			configMapFile = true
 		}
 		useStr := ""
+		rawStr := ""
 		for key := range flatMap {
 			valueBool, okBool := flatMap[key].(bool)
 			if okBool {
 				useStr = strconv.FormatBool(valueBool)
+				rawStr = strconv.FormatBool(valueBool)
 			} else {
 				valueInt, okInt := flatMap[key].(int)
 				if okInt {
 					useStr = "\"" + strconv.FormatInt(int64(valueInt), 10) + "\""
+					rawStr = strconv.FormatInt(int64(valueInt), 10)
 				} else {
 					valueStr, ok := flatMap[key].(string)
 					if !ok {
 						log.Fatal("Unrecognized value in flatmap. Check type assertions.")
 					}
 					useStr = valueStr
+					rawStr = valueStr
 				}
 			}
 			oldString := "$(" + key + ")"
@@ -274,6 +297,10 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 					}
 				}
 				manifestFileContentStr = strings.Replace(manifestFileContentStr, oldString, useStr, -1)
+			}
+			oldRawString := "$raw(" + key + ")"
+			if strings.Contains(manifestFileContentStr, key) {
+				manifestFileContentStr = strings.Replace(manifestFileContentStr, oldRawString, rawStr, -1)
 			}
 		}
 		writeFileErr := ioutil.WriteFile(filePath, []byte(manifestFileContentStr), 0644)

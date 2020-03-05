@@ -6,6 +6,7 @@ import (
 	"github.com/onepanelio/cli/files"
 	"github.com/onepanelio/cli/manifest"
 	"github.com/onepanelio/cli/template"
+	"github.com/onepanelio/cli/util"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
 	"log"
@@ -24,6 +25,28 @@ var (
 	DNS                   string
 	LoggingComponent      bool
 )
+
+type ProviderProperties struct {
+	IsCloud bool
+}
+
+var providerProperties = map[string]ProviderProperties{
+	"minikube": {
+		IsCloud: false,
+	},
+	"microk8s": {
+		IsCloud: false,
+	},
+	"gke": {
+		IsCloud: true,
+	},
+	"eks": {
+		IsCloud: true,
+	},
+	"aks": {
+		IsCloud: true,
+	},
+}
 
 // initCmd represents the init command
 var initCmd = &cobra.Command{
@@ -106,7 +129,7 @@ If there is no argument, configuration.yaml is used.`,
 		}
 
 		skipList := make([]string, 0)
-		if Provider == "minikube" {
+		if !providerProperties[Provider].IsCloud {
 			skipList = append(skipList, "common"+string(os.PathSeparator)+"istio")
 		}
 
@@ -154,6 +177,11 @@ If there is no argument, configuration.yaml is used.`,
 		mergedParams, err := files.MergeParametersFiles(ParametersFilePath, bld.GetVarsArray())
 		if err != nil {
 			log.Printf("Error merging parameters: %v", err.Error())
+			return
+		}
+
+		if err := filterMergedParams(Provider, mergedParams); err != nil {
+			log.Printf("Error filtering params: %v", err.Error())
 			return
 		}
 
@@ -208,7 +236,8 @@ func init() {
 }
 
 func validateProvider(prov string) error {
-	if prov != "gcp" && prov != "aws" && prov != "azure" && prov != "minikube" {
+	_, ok := providerProperties[prov]
+	if !ok {
 		return fmt.Errorf("unsupported provider %v", prov)
 	}
 
@@ -226,18 +255,14 @@ func validateDNS(dns string) error {
 func addCloudProviderToManifestBuilder(provider string, builder *manifest.Builder) error {
 	builder.AddOverlayContender(provider)
 
-	if provider == "minikube" {
-		return nil
+	if provider != "minikube" && provider != "microk8s" {
+		if err := builder.AddComponent("cert-manager"); err != nil {
+			return err
+		}
 	}
-
-	if err := builder.AddComponent("cert-manager"); err != nil {
-		return err
-	}
-
 	if err := builder.AddComponent("storage"); err != nil {
 		return err
 	}
-
 	return nil
 }
 
@@ -250,4 +275,17 @@ func addDNSProviderToManifestBuilder(dns string, builder *manifest.Builder) erro
 
 	overlay := strings.Join([]string{"cert-manager", "overlays", dns}, string(os.PathSeparator))
 	return builder.AddOverlay(overlay)
+}
+
+func filterMergedParams(provider string, mergedParams *util.DynamicYaml) error {
+	keyToDelete := "application.local"
+	if !providerProperties[provider].IsCloud {
+		keyToDelete = "application.cloud"
+	}
+
+	if err := mergedParams.DeleteByString(keyToDelete, "."); err != nil {
+		return err
+	}
+
+	return nil
 }

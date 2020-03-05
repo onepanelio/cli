@@ -1,6 +1,7 @@
 package util
 
 import (
+	"fmt"
 	"github.com/iancoleman/strcase"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
@@ -180,6 +181,31 @@ func getValue(obj map[interface{}]interface{}, keys []string, indexOfElementInAr
 				return queryObj[lastKey]
 			}
 		}
+	}
+
+	return nil
+}
+
+func (d *DynamicYaml) DeleteByString(path, separator string) error {
+	keys := strings.Split(path, separator)
+
+	return d.DeleteByParts(keys...)
+}
+
+func (d *DynamicYaml) DeleteByParts(keys ...string) error {
+	queryObj := d.data
+
+	for i, key := range keys {
+		data, ok := queryObj[key]
+		if !ok {
+			return fmt.Errorf("key not found %v", strings.Join(keys, "."))
+		}
+
+		if i == (len(keys) - 1) {
+			delete(queryObj, key)
+		}
+
+		queryObj = data.(map[interface{}]interface{})
 	}
 
 	return nil
