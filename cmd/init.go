@@ -156,6 +156,12 @@ If there is no argument, configuration.yaml is used.`,
 			}
 		}
 
+		if providerProperties[Provider].IsCloud {
+			bld.AddOverlayContender("cloud")
+		} else {
+			bld.AddOverlayContender("local")
+		}
+
 		if err := bld.Build(); err != nil {
 			log.Printf("[error] building components and overlays: %v", err.Error())
 			return
