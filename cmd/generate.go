@@ -114,15 +114,23 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 	if yamlFile.Get("application.local") != nil {
 		applicationApiHttpPort := yamlFile.Get("application.local.apiHTTPPort").(int)
 		applicationApiGrpcPort := yamlFile.Get("application.local.apiGRPCPort").(int)
-		applicationWebPort := yamlFile.Get("application.local.uiHTTPPort").(int)
+		applicationUiPort := yamlFile.Get("application.local.uiHTTPPort").(int)
+		applicationApiUrl := fmt.Sprintf("%v:%v", host, applicationApiHttpPort)
 
-		yamlFile.PutByString(host, "applicationApiHost", ".")
+		yamlFile.PutByString(applicationApiUrl, "applicationApiUrl", ".")
 		yamlFile.PutByString(applicationApiHttpPort, "applicationApiHttpPort", ".")
 		yamlFile.PutByString(applicationApiGrpcPort, "applicationApiGrpcPort", ".")
-		yamlFile.PutByString(applicationWebPort, "applicationUIPort", ".")
+		yamlFile.PutByString(applicationUiPort, "applicationUIPort", ".")
 	} else {
-		log.Printf("cloud\n")
+		applicationApiPath := yamlFile.Get("application.cloud.apiPath")
+		applicationApiGrpcPort := yamlFile.Get("application.cloud.apiGRPCPort").(int)
+		applicationUiPath := yamlFile.Get("application.cloud.uiPath")
 
+		applicationApiUrl := fmt.Sprintf("%v%v", host, applicationApiPath)
+
+		yamlFile.PutByString(applicationApiUrl, "applicationApiPath", ".")
+		yamlFile.PutByString(applicationUiPath, "applicationUiPath", ".")
+		yamlFile.PutByString(applicationApiGrpcPort, "applicationApiGrpcPort", ".")
 	}
 
 	flatMap := yamlFile.Flatten(util.LowerCamelCaseFlatMapKeyFormatter)
