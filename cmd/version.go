@@ -12,7 +12,7 @@ var versionCmd = &cobra.Command{
 	Example:                    "version",
 	Run: func(cmd *cobra.Command, args []string) {
 		version := "1.0.0-beta.1"
-		fmt.Printf("CLI version: " + version)
+		fmt.Printf("CLI version: " + version + "\n")
 	},
 }
 
