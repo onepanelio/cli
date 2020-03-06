@@ -3,7 +3,6 @@ package util
 import (
 	"github.com/pkg/errors"
 	"net/http"
-	"os"
 	"strings"
 
 	"k8s.io/client-go/plugin/pkg/client/auth/exec"
@@ -31,11 +30,7 @@ func GetBearerToken(in *restclient.Config, explicitKubeConfigPath string) (strin
 	if len(in.BearerToken) > 0 {
 		return in.BearerToken, nil
 	}
-
-	if token := getEnvToken(); token != "" {
-		return token, nil
-	}
-
+	
 	if in == nil {
 		return "", errors.Errorf("RestClient can't be nil")
 	}
@@ -72,10 +67,4 @@ func GetBearerToken(in *restclient.Config, explicitKubeConfigPath string) (strin
 		}
 	}
 	return "", errors.Errorf("could not find a token")
-}
-
-
-// Get the Auth token from environment variable
-func getEnvToken() string {
-	return os.Getenv("ARGO_TOKEN")
 }
