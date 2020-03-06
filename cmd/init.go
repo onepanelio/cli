@@ -87,10 +87,6 @@ If there is no argument, configuration.yaml is used.`,
 			return
 		}
 
-		if Provider == "" {
-			Provider = "minikube"
-		}
-
 		if err := validateProvider(Provider); err != nil {
 			fmt.Println(err.Error())
 			return
@@ -243,9 +239,13 @@ func init() {
 }
 
 func validateProvider(prov string) error {
+	if prov == "" {
+		return fmt.Errorf("Missing --provider/-p flag")
+	}
+
 	_, ok := providerProperties[prov]
 	if !ok {
-		return fmt.Errorf("unsupported provider %v", prov)
+		return fmt.Errorf("Unsupported provider %v", prov)
 	}
 
 	return nil
