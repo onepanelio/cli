@@ -115,15 +115,28 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 	if yamlFile.Get("application.local") != nil {
 		applicationApiHttpPort := yamlFile.Get("application.local.apiHTTPPort").(int)
 		applicationApiGrpcPort := yamlFile.Get("application.local.apiGRPCPort").(int)
-		applicationWebPort := yamlFile.Get("application.local.uiHTTPPort").(int)
+		applicationUiPort := yamlFile.Get("application.local.uiHTTPPort").(int)
+		applicationApiUrl := formatUrlForUi(fmt.Sprintf("http://%v:%v", host, applicationApiHttpPort))
+		uiApiWsPath := formatUrlForUi(fmt.Sprintf("ws://%v:%v", host, applicationApiHttpPort))
 
-		yamlFile.PutByString(host, "applicationApiHost", ".")
+		yamlFile.PutByString(applicationApiUrl, "applicationApiUrl", ".")
+		yamlFile.PutByString(uiApiWsPath, "applicationApiWsUrl", ".")
 		yamlFile.PutByString(applicationApiHttpPort, "applicationApiHttpPort", ".")
 		yamlFile.PutByString(applicationApiGrpcPort, "applicationApiGrpcPort", ".")
-		yamlFile.PutByString(applicationWebPort, "applicationUIPort", ".")
+		yamlFile.PutByString(applicationUiPort, "applicationUIPort", ".")
 	} else {
-		log.Printf("cloud\n")
+		applicationApiPath := yamlFile.Get("application.cloud.apiPath").(string)
+		applicationApiGrpcPort := yamlFile.Get("application.cloud.apiGRPCPort").(int)
+		applicationUiPath := yamlFile.Get("application.cloud.uiPath").(string)
 
+		uiApiPath := formatUrlForUi("http://" + host + applicationApiPath)
+		uiApiWsPath := formatUrlForUi("ws://" + host + applicationApiPath)
+
+		yamlFile.PutByString(uiApiPath, "applicationApiUrl", ".")
+		yamlFile.PutByString(uiApiWsPath, "applicationApiWsUrl", ".")
+		yamlFile.PutByString(applicationApiPath, "applicationApiPath", ".")
+		yamlFile.PutByString(applicationUiPath, "applicationUiPath", ".")
+		yamlFile.PutByString(applicationApiGrpcPort, "applicationApiGrpcPort", ".")
 	}
 
 	flatMap := yamlFile.Flatten(util.LowerCamelCaseFlatMapKeyFormatter)
@@ -397,4 +410,12 @@ func FilePathWalkDir(root string) ([]string, error) {
 		return nil
 	})
 	return filesFound, err
+}
+
+func formatUrlForUi(url string) string {
+	result := strings.Replace(url, "/", `\/`, -1)
+	result = strings.Replace(result, ".", `\.`, -1)
+	result = strings.Replace(result, ":", `\:`, -1)
+
+	return result
 }
