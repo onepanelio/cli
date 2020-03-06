@@ -236,6 +236,10 @@ func init() {
 	initCmd.Flags().BoolVarP(&LoggingComponent, "logging", "l", false, "If set, adds a logging component")
 }
 
+func ValidateProvider(prov string) error {
+	return validateProvider(prov)
+}
+
 func validateProvider(prov string) error {
 	_, ok := providerProperties[prov]
 	if !ok {
