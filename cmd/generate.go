@@ -122,10 +122,16 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 		yamlFile.PutByString(applicationApiGrpcPort, "applicationApiGrpcPort", ".")
 		yamlFile.PutByString(applicationUiPort, "applicationUIPort", ".")
 	} else {
-		applicationApiPath := yamlFile.Get("application.cloud.apiPath")
+		applicationApiPath := yamlFile.Get("application.cloud.apiPath").(string)
 		applicationApiGrpcPort := yamlFile.Get("application.cloud.apiGRPCPort").(int)
-		applicationUiPath := yamlFile.Get("application.cloud.uiPath")
+		applicationUiPath := yamlFile.Get("application.cloud.uiPath").(string)
 
+		uiApiPath := applicationApiPath
+		if strings.HasPrefix(uiApiPath, "/") {
+			uiApiPath = uiApiPath[1:]
+		}
+
+		yamlFile.PutByString(uiApiPath, "applicationApiUrl", ".")
 		yamlFile.PutByString(applicationApiPath, "applicationApiPath", ".")
 		yamlFile.PutByString(applicationUiPath, "applicationUiPath", ".")
 		yamlFile.PutByString(applicationApiGrpcPort, "applicationApiGrpcPort", ".")
