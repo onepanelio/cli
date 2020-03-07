@@ -240,6 +240,10 @@ func init() {
 	initCmd.MarkFlagRequired("provider")
 }
 
+func ValidateProvider(prov string) error {
+	return validateProvider(prov)
+}
+
 func validateProvider(prov string) error {
 	_, ok := providerProperties[prov]
 	if !ok {
