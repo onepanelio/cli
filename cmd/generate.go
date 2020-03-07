@@ -129,8 +129,16 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 		applicationApiGrpcPort := yamlFile.Get("application.cloud.apiGRPCPort").(int)
 		applicationUiPath := yamlFile.Get("application.cloud.uiPath").(string)
 
-		uiApiPath := formatUrlForUi("http://" + host + applicationApiPath)
-		uiApiWsPath := formatUrlForUi("ws://" + host + applicationApiPath)
+		insecure := yamlFile.Get("application.cloud.insecure").(bool)
+		httpScheme := "http://"
+		wsScheme := "ws://"
+		if !insecure {
+			httpScheme = "https://"
+			wsScheme = "wss://"
+		}
+
+		uiApiPath := formatUrlForUi(httpScheme + host + applicationApiPath)
+		uiApiWsPath := formatUrlForUi(wsScheme + host + applicationApiPath)
 
 		yamlFile.PutByString(uiApiPath, "applicationApiUrl", ".")
 		yamlFile.PutByString(uiApiWsPath, "applicationApiWsUrl", ".")
