@@ -20,7 +20,7 @@ var tokenCmd = &cobra.Command{
 	Use:     "token",
 	Short:   "Get the token for a provider.",
 	Long:    "Get a token for a given provider. Google Cloud Platform is different from minikube, for example.",
-	Example: "auth token --provider=gke",
+	Example: "auth token",
 	Run: func(cmd *cobra.Command, args []string) {
 		config := util.NewConfig()
 		token, err := util.GetBearerToken(config, "")
