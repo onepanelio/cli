@@ -30,7 +30,7 @@ func GetBearerToken(in *restclient.Config, explicitKubeConfigPath string) (strin
 	if len(in.BearerToken) > 0 {
 		return in.BearerToken, nil
 	}
-	
+
 	if in == nil {
 		return "", errors.Errorf("RestClient can't be nil")
 	}

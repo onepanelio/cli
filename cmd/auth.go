@@ -10,7 +10,7 @@ import (
 var authCmd = &cobra.Command{
 	Use:     "auth",
 	Short:   "Get authentication information.",
-	Long:    "Intented to be used to get authentication information.",
+	Long:    "Intended to be used to get authentication information.",
 	Example: "auth token",
 	Run: func(cmd *cobra.Command, args []string) {
 	},
