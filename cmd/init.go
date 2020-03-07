@@ -87,10 +87,6 @@ If there is no argument, configuration.yaml is used.`,
 			return
 		}
 
-		if Provider == "" {
-			Provider = "minikube"
-		}
-
 		if err := validateProvider(Provider); err != nil {
 			fmt.Println(err.Error())
 			return
@@ -240,12 +236,14 @@ func init() {
 	initCmd.Flags().StringVarP(&ConfigurationFilePath, "config", "c", "config.yaml", "File path of the resulting config file")
 	initCmd.Flags().StringVarP(&ParametersFilePath, "params", "e", "params.yaml", "File path of the resulting parameters file")
 	initCmd.Flags().BoolVarP(&LoggingComponent, "logging", "l", false, "If set, adds a logging component")
+
+	initCmd.MarkFlagRequired("provider")
 }
 
 func validateProvider(prov string) error {
 	_, ok := providerProperties[prov]
 	if !ok {
-		return fmt.Errorf("unsupported provider %v", prov)
+		return fmt.Errorf("Unsupported provider %v", prov)
 	}
 
 	return nil
