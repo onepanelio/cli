@@ -236,13 +236,11 @@ func init() {
 	initCmd.Flags().StringVarP(&ConfigurationFilePath, "config", "c", "config.yaml", "File path of the resulting config file")
 	initCmd.Flags().StringVarP(&ParametersFilePath, "params", "e", "params.yaml", "File path of the resulting parameters file")
 	initCmd.Flags().BoolVarP(&LoggingComponent, "logging", "l", false, "If set, adds a logging component")
+
+	initCmd.MarkFlagRequired("provider")
 }
 
 func validateProvider(prov string) error {
-	if prov == "" {
-		return fmt.Errorf("Missing --provider/-p flag")
-	}
-
 	_, ok := providerProperties[prov]
 	if !ok {
 		return fmt.Errorf("Unsupported provider %v", prov)
