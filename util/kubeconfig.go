@@ -2,7 +2,10 @@ package util
 
 import (
 	"github.com/pkg/errors"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 	"net/http"
+	"regexp"
 	"strings"
 
 	"k8s.io/client-go/plugin/pkg/client/auth/exec"
@@ -10,7 +13,6 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/transport"
 )
-
 
 type Config = restclient.Config
 
@@ -23,7 +25,6 @@ func NewConfig() (config *Config) {
 
 	return
 }
-
 
 func GetBearerToken(in *restclient.Config, explicitKubeConfigPath string) (string, error) {
 
@@ -64,6 +65,21 @@ func GetBearerToken(in *restclient.Config, explicitKubeConfigPath string) (strin
 		if in.AuthProvider.Name == "gcp" {
 			token := in.AuthProvider.Config["access-token"]
 			return strings.TrimPrefix(token, "Bearer "), nil
+		}
+	}
+
+	kubeClient, err := kubernetes.NewForConfig(in)
+	if err != nil {
+		return "", errors.Errorf("Could not get kubeClient")
+	}
+	secrets, err := kubeClient.CoreV1().Secrets("kube-system").List(v1.ListOptions{})
+	if err != nil {
+		return "", errors.Errorf("Could not get kube-system secrets.")
+	}
+	re := regexp.MustCompile(`^default-token-`)
+	for _, secret := range secrets.Items {
+		if re.Find([]byte(secret.ObjectMeta.Name)) != nil {
+			return string(secret.Data["token"]), nil
 		}
 	}
 	return "", errors.Errorf("could not find a token")
