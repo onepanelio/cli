@@ -52,9 +52,7 @@ var providerProperties = map[string]ProviderProperties{
 // initCmd represents the init command
 var initCmd = &cobra.Command{
 	Use:   "init",
-	Short: "Generates a sample configuration file.",
-	Long: `Generates a sample configuration file and outputs it to the first argument.
-If there is no argument, configuration.yaml is used.`,
+	Short: "Generates configuration file.",
 	Run: func(cmd *cobra.Command, args []string) {
 		configFile := ".cli_config.yaml"
 		exists, err := files.Exists(configFile)
@@ -235,7 +233,7 @@ func init() {
 	initCmd.Flags().StringVarP(&DNS, "dns-provider", "d", "", "Provider for DNS. Valid values are: route53")
 	initCmd.Flags().StringVarP(&ConfigurationFilePath, "config", "c", "config.yaml", "File path of the resulting config file")
 	initCmd.Flags().StringVarP(&ParametersFilePath, "params", "e", "params.yaml", "File path of the resulting parameters file")
-	initCmd.Flags().BoolVarP(&LoggingComponent, "logging", "l", false, "If set, adds a logging component")
+	initCmd.Flags().BoolVarP(&LoggingComponent, "enable-efk-logging", "", false, "Enable Elasticsearch, Fluentd and Kibana (EFK) logging")
 
 	initCmd.MarkFlagRequired("provider")
 }

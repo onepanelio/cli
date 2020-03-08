@@ -2,27 +2,22 @@ package cmd
 
 import (
 	"fmt"
-	opConfig "github.com/onepanelio/cli/config"
-	"github.com/onepanelio/cli/files"
-	"github.com/spf13/cobra"
 	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
 	"strings"
 	"time"
+
+	opConfig "github.com/onepanelio/cli/config"
+	"github.com/onepanelio/cli/files"
+	"github.com/spf13/cobra"
 )
 
 // applyCmd represents the apply command
 var applyCmd = &cobra.Command{
-	Use:   "deploy",
-	Short: "Deploy a kubernetes yaml configuration file to your kubernetes cluster.",
-	Long: `Deploys a kubernetes yaml configuration file given the 
-OpDef file and parameters file, 
-A sample usage is:
-
-op-cli apply config.yaml params.env
-`,
+	Use:   "apply",
+	Short: "Applies application YAML to your Kubernetes cluster.",
 	Run: func(cmd *cobra.Command, args []string) {
 		configFilePath := "config.yaml"
 

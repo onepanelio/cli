@@ -21,15 +21,8 @@ import (
 
 // generateCmd represents the generate command
 var generateCmd = &cobra.Command{
-	Use:   "generate",
-	Short: "Generates a kubernetes yaml configuration file.",
-	Long: `Generates a kubernetes yaml configuration file given the 
-OpDef file and parameters file, where you can customize components and overlays.
-
-A sample usage is:
-
-op-cli generate config.yaml params.yaml
-`,
+	Use:   "build",
+	Short: "Builds application YAML for preview.",
 	Run: func(cmd *cobra.Command, args []string) {
 		configFilePath := "config.yaml"
 
