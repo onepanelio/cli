@@ -61,6 +61,11 @@ var initCmd = &cobra.Command{
 			return
 		}
 
+		if !EnableCertManager && DNS != "" {
+			log.Printf("enable-cert-manager flag is required when dns-provider is set")
+			return
+		}
+
 		if err := validateProvider(Provider); err != nil {
 			fmt.Println(err.Error())
 			return
