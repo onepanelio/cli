@@ -61,6 +61,16 @@ var initCmd = &cobra.Command{
 			return
 		}
 
+		if err := validateProvider(Provider); err != nil {
+			fmt.Println(err.Error())
+			return
+		}
+
+		if err := validateDNS(DNS); err != nil {
+			fmt.Println(err.Error())
+			return
+		}
+
 		configFile := ".cli_config.yaml"
 		exists, err := files.Exists(configFile)
 		if err != nil {
@@ -89,16 +99,6 @@ var initCmd = &cobra.Command{
 		manifestsRepoPath, err := source.GetManifestPath()
 		if err != nil {
 			log.Printf("[error] %v", err.Error())
-			return
-		}
-
-		if err := validateProvider(Provider); err != nil {
-			fmt.Println(err.Error())
-			return
-		}
-
-		if err := validateDNS(DNS); err != nil {
-			fmt.Println(err.Error())
 			return
 		}
 
