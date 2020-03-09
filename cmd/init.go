@@ -271,7 +271,7 @@ func validateDNS(dns string) error {
 func addCloudProviderToManifestBuilder(provider string, builder *manifest.Builder) error {
 	builder.AddOverlayContender(provider)
 
-	if provider != "minikube" && provider != "microk8s" {
+	if (provider != "minikube" && provider != "microk8s") && EnableCertManager {
 		if err := builder.AddComponent("cert-manager"); err != nil {
 			return err
 		}
