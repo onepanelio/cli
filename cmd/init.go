@@ -52,7 +52,7 @@ var providerProperties = map[string]ProviderProperties{
 // initCmd represents the init command
 var initCmd = &cobra.Command{
 	Use:   "init",
-	Short: "Generates configuration file.",
+	Short: "Gets latests manifests and generates params.yaml file.",
 	Run: func(cmd *cobra.Command, args []string) {
 		configFile := ".cli_config.yaml"
 		exists, err := files.Exists(configFile)
