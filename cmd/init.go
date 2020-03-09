@@ -24,7 +24,7 @@ var (
 	ParametersFilePath    string
 	Provider              string
 	DNS                   string
-	LoggingComponent      bool
+	EnableEFKLogging      bool
 	EnableHTTPS           bool
 	EnableCertManager     bool
 )
@@ -151,7 +151,7 @@ var initCmd = &cobra.Command{
 			return
 		}
 
-		if LoggingComponent {
+		if EnableEFKLogging {
 			if err := bld.AddComponent("logging"); err != nil {
 				log.Printf("[error] Adding logging component: %v", err.Error())
 				return
@@ -240,7 +240,7 @@ func init() {
 	initCmd.Flags().StringVarP(&DNS, "dns-provider", "d", "", "Provider for DNS. Valid values are: route53")
 	initCmd.Flags().StringVarP(&ConfigurationFilePath, "config", "c", "config.yaml", "File path of the resulting config file")
 	initCmd.Flags().StringVarP(&ParametersFilePath, "params", "e", "params.yaml", "File path of the resulting parameters file")
-	initCmd.Flags().BoolVarP(&LoggingComponent, "enable-efk-logging", "", false, "Enable Elasticsearch, Fluentd and Kibana (EFK) logging")
+	initCmd.Flags().BoolVarP(&EnableEFKLogging, "enable-efk-logging", "", false, "Enable Elasticsearch, Fluentd and Kibana (EFK) logging")
 	initCmd.Flags().BoolVarP(&EnableHTTPS, "enable-https", "", false, "Enable HTTPS scheme and redirect all requests to https://")
 	initCmd.Flags().BoolVarP(&EnableCertManager, "enable-cert-manager", "", false, "Automatically create/renew TLS certs using Let's Encrypt")
 
