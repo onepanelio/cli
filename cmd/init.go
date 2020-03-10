@@ -81,6 +81,7 @@ var initCmd = &cobra.Command{
 			return
 		}
 
+		log.Printf("Initializing...")
 		configFile := ".cli_config.yaml"
 		exists, err := files.Exists(configFile)
 		if err != nil {
