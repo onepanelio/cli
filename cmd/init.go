@@ -207,6 +207,14 @@ var initCmd = &cobra.Command{
 			return
 		}
 
+		if mergedParams.Get("application.cloud") != nil {
+			if EnableHTTPS {
+				mergedParams.Put(false, "application.cloud.insecure")
+			} else {
+				mergedParams.Put(true, "application.cloud.insecure")
+			}
+		}
+
 		paramsFile, err := os.OpenFile(ParametersFilePath, os.O_RDWR, 0)
 		if err != nil {
 			log.Printf("Error opening parameters file: %v", err.Error())
