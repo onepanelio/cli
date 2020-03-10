@@ -169,6 +169,10 @@ var initCmd = &cobra.Command{
 			bld.AddOverlayContender("local")
 		}
 
+		if EnableHTTPS {
+			bld.AddOverlayContender("https")
+		}
+
 		if err := bld.Build(); err != nil {
 			log.Printf("[error] building components and overlays: %v", err.Error())
 			return
