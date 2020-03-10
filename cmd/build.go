@@ -5,8 +5,11 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
-	"os/exec"
 	"path/filepath"
+	"sigs.k8s.io/kustomize/api/filesys"
+	"sigs.k8s.io/kustomize/api/krusty"
+	"sigs.k8s.io/kustomize/api/resmap"
+	"sigs.k8s.io/kustomize/api/types"
 	"strconv"
 	"strings"
 
@@ -327,38 +330,13 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 	}
 
 	//Update the values in those files
-
-	cmd := exec.Command("kustomize", "build", localManifestsCopyPath, "--load_restrictor", "none")
-	stdOut, err := cmd.StdoutPipe()
+	rm, err := runKustomizeBuild(localManifestsCopyPath)
 	if err != nil {
 		return "", err
 	}
+	kustYaml, err := rm.AsYaml()
 
-	stdErr, err := cmd.StderrPipe()
-	if err != nil {
-		return "", err
-	}
-
-	if err := cmd.Start(); err != nil {
-		return "", err
-	}
-
-	result, err := ioutil.ReadAll(stdOut)
-	if err != nil {
-		return "", err
-	}
-
-	errRes, err := ioutil.ReadAll(stdErr)
-	if err != nil {
-		log.Printf("Errors:\n%v", string(errRes))
-		return "", err
-	}
-
-	if err := cmd.Wait(); err != nil {
-		return "", err
-	}
-
-	return string(result), nil
+	return string(kustYaml), nil
 }
 
 func BuilderToTemplate(builder *manifest.Builder) template.Kustomize {
@@ -419,4 +397,22 @@ func formatUrlForUi(url string) string {
 	result = strings.Replace(result, ":", `\:`, -1)
 
 	return result
+}
+
+func runKustomizeBuild(path string) (rm resmap.ResMap, err error) {
+	fSys := filesys.MakeFsOnDisk()
+	opts := &krusty.Options{
+		DoLegacyResourceSort: true,
+		LoadRestrictions:     types.LoadRestrictionsNone,
+		DoPrune:              false,
+	}
+
+	k := krusty.MakeKustomizer(fSys, opts)
+
+	rm, err = k.Run(path)
+	if err != nil {
+		return nil, fmt.Errorf("Kustomizer Run for path '%s' failed: %s", path, err)
+	}
+
+	return rm, nil
 }
