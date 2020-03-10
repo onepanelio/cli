@@ -24,7 +24,9 @@ var (
 	ParametersFilePath    string
 	Provider              string
 	DNS                   string
-	LoggingComponent      bool
+	EnableEFKLogging      bool
+	EnableHTTPS           bool
+	EnableCertManager     bool
 )
 
 type ProviderProperties struct {
@@ -54,6 +56,32 @@ var initCmd = &cobra.Command{
 	Use:   "init",
 	Short: "Gets latests manifests and generates params.yaml file.",
 	Run: func(cmd *cobra.Command, args []string) {
+		if EnableCertManager && !EnableHTTPS {
+			log.Printf("enable-https flag is required when enable-cert-manager is set")
+			return
+		}
+
+		if EnableCertManager && DNS == "" {
+			log.Printf("dns-provider flag is required when enable-cert-manager is set")
+			return
+		}
+
+		if !EnableCertManager && DNS != "" {
+			log.Printf("enable-cert-manager flag is required when dns-provider is set")
+			return
+		}
+
+		if err := validateProvider(Provider); err != nil {
+			fmt.Println(err.Error())
+			return
+		}
+
+		if err := validateDNS(DNS); err != nil {
+			fmt.Println(err.Error())
+			return
+		}
+
+		log.Printf("Initializing...")
 		configFile := ".cli_config.yaml"
 		exists, err := files.Exists(configFile)
 		if err != nil {
@@ -82,16 +110,6 @@ var initCmd = &cobra.Command{
 		manifestsRepoPath, err := source.GetManifestPath()
 		if err != nil {
 			log.Printf("[error] %v", err.Error())
-			return
-		}
-
-		if err := validateProvider(Provider); err != nil {
-			fmt.Println(err.Error())
-			return
-		}
-
-		if err := validateDNS(DNS); err != nil {
-			fmt.Println(err.Error())
 			return
 		}
 
@@ -144,7 +162,7 @@ var initCmd = &cobra.Command{
 			return
 		}
 
-		if LoggingComponent {
+		if EnableEFKLogging {
 			if err := bld.AddComponent("logging"); err != nil {
 				log.Printf("[error] Adding logging component: %v", err.Error())
 				return
@@ -155,6 +173,10 @@ var initCmd = &cobra.Command{
 			bld.AddOverlayContender("cloud")
 		} else {
 			bld.AddOverlayContender("local")
+		}
+
+		if EnableHTTPS {
+			bld.AddOverlayContender("https")
 		}
 
 		if err := bld.Build(); err != nil {
@@ -184,6 +206,14 @@ var initCmd = &cobra.Command{
 		if err := filterMergedParams(Provider, mergedParams); err != nil {
 			log.Printf("Error filtering params: %v", err.Error())
 			return
+		}
+
+		if mergedParams.Get("application.cloud") != nil {
+			if EnableHTTPS {
+				mergedParams.Put(false, "application.cloud.insecure")
+			} else {
+				mergedParams.Put(true, "application.cloud.insecure")
+			}
 		}
 
 		paramsFile, err := os.OpenFile(ParametersFilePath, os.O_RDWR, 0)
@@ -233,7 +263,9 @@ func init() {
 	initCmd.Flags().StringVarP(&DNS, "dns-provider", "d", "", "Provider for DNS. Valid values are: route53")
 	initCmd.Flags().StringVarP(&ConfigurationFilePath, "config", "c", "config.yaml", "File path of the resulting config file")
 	initCmd.Flags().StringVarP(&ParametersFilePath, "params", "e", "params.yaml", "File path of the resulting parameters file")
-	initCmd.Flags().BoolVarP(&LoggingComponent, "enable-efk-logging", "", false, "Enable Elasticsearch, Fluentd and Kibana (EFK) logging")
+	initCmd.Flags().BoolVarP(&EnableEFKLogging, "enable-efk-logging", "", false, "Enable Elasticsearch, Fluentd and Kibana (EFK) logging")
+	initCmd.Flags().BoolVarP(&EnableHTTPS, "enable-https", "", false, "Enable HTTPS scheme and redirect all requests to https://")
+	initCmd.Flags().BoolVarP(&EnableCertManager, "enable-cert-manager", "", false, "Automatically create/renew TLS certs using Let's Encrypt")
 
 	initCmd.MarkFlagRequired("provider")
 }
@@ -262,7 +294,7 @@ func validateDNS(dns string) error {
 func addCloudProviderToManifestBuilder(provider string, builder *manifest.Builder) error {
 	builder.AddOverlayContender(provider)
 
-	if provider != "minikube" && provider != "microk8s" {
+	if (provider != "minikube" && provider != "microk8s") && EnableCertManager {
 		if err := builder.AddComponent("cert-manager"); err != nil {
 			return err
 		}

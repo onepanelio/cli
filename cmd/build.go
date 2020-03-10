@@ -60,6 +60,7 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 	manifestPath := config.Spec.ManifestsRepo
 	localManifestsCopyPath := ".manifests/cache"
 
+	log.Printf("Building...")
 	exists, err := files.Exists(localManifestsCopyPath)
 	if err != nil {
 		return "", err
