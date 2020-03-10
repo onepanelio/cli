@@ -56,6 +56,11 @@ var initCmd = &cobra.Command{
 	Use:   "init",
 	Short: "Gets latests manifests and generates params.yaml file.",
 	Run: func(cmd *cobra.Command, args []string) {
+		if EnableCertManager && !EnableHTTPS {
+			log.Printf("enable-https flag is required when enable-cert-manager is set")
+			return
+		}
+
 		if EnableCertManager && DNS == "" {
 			log.Printf("dns-provider flag is required when enable-cert-manager is set")
 			return
