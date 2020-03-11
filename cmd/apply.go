@@ -3,13 +3,12 @@ package cmd
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/kubectl/pkg/cmd/apply"
+	"k8s.io/kubectl/pkg/cmd/get"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"log"
 	"os"
-	"os/exec"
 	"strings"
 	"time"
 
@@ -190,37 +189,26 @@ func init() {
 }
 
 func getPodInfo(podName string, podNamespace string) (res string, errMessage string, err error) {
-	cmd := exec.Command("kubectl", "get", "pod", podName, "-n", podNamespace)
-	stdOut, err := cmd.StdoutPipe()
-	if err != nil {
-		return "", "", err
+	kubeConfigFlags := genericclioptions.NewConfigFlags(true).WithDeprecatedPasswordFlag()
+	kubeConfigFlags.Namespace = &podNamespace
+	matchVersionKubeConfigFlags := cmdutil.NewMatchVersionFlags(kubeConfigFlags)
+
+	out := &bytes.Buffer{}
+	errOut := &bytes.Buffer{}
+
+	f := cmdutil.NewFactory(matchVersionKubeConfigFlags)
+
+	ioStreams := genericclioptions.IOStreams{
+		In:     os.Stdin,
+		Out:    out,
+		ErrOut: errOut,
 	}
+	cmd := get.NewCmdGet("kubectl", f, ioStreams)
+	cmd.Run(cmd, []string{"pod", podName})
 
-	stdErr, err := cmd.StderrPipe()
-	if err != nil {
-		return "", "", err
-	}
-
-	if err := cmd.Start(); err != nil {
-		return "", "", err
-	}
-
-	result, err := ioutil.ReadAll(stdOut)
-	if err != nil {
-		return "", "", err
-	}
-
-	errRes, err := ioutil.ReadAll(stdErr)
-	if err != nil {
-		return "", "", err
-	}
-
-	if err := cmd.Wait(); err != nil {
-		return string(result), string(errRes), err
-	}
-
-	return string(result), string(errRes), nil
-
+	res = out.String()
+	errMessage = errOut.String()
+	return
 }
 
 func applyKubernetesFile(filePath string) (res string, errMessage string, err error) {
