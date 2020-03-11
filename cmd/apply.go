@@ -2,16 +2,17 @@ package cmd
 
 import (
 	"fmt"
-	opConfig "github.com/onepanelio/cli/config"
-	"github.com/onepanelio/cli/files"
-	"github.com/onepanelio/cli/util"
-	"github.com/spf13/cobra"
 	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
 	"strings"
 	"time"
+
+	opConfig "github.com/onepanelio/cli/config"
+	"github.com/onepanelio/cli/files"
+	"github.com/onepanelio/cli/util"
+	"github.com/spf13/cobra"
 )
 
 // applyCmd represents the apply command
@@ -20,6 +21,8 @@ var applyCmd = &cobra.Command{
 	Short: "Applies application YAML to your Kubernetes cluster.",
 	Run: func(cmd *cobra.Command, args []string) {
 		configFilePath := "config.yaml"
+
+		log.Printf("Starting deployment...\n\n")
 
 		if len(args) > 1 {
 			configFilePath = args[0]
@@ -68,8 +71,6 @@ var applyCmd = &cobra.Command{
 			log.Printf("Error writing to temporary file: %v", err.Error())
 			return
 		}
-
-		fmt.Printf("Starting deployment...\n\n")
 
 		resApp := ""
 		errResApp := ""
