@@ -27,6 +27,7 @@ var (
 	EnableEFKLogging      bool
 	EnableHTTPS           bool
 	EnableCertManager     bool
+	GPUDevicePlugins      []string
 )
 
 type ProviderProperties struct {
@@ -169,6 +170,17 @@ var initCmd = &cobra.Command{
 			}
 		}
 
+		if GPUDevicePlugins != nil {
+			if err := bld.AddComponent("gpu-plugins"); err != nil {
+				log.Printf("[error] Adding GPU plugins component: %v", err.Error())
+				return
+			}
+
+			for _, p := range GPUDevicePlugins {
+				bld.AddOverlayContender(p)
+			}
+		}
+
 		if providerProperties[Provider].IsCloud {
 			bld.AddOverlayContender("cloud")
 		} else {
@@ -266,6 +278,7 @@ func init() {
 	initCmd.Flags().BoolVarP(&EnableEFKLogging, "enable-efk-logging", "", false, "Enable Elasticsearch, Fluentd and Kibana (EFK) logging")
 	initCmd.Flags().BoolVarP(&EnableHTTPS, "enable-https", "", false, "Enable HTTPS scheme and redirect all requests to https://")
 	initCmd.Flags().BoolVarP(&EnableCertManager, "enable-cert-manager", "", false, "Automatically create/renew TLS certs using Let's Encrypt")
+	initCmd.Flags().StringSliceVarP(&GPUDevicePlugins, "gpu-device-plugins", "", nil, "Install NVIDIA and/or AMD gpu device plugins. Valid values can be comma separated and are: amd, nvidia")
 
 	initCmd.MarkFlagRequired("provider")
 }
