@@ -13,7 +13,9 @@ require (
 	github.com/spf13/viper v1.5.0
 	gopkg.in/yaml.v2 v2.2.8
 	k8s.io/apimachinery v0.17.3
+	k8s.io/cli-runtime v0.17.3
 	k8s.io/client-go v0.17.3
+	k8s.io/kubectl v0.17.3
 	k8s.io/utils v0.0.0-20200229041039-0a110f9eb7ab // indirect
 	sigs.k8s.io/kustomize/api v0.3.2
 	sigs.k8s.io/yaml v1.2.0 // indirect
