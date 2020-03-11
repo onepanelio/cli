@@ -2,16 +2,16 @@ package cmd
 
 import (
 	"fmt"
+	opConfig "github.com/onepanelio/cli/config"
+	"github.com/onepanelio/cli/files"
+	"github.com/onepanelio/cli/util"
+	"github.com/spf13/cobra"
 	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
 	"strings"
 	"time"
-
-	opConfig "github.com/onepanelio/cli/config"
-	"github.com/onepanelio/cli/files"
-	"github.com/spf13/cobra"
 )
 
 // applyCmd represents the apply command
@@ -177,6 +177,14 @@ var applyCmd = &cobra.Command{
 			fmt.Printf("\nDeployment failed: %v", err.Error())
 		} else {
 			fmt.Printf("\nDeployment is complete.\n")
+
+			url, err := getDeployedWebUrl(config.Spec.Params)
+			if err != nil {
+				fmt.Printf("[error] Unable to get deployed url from configuration: %v", err.Error())
+				return
+			}
+
+			fmt.Printf("Your application is now running at: %v\n", url)
 		}
 	},
 }
@@ -250,4 +258,31 @@ func applyKubernetesFile(filePath string) (res string, errMessage string, err er
 	}
 
 	return string(result), string(errRes), nil
+}
+
+func getDeployedWebUrl(paramsFilePath string) (string, error) {
+	yamlFile, err := util.LoadDynamicYaml(paramsFilePath)
+	if err != nil {
+		return "", err
+	}
+
+	httpScheme := "http://"
+	host := yamlFile.Get("application.host")
+	hostExtra := ""
+
+	if yamlFile.Get("application.local") != nil {
+		applicationUiPort := yamlFile.Get("application.local.uiHTTPPort")
+		hostExtra = fmt.Sprintf(":%v", applicationUiPort)
+	} else {
+		applicationUiPath := yamlFile.Get("application.cloud.uiPath")
+
+		hostExtra = fmt.Sprintf("%v", applicationUiPath)
+
+		insecure := yamlFile.Get("application.cloud.insecure").(bool)
+		if !insecure {
+			httpScheme = "https://"
+		}
+	}
+
+	return fmt.Sprintf("%v%v%v", httpScheme, host, hostExtra), nil
 }
