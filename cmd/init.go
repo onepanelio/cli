@@ -82,6 +82,15 @@ var initCmd = &cobra.Command{
 			return
 		}
 
+		if GPUDevicePlugins != nil {
+			for _, p := range GPUDevicePlugins {
+				if p != "amd" && p != "nvidia" {
+					log.Printf("%v is not a valid --gpu-device-plugins value", p)
+					return
+				}
+			}
+		}
+
 		log.Printf("Initializing...")
 		configFile := ".cli_config.yaml"
 		exists, err := files.Exists(configFile)
