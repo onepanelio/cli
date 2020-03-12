@@ -6,12 +6,13 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
+
 	"sigs.k8s.io/kustomize/api/filesys"
 	"sigs.k8s.io/kustomize/api/krusty"
 	"sigs.k8s.io/kustomize/api/resmap"
 	"sigs.k8s.io/kustomize/api/types"
-	"strconv"
-	"strings"
 
 	opConfig "github.com/onepanelio/cli/config"
 	"github.com/onepanelio/cli/files"
@@ -42,6 +43,7 @@ var generateCmd = &cobra.Command{
 
 		kustomizeTemplate := TemplateFromSimpleOverlayedComponents(config.GetOverlayComponents(""))
 
+		log.Printf("Building...")
 		result, err := GenerateKustomizeResult(*config, kustomizeTemplate)
 		if err != nil {
 			log.Printf("Error generating result %v", err.Error())
@@ -63,7 +65,6 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 	manifestPath := config.Spec.ManifestsRepo
 	localManifestsCopyPath := ".manifests/cache"
 
-	log.Printf("Building...")
 	exists, err := files.Exists(localManifestsCopyPath)
 	if err != nil {
 		return "", err
