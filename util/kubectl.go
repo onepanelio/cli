@@ -2,6 +2,8 @@ package util
 
 import (
 	"bytes"
+	"fmt"
+	"github.com/spf13/cobra"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/kubectl/pkg/cmd/apply"
 	"k8s.io/kubectl/pkg/cmd/get"
@@ -56,6 +58,9 @@ func KubectlApply(filePath string) (stdout string, stderr string, err error) {
 		ErrOut: errOut,
 	}
 	cmd := apply.NewCmdApply("kubectl", f, ioStreams)
+	var args []string
+	applyOptions := apply.NewApplyOptions(ioStreams)
+	applyOptions.DeleteFlags.FileNameFlags.Filenames = &[]string{filePath}
 	err = cmd.Flags().Set("filename", filePath)
 	if err != nil {
 		return "", "", err
@@ -64,10 +69,38 @@ func KubectlApply(filePath string) (stdout string, stderr string, err error) {
 	if err != nil {
 		return "", "", err
 	}
-	cmd.Run(cmd, []string{})
+	if err = applyOptions.Complete(f, cmd); err != nil {
+		return "", "", err
+	}
+	if err = validateArgs(cmd, args); err != nil {
+		return "", "", err
+	}
+	if err = validatePruneAll(applyOptions.Prune, applyOptions.All, applyOptions.Selector); err != nil {
+		return "", "", err
+	}
+	if err = applyOptions.Run(); err != nil {
+		return "", "", err
+	}
 
 	stdout = out.String()
 	stderr = errOut.String()
 
 	return
+}
+
+func validateArgs(cmd *cobra.Command, args []string) error {
+	if len(args) != 0 {
+		return cmdutil.UsageErrorf(cmd, "Unexpected args: %v", args)
+	}
+	return nil
+}
+
+func validatePruneAll(prune, all bool, selector string) error {
+	if all && len(selector) > 0 {
+		return fmt.Errorf("cannot set --all and --selector at the same time")
+	}
+	if prune && !all && selector == "" {
+		return fmt.Errorf("all resources selected for prune without explicitly passing --all. To prune all resources, pass the --all flag. If you did not mean to prune all resources, specify a label selector")
+	}
+	return nil
 }
