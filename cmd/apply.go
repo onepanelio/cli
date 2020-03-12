@@ -99,8 +99,12 @@ var applyCmd = &cobra.Command{
 		for !applicationRunning {
 			podInfoRes, podInfoErrRes, podInfoErr = getPodInfo(podName, podNamespace)
 			if podInfoErr != nil {
-				fmt.Printf("\nFailed: %v", podInfoErr.Error())
-				return
+				if !strings.Contains(podInfoErr.Error(), "not found") {
+					fmt.Printf("\nFailed: %v", podInfoErr.Error())
+					return
+				} else {
+					podInfoRes = podInfoErr.Error()
+				}
 			}
 			if podInfoErrRes != "" {
 				fmt.Printf("\n: %v", podInfoErrRes)
@@ -204,7 +208,17 @@ func getPodInfo(podName string, podNamespace string) (res string, errMessage str
 		ErrOut: errOut,
 	}
 	cmd := get.NewCmdGet("kubectl", f, ioStreams)
-	cmd.Run(cmd, []string{"pod", podName})
+	args := []string{"pod", podName}
+	getOptions := get.NewGetOptions("kubectl", ioStreams)
+	if err = getOptions.Complete(f, cmd, args); err != nil {
+		return "", "", err
+	}
+	if err = getOptions.Validate(cmd); err != nil {
+		return "", "", err
+	}
+	if err = getOptions.Run(f, cmd, args); err != nil {
+		return "", "", err
+	}
 
 	res = out.String()
 	errMessage = errOut.String()
