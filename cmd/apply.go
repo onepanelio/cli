@@ -3,9 +3,9 @@ package cmd
 import (
 	"bytes"
 	"fmt"
+	"github.com/onepanelio/cli/util"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/kubectl/pkg/cmd/apply"
-	"k8s.io/kubectl/pkg/cmd/get"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"log"
 	"os"
@@ -193,36 +193,7 @@ func init() {
 }
 
 func getPodInfo(podName string, podNamespace string) (res string, errMessage string, err error) {
-	kubeConfigFlags := genericclioptions.NewConfigFlags(true).WithDeprecatedPasswordFlag()
-	kubeConfigFlags.Namespace = &podNamespace
-	matchVersionKubeConfigFlags := cmdutil.NewMatchVersionFlags(kubeConfigFlags)
-
-	out := &bytes.Buffer{}
-	errOut := &bytes.Buffer{}
-
-	f := cmdutil.NewFactory(matchVersionKubeConfigFlags)
-
-	ioStreams := genericclioptions.IOStreams{
-		In:     os.Stdin,
-		Out:    out,
-		ErrOut: errOut,
-	}
-	cmd := get.NewCmdGet("kubectl", f, ioStreams)
-	args := []string{"pod", podName}
-	getOptions := get.NewGetOptions("kubectl", ioStreams)
-	if err = getOptions.Complete(f, cmd, args); err != nil {
-		return "", "", err
-	}
-	if err = getOptions.Validate(cmd); err != nil {
-		return "", "", err
-	}
-	if err = getOptions.Run(f, cmd, args); err != nil {
-		return "", "", err
-	}
-
-	res = out.String()
-	errMessage = errOut.String()
-	return
+	return util.KubectlGet("pod", podName, podNamespace)
 }
 
 func applyKubernetesFile(filePath string) (res string, errMessage string, err error) {
