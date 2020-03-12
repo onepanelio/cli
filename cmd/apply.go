@@ -1,12 +1,8 @@
 package cmd
 
 import (
-	"bytes"
 	"fmt"
 	"github.com/onepanelio/cli/util"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
-	"k8s.io/kubectl/pkg/cmd/apply"
-	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"log"
 	"os"
 	"strings"
@@ -197,31 +193,5 @@ func getPodInfo(podName string, podNamespace string) (res string, errMessage str
 }
 
 func applyKubernetesFile(filePath string) (res string, errMessage string, err error) {
-	kubeConfigFlags := genericclioptions.NewConfigFlags(true).WithDeprecatedPasswordFlag()
-	matchVersionKubeConfigFlags := cmdutil.NewMatchVersionFlags(kubeConfigFlags)
-
-	out := &bytes.Buffer{}
-	errOut := &bytes.Buffer{}
-
-	f := cmdutil.NewFactory(matchVersionKubeConfigFlags)
-	ioStreams := genericclioptions.IOStreams{
-		In:     os.Stdin,
-		Out:    out,
-		ErrOut: errOut,
-	}
-	cmd := apply.NewCmdApply("kubectl", f, ioStreams)
-	err = cmd.Flags().Set("filename", filePath)
-	if err != nil {
-		return "", "", err
-	}
-	err = cmd.Flags().Set("validate", "false")
-	if err != nil {
-		return "", "", err
-	}
-	cmd.Run(cmd, []string{})
-
-	res = out.String()
-	errMessage = errOut.String()
-
-	return
+	return util.KubectlApply(filePath)
 }
