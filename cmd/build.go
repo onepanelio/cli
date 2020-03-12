@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"encoding/base64"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -321,6 +322,12 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 			oldRawString := "$raw(" + key + ")"
 			if strings.Contains(manifestFileContentStr, key) {
 				manifestFileContentStr = strings.Replace(manifestFileContentStr, oldRawString, rawStr, -1)
+			}
+
+			oldBase64String := "$base64(" + key + ")"
+			if strings.Contains(manifestFileContentStr, key) {
+				base64Value := base64.StdEncoding.EncodeToString([]byte(rawStr))
+				manifestFileContentStr = strings.Replace(manifestFileContentStr, oldBase64String, base64Value, -1)
 			}
 		}
 		writeFileErr := ioutil.WriteFile(filePath, []byte(manifestFileContentStr), 0644)
