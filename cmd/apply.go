@@ -188,6 +188,16 @@ var applyCmd = &cobra.Command{
 				return
 			}
 
+			kubectlGetFlags := make(map[string]interface{})
+			kubectlGetFlags["output"] = "jsonpath='{.status.loadBalancer.ingress[0].ip}'"
+			extraArgs := []string{}
+			stdout, stderr, err := util.KubectlGet("service", "istio-ingressgateway", "istio-system", extraArgs, kubectlGetFlags)
+			if err != nil {
+				fmt.Printf("[error] Unable to get IP from istio-ingressgateway service: %v", err.Error())
+				return
+			}
+			fmt.Printf(stdout)
+			fmt.Printf(stderr)
 			fmt.Printf("Your application is now running at: %v\n", url)
 		}
 	},
@@ -198,7 +208,8 @@ func init() {
 }
 
 func getPodInfo(podName string, podNamespace string) (res string, errMessage string, err error) {
-	return util.KubectlGet("pod", podName, podNamespace)
+	var extraArgs []string
+	return util.KubectlGet("pod", podName, podNamespace, extraArgs, make(map[string]interface{}))
 }
 
 func applyKubernetesFile(filePath string) (res string, errMessage string, err error) {
