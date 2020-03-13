@@ -2,15 +2,15 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/onepanelio/cli/util"
 	"log"
 	"os"
 	"strings"
 	"time"
 
+	"github.com/onepanelio/cli/util"
+
 	opConfig "github.com/onepanelio/cli/config"
 	"github.com/onepanelio/cli/files"
-	"github.com/onepanelio/cli/util"
 	"github.com/spf13/cobra"
 )
 
