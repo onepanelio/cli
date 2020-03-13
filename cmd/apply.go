@@ -196,9 +196,11 @@ var applyCmd = &cobra.Command{
 				fmt.Printf("[error] Unable to get IP from istio-ingressgateway service: %v", err.Error())
 				return
 			}
-			fmt.Printf(stdout)
-			fmt.Printf(stderr)
-			fmt.Printf("Your application is now running at: %v\n", url)
+			if stderr != "" {
+				fmt.Printf("[error] Unable to get IP from istio-ingressgateway service: %v", stderr)
+				return
+			}
+			fmt.Printf("Your application is accessible at: %v\nSet A record for: %v\n", stdout, url)
 		}
 	},
 }
