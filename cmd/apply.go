@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"log"
+	"net"
 	"os"
 	"strings"
 	"time"
@@ -200,8 +201,13 @@ var applyCmd = &cobra.Command{
 				fmt.Printf("[error] Unable to get IP from istio-ingressgateway service: %v", stderr)
 				return
 			}
-			fmt.Printf("Add a DNS record for %v and point it to %v\n", getWildCardDNS(url), stdout)
-			fmt.Printf("Once complete, your application will be running at: %v\n\n", url)
+
+			dnsRecordMessage := "an A"
+			if !isIpv4(stdout) {
+				dnsRecordMessage = "a CNAME"
+			}
+			fmt.Printf("In your DNS, add %v record for %v and point it to %v\n", dnsRecordMessage, getWildCardDNS(url), stdout)
+			fmt.Printf("Once complete, your application will be running at %v\n\n", url)
 		}
 	},
 }
@@ -252,4 +258,8 @@ func getWildCardDNS(url string) string {
 	url = strings.Join(parts[1:], ".")
 
 	return fmt.Sprintf("*.%v", url)
+}
+
+func isIpv4(host string) bool {
+	return net.ParseIP(strings.Trim(host, "'")) != nil
 }
