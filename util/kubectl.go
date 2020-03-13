@@ -36,18 +36,18 @@ func KubectlGet(resource string, resourceName string, namespace string, extraArg
 		stringVal, ok := flagVal.(string)
 		if !ok {
 			return "", "", errors.New(flagName + ", unexpected flag value type")
-		} //Check if getoptions is losing it's setting
-		// todo remove -- uncomment this chunk to set the flags on getOptions
-		//test := "jsonpath='{.status.loadBalancer.ingress[0].ip}'"
-		//getOptions.PrintFlags.OutputFormat = &test
+		}
+
+		if flagName == "output" {
+			getOptions.PrintFlags.OutputFormat = &stringVal
+		}
+
 		if err = cmd.Flags().Set(flagName, stringVal); err != nil {
 			return "", "", err
 		}
 	}
 	args := []string{resource, resourceName}
 	args = append(args, extraArgs...)
-	// todo this works with just setting the flags on the command
-	//cmd.Run(cmd, args)
 
 	if err = getOptions.Complete(f, cmd, args); err != nil {
 		return "", "", err
