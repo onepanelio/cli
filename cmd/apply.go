@@ -2,10 +2,9 @@ package cmd
 
 import (
 	"fmt"
-	"io/ioutil"
+	"github.com/onepanelio/cli/util"
 	"log"
 	"os"
-	"os/exec"
 	"strings"
 	"time"
 
@@ -97,8 +96,12 @@ var applyCmd = &cobra.Command{
 		for !applicationRunning {
 			podInfoRes, podInfoErrRes, podInfoErr = getPodInfo(podName, podNamespace)
 			if podInfoErr != nil {
-				fmt.Printf("\nFailed: %v", podInfoErr.Error())
-				return
+				if !strings.Contains(podInfoErr.Error(), "not found") {
+					fmt.Printf("\nFailed: %v", podInfoErr.Error())
+					return
+				} else {
+					podInfoRes = podInfoErr.Error()
+				}
 			}
 			if podInfoErrRes != "" {
 				fmt.Printf("\n: %v", podInfoErrRes)
@@ -195,70 +198,11 @@ func init() {
 }
 
 func getPodInfo(podName string, podNamespace string) (res string, errMessage string, err error) {
-	cmd := exec.Command("kubectl", "get", "pod", podName, "-n", podNamespace)
-	stdOut, err := cmd.StdoutPipe()
-	if err != nil {
-		return "", "", err
-	}
-
-	stdErr, err := cmd.StderrPipe()
-	if err != nil {
-		return "", "", err
-	}
-
-	if err := cmd.Start(); err != nil {
-		return "", "", err
-	}
-
-	result, err := ioutil.ReadAll(stdOut)
-	if err != nil {
-		return "", "", err
-	}
-
-	errRes, err := ioutil.ReadAll(stdErr)
-	if err != nil {
-		return "", "", err
-	}
-
-	if err := cmd.Wait(); err != nil {
-		return string(result), string(errRes), err
-	}
-
-	return string(result), string(errRes), nil
-
+	return util.KubectlGet("pod", podName, podNamespace)
 }
 
 func applyKubernetesFile(filePath string) (res string, errMessage string, err error) {
-	cmd := exec.Command("kubectl", "apply", "-f", filePath, "--validate=false")
-	stdOut, err := cmd.StdoutPipe()
-	if err != nil {
-		return "", "", err
-	}
-
-	stdErr, err := cmd.StderrPipe()
-	if err != nil {
-		return "", "", err
-	}
-
-	if err := cmd.Start(); err != nil {
-		return "", "", err
-	}
-
-	result, err := ioutil.ReadAll(stdOut)
-	if err != nil {
-		return "", "", err
-	}
-
-	errRes, err := ioutil.ReadAll(stdErr)
-	if err != nil {
-		return "", "", err
-	}
-
-	if err := cmd.Wait(); err != nil {
-		return string(result), string(errRes), err
-	}
-
-	return string(result), string(errRes), nil
+	return util.KubectlApply(filePath)
 }
 
 func getDeployedWebUrl(paramsFilePath string) (string, error) {
