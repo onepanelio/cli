@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"log"
+	"net"
 	"os"
 	"strings"
 	"time"
@@ -180,7 +181,7 @@ var applyCmd = &cobra.Command{
 		if err != nil {
 			fmt.Printf("\nDeployment failed: %v", err.Error())
 		} else {
-			fmt.Printf("\nDeployment is complete.\n")
+			fmt.Printf("\nDeployment is complete.\n\n")
 
 			url, err := getDeployedWebUrl(config.Spec.Params)
 			if err != nil {
@@ -188,7 +189,25 @@ var applyCmd = &cobra.Command{
 				return
 			}
 
-			fmt.Printf("Your application is now running at: %v\n", url)
+			kubectlGetFlags := make(map[string]interface{})
+			kubectlGetFlags["output"] = "jsonpath='{.status.loadBalancer.ingress[0].ip}'"
+			extraArgs := []string{}
+			stdout, stderr, err := util.KubectlGet("service", "istio-ingressgateway", "istio-system", extraArgs, kubectlGetFlags)
+			if err != nil {
+				fmt.Printf("[error] Unable to get IP from istio-ingressgateway service: %v", err.Error())
+				return
+			}
+			if stderr != "" {
+				fmt.Printf("[error] Unable to get IP from istio-ingressgateway service: %v", stderr)
+				return
+			}
+
+			dnsRecordMessage := "an A"
+			if !isIpv4(stdout) {
+				dnsRecordMessage = "a CNAME"
+			}
+			fmt.Printf("In your DNS, add %v record for %v and point it to %v\n", dnsRecordMessage, getWildCardDNS(url), stdout)
+			fmt.Printf("Once complete, your application will be running at %v\n\n", url)
 		}
 	},
 }
@@ -198,7 +217,8 @@ func init() {
 }
 
 func getPodInfo(podName string, podNamespace string) (res string, errMessage string, err error) {
-	return util.KubectlGet("pod", podName, podNamespace)
+	var extraArgs []string
+	return util.KubectlGet("pod", podName, podNamespace, extraArgs, make(map[string]interface{}))
 }
 
 func applyKubernetesFile(filePath string) (res string, errMessage string, err error) {
@@ -230,4 +250,16 @@ func getDeployedWebUrl(paramsFilePath string) (string, error) {
 	}
 
 	return fmt.Sprintf("%v%v%v", httpScheme, host, hostExtra), nil
+}
+
+func getWildCardDNS(url string) string {
+	url = strings.ReplaceAll(url, "/", "")
+	parts := strings.Split(url, ".")
+	url = strings.Join(parts[1:], ".")
+
+	return fmt.Sprintf("*.%v", url)
+}
+
+func isIpv4(host string) bool {
+	return net.ParseIP(strings.Trim(host, "'")) != nil
 }
