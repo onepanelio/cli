@@ -180,7 +180,7 @@ var applyCmd = &cobra.Command{
 		if err != nil {
 			fmt.Printf("\nDeployment failed: %v", err.Error())
 		} else {
-			fmt.Printf("\nDeployment is complete.\n")
+			fmt.Printf("\nDeployment is complete.\n\n")
 
 			url, err := getDeployedWebUrl(config.Spec.Params)
 			if err != nil {
@@ -200,7 +200,8 @@ var applyCmd = &cobra.Command{
 				fmt.Printf("[error] Unable to get IP from istio-ingressgateway service: %v", stderr)
 				return
 			}
-			fmt.Printf("Your application is accessible at: %v\nSet A record for: %v\n", stdout, url)
+			fmt.Printf("Add a DNS record for %v and point it to %v\n", getWildCardDNS(url), stdout)
+			fmt.Printf("Once complete, your application will be running at: %v\n\n", url)
 		}
 	},
 }
@@ -243,4 +244,12 @@ func getDeployedWebUrl(paramsFilePath string) (string, error) {
 	}
 
 	return fmt.Sprintf("%v%v%v", httpScheme, host, hostExtra), nil
+}
+
+func getWildCardDNS(url string) string {
+	url = strings.ReplaceAll(url, "/", "")
+	parts := strings.Split(url, ".")
+	url = strings.Join(parts[1:], ".")
+
+	return fmt.Sprintf("*.%v", url)
 }
