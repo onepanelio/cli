@@ -64,7 +64,7 @@ func init() {
 // and running the kustomize command
 func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.Kustomize) (string, error) {
 	manifestPath := config.Spec.ManifestsRepo
-	localManifestsCopyPath := ".manifests/cache"
+	localManifestsCopyPath := ".onepanel/manifests/cache"
 
 	exists, err := files.Exists(localManifestsCopyPath)
 	if err != nil {

@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	manifestsFilePath = ".manifests"
+	manifestsFilePath = ".onepanel/manifests"
 )
 
 var (
@@ -92,7 +92,7 @@ var initCmd = &cobra.Command{
 		}
 
 		log.Printf("Initializing...")
-		configFile := ".cli_config.yaml"
+		configFile := ".onepanel/cli_config.yaml"
 		exists, err := files.Exists(configFile)
 		if err != nil {
 			log.Printf("[error] checking for config file %v", configFile)
