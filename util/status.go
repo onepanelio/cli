@@ -32,9 +32,20 @@ func DeploymentStatus() (ready bool, err error) {
 			}
 			return false, errors.New(stderr)
 		}
-		//lines := strings.Split(stdout,"\n")
-		print(stdout)
+		lines := strings.Split(stdout, "\n")
+		if len(lines) > 1 {
+			//check that the pods are running, line by line
+			for idx, line := range lines {
+				if idx == 0 {
+					continue
+				}
+				if line != "" && !strings.Contains(line, "Running") {
+					return false, nil
+				}
+			}
+		} else {
+			return false, errors.New(stdout + "No pods detected in namespace " + namespace)
+		}
 	}
-
-	return false, nil
+	return true, nil
 }
