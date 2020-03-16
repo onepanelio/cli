@@ -22,7 +22,7 @@ var applyCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		configFilePath := "config.yaml"
 
-		log.Printf("Starting deployment...\n\n")
+		fmt.Printf("Starting deployment...\n\n")
 
 		if len(args) > 1 {
 			configFilePath = args[0]
@@ -181,7 +181,30 @@ var applyCmd = &cobra.Command{
 		if err != nil {
 			fmt.Printf("\nDeployment failed: %v", err.Error())
 		} else {
-			fmt.Printf("\nDeployment is complete.\n\n")
+			fmt.Println("\nChecking status of deployment...")
+			stopChecking := false
+			attempts := 0
+			maxAttempts := 5
+			for stopChecking == false {
+				deploymentStatus, deploymentStatusErr := util.DeploymentStatus()
+				if deploymentStatusErr != nil {
+					fmt.Println(deploymentStatusErr.Error())
+					stopChecking = true
+				}
+				if deploymentStatus {
+					stopChecking = true
+					fmt.Printf("\nDeployment is complete.\n\n")
+				} else {
+					if attempts >= maxAttempts {
+						stopChecking = true
+						fmt.Println("Max time expired, deployment cannot be confirmed as ready.")
+					} else {
+						fmt.Println("Waiting for deployment verification...")
+						attempts += 1
+						time.Sleep(5 * time.Second)
+					}
+				}
+			}
 
 			url, err := getDeployedWebUrl(config.Spec.Params)
 			if err != nil {
