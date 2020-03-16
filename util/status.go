@@ -2,14 +2,20 @@ package util
 
 import (
 	"errors"
-	//"strings"
+	"fmt"
+	"strings"
 )
 
 func DeploymentStatus() (ready bool, err error) {
-	//todo - necessary namespaces vs optional
-	namespacesToCheck := []string{"application-system", "cert-manager", "istio-system", "kube-logging", "onepanel"}
+	//True is a required namespace
+	namespacesToCheck := make(map[string]bool)
+	namespacesToCheck["application-system"] = true
+	namespacesToCheck["cert-manager"] = true
+	namespacesToCheck["istio-system"] = true
+	namespacesToCheck["kube-logging"] = false
+	namespacesToCheck["onepanel"] = true
 	var stdout, stderr string
-	for _, namespace := range namespacesToCheck {
+	for namespace, required := range namespacesToCheck {
 		flags := make(map[string]interface{})
 		var extraArgs []string
 		stdout, stderr, err = KubectlGet("pod", "", namespace, extraArgs, flags)
@@ -17,6 +23,13 @@ func DeploymentStatus() (ready bool, err error) {
 			return false, err
 		}
 		if stderr != "" {
+			if strings.Contains(stderr, "No resources found") {
+				if required {
+					return false, errors.New(stderr)
+				}
+				fmt.Println(stderr)
+				continue
+			}
 			return false, errors.New(stderr)
 		}
 		//lines := strings.Split(stdout,"\n")
