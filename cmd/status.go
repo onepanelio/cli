@@ -22,6 +22,7 @@ var statusCmd = &cobra.Command{
 		} else {
 			fmt.Println("Deployment is not ready.")
 		}
+		fmt.Println("Note: be sure to check that your pods are all running by running this command: kubectl get pods --all-namespaces.")
 	},
 }
 
