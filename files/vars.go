@@ -69,7 +69,7 @@ func (v VarsFile) GetVariables() []*ManifestVariable {
 // Given the parameters file at path (assumed to exist)
 // read through, and add any variables that are not in newVars with a value of TODO
 func MergeParametersFiles(path string, newVars []*ManifestVariable) (result *util.DynamicYaml, err error) {
-	yamlFile, err := util.LoadDynamicYaml(path)
+	yamlFile, err := util.LoadDynamicYamlFromFile(path)
 	if err != nil {
 		return nil, err
 	}
@@ -77,10 +77,14 @@ func MergeParametersFiles(path string, newVars []*ManifestVariable) (result *uti
 	for _, newVar := range newVars {
 		value := yamlFile.Get(newVar.Key)
 		if value == nil {
+			if !newVar.Required && newVar.Default == nil {
+				continue
+			}
+
 			if newVar.Default != nil {
-				yamlFile.Put(*newVar.Default, newVar.Key)
+				yamlFile.Put(newVar.Key, *newVar.Default)
 			} else {
-				yamlFile.Put("TODO", newVar.Key)
+				yamlFile.Put(newVar.Key, "TODO")
 			}
 		}
 	}

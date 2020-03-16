@@ -102,33 +102,31 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 		return "", err
 	}
 
-	yamlFile, err := util.LoadDynamicYaml(config.Spec.Params)
+	yamlFile, err := util.LoadDynamicYamlFromFile(config.Spec.Params)
 	if err != nil {
 		return "", err
 	}
 
-	host, ok := yamlFile.Get("application.host").(string)
-	if !ok {
-		return "", fmt.Errorf("application.host is not a string")
-	}
+	host := yamlFile.Get("application.host").Value
 	if yamlFile.Get("application.local") != nil {
-		applicationApiHttpPort := yamlFile.Get("application.local.apiHTTPPort").(int)
-		applicationApiGrpcPort := yamlFile.Get("application.local.apiGRPCPort").(int)
-		applicationUiPort := yamlFile.Get("application.local.uiHTTPPort").(int)
+		applicationApiHttpPort, _ := strconv.Atoi(yamlFile.Get("application.local.apiHTTPPort").Value)
+		applicationApiGrpcPort, _ := strconv.Atoi(yamlFile.Get("application.local.apiGRPCPort").Value)
+		applicationUiPort, _ := strconv.Atoi(yamlFile.Get("application.local.uiHTTPPort").Value)
 		applicationApiUrl := formatUrlForUi(fmt.Sprintf("http://%v:%v", host, applicationApiHttpPort))
 		uiApiWsPath := formatUrlForUi(fmt.Sprintf("ws://%v:%v", host, applicationApiHttpPort))
 
-		yamlFile.PutByString(applicationApiUrl, "applicationApiUrl", ".")
-		yamlFile.PutByString(uiApiWsPath, "applicationApiWsUrl", ".")
-		yamlFile.PutByString(applicationApiHttpPort, "applicationApiHttpPort", ".")
-		yamlFile.PutByString(applicationApiGrpcPort, "applicationApiGrpcPort", ".")
-		yamlFile.PutByString(applicationUiPort, "applicationUIPort", ".")
+		yamlFile.PutWithSeparator("applicationApiUrl", applicationApiUrl, ".")
+		yamlFile.PutWithSeparator("applicationApiWsUrl", uiApiWsPath, ".")
+		yamlFile.PutWithSeparator("applicationApiHttpPort", applicationApiHttpPort, ".")
+		yamlFile.PutWithSeparator("applicationApiGrpcPort", applicationApiGrpcPort, ".")
+		yamlFile.PutWithSeparator("applicationUIPort", applicationUiPort, ".")
 	} else {
-		applicationApiPath := yamlFile.Get("application.cloud.apiPath").(string)
-		applicationApiGrpcPort := yamlFile.Get("application.cloud.apiGRPCPort").(int)
-		applicationUiPath := yamlFile.Get("application.cloud.uiPath").(string)
 
-		insecure := yamlFile.Get("application.cloud.insecure").(bool)
+		applicationApiPath := yamlFile.Get("application.cloud.apiPath").Value
+		applicationApiGrpcPort := yamlFile.Get("application.cloud.apiGRPCPort")(int)
+		applicationUiPath := yamlFile.Get("application.cloud.uiPath")
+
+		insecure, _ := strconv.ParseBool(yamlFile.Get("application.cloud.insecure").Value)
 		httpScheme := "http://"
 		wsScheme := "ws://"
 		if !insecure {
@@ -139,11 +137,11 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 		uiApiPath := formatUrlForUi(httpScheme + host + applicationApiPath)
 		uiApiWsPath := formatUrlForUi(wsScheme + host + applicationApiPath)
 
-		yamlFile.PutByString(uiApiPath, "applicationApiUrl", ".")
-		yamlFile.PutByString(uiApiWsPath, "applicationApiWsUrl", ".")
-		yamlFile.PutByString(applicationApiPath, "applicationApiPath", ".")
-		yamlFile.PutByString(applicationUiPath, "applicationUiPath", ".")
-		yamlFile.PutByString(applicationApiGrpcPort, "applicationApiGrpcPort", ".")
+		yamlFile.PutWithSeparator("applicationApiUrl", uiApiPath, ".")
+		yamlFile.PutWithSeparator("applicationApiWsUrl", uiApiWsPath, ".")
+		yamlFile.PutWithSeparator("applicationApiPath", applicationApiPath, ".")
+		yamlFile.PutWithSeparator("applicationUiPath", applicationUiPath, ".")
+		yamlFile.PutWithSeparator("applicationApiGrpcPort", applicationApiGrpcPort, ".")
 	}
 
 	flatMap := yamlFile.Flatten(util.LowerCamelCaseFlatMapKeyFormatter)

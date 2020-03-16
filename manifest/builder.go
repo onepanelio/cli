@@ -158,7 +158,7 @@ func (b *Builder) GetVarsArray() []*files.ManifestVariable {
 	filePaths := b.GetVarsFilePaths()
 
 	for _, path := range filePaths {
-		temp, err := util.LoadDynamicYaml(path)
+		temp, err := util.LoadDynamicYamlFromFile(path)
 		if err != nil {
 			log.Printf("[error] LoadDynamicYaml %v. Error %v", path, err.Error())
 			continue

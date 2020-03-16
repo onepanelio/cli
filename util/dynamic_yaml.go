@@ -3,11 +3,10 @@ package util
 import (
 	"fmt"
 	"github.com/iancoleman/strcase"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 	"io/ioutil"
 	"log"
-	"os"
-	"reflect"
+	"strconv"
 	"strings"
 )
 
@@ -44,180 +43,301 @@ func CapitalizeUnderscoreFlatMapKeyFormatter(path, newPart string) string {
 }
 
 type DynamicYaml struct {
-	data map[interface{}]interface{}
+	node *yaml.Node
 }
 
-func LoadDynamicYaml(filePath string) (*DynamicYaml, error) {
+func LoadDynamicYamlFromFile(filePath string) (*DynamicYaml, error) {
 	rawFileData, err := ioutil.ReadFile(filePath)
 	if err != nil {
 		return nil, err
 	}
 
-	data := make(map[interface{}]interface{})
-	if err := yaml.Unmarshal(rawFileData, &data); err != nil {
+	data := &yaml.Node{
+		Kind:  yaml.DocumentNode,
+		Style: 0,
+	}
+	if err := yaml.Unmarshal(rawFileData, data); err != nil {
 		return nil, err
 	}
 
 	dynamicYaml := &DynamicYaml{
-		data: data,
+		node: data,
 	}
 
 	return dynamicYaml, nil
 }
 
-// Gets a value by using dot notation.
-// cats.persian.quantity
-func (d *DynamicYaml) Get(path string) interface{} {
-	return d.GetByString(path, ".")
+func LoadDynamicYamlFromString(input string) (*DynamicYaml, error) {
+	data := &yaml.Node{}
+	if err := yaml.Unmarshal([]byte(input), data); err != nil {
+		return nil, err
+	}
+
+	dynamicYaml := &DynamicYaml{
+		node: data,
+	}
+
+	return dynamicYaml, nil
 }
 
-func (d *DynamicYaml) GetData() map[interface{}]interface{} {
-	return d.data
-}
+func (d *DynamicYaml) GetByParts(parts ...string) *yaml.Node {
+	if len(d.node.Content) == 0 {
+		return nil
+	}
 
-func (d *DynamicYaml) GetByString(path, separator string) interface{} {
-	keys := strings.Split(path, separator)
+	parentNode := d.node.Content[0]
+	var valueNode *yaml.Node
 
-	return d.GetByParts(keys...)
-}
+	for _, part := range parts {
+		for childIndex, child := range parentNode.Content {
+			if child.Value == part {
+				valueIndex := childIndex + 1
+				if valueIndex >= len(parentNode.Content) {
+					return nil
+				}
 
-func (d *DynamicYaml) GetByParts(keys ...string) interface{} {
-	return getValue(d.data, keys, -1)
-}
+				valueNode = parentNode.Content[valueIndex]
+				if valueNode.Kind == yaml.MappingNode {
+					parentNode = valueNode
+					valueNode = nil
+				} else {
+					return valueNode
+				}
 
-func (d *DynamicYaml) PutByParts(value interface{}, keys ...string) {
-	queryObj := d.data
-
-	for i, key := range keys {
-		if i == len(keys)-1 {
-			queryObj[key] = value
-			continue
+				break
+			}
 		}
+	}
 
-		if _, ok := queryObj[key]; !ok {
-			queryObj[key] = make(map[interface{}]interface{})
-		}
+	return valueNode
+}
 
-		queryObj = queryObj[key].(map[interface{}]interface{})
+func (d *DynamicYaml) GetWithSeparator(key, separator string) *yaml.Node {
+	parts := strings.Split(key, separator)
+	return d.GetByParts(parts...)
+}
+
+func (d *DynamicYaml) Get(key string) *yaml.Node {
+	return d.GetWithSeparator(key, ".")
+}
+
+func (d *DynamicYaml) HasKey(key string) bool {
+	return d.Get(key) != nil
+}
+
+func createMappingYamlNode() *yaml.Node {
+	return &yaml.Node{
+		Kind:        yaml.MappingNode,
+		Style:       0,
+		Tag:         "",
+		Value:       "",
+		Anchor:      "",
+		Alias:       nil,
+		Content:     []*yaml.Node{},
+		HeadComment: "",
+		LineComment: "",
+		FootComment: "",
+		Line:        0,
+		Column:      0,
 	}
 }
 
-func (d *DynamicYaml) PutByString(value interface{}, path, separator string) {
-	parts := strings.Split(path, separator)
-	d.PutByParts(value, parts...)
+func (d *DynamicYaml) PutByParts(parts []string, value interface{}) *yaml.Node {
+	if d.node == nil {
+		d.node = &yaml.Node{
+			Kind: yaml.DocumentNode,
+		}
+	}
+
+	if len(d.node.Content) == 0 {
+		newNode := createMappingYamlNode()
+		d.node.Content = append(d.node.Content, newNode)
+	}
+
+	parentNode := d.node.Content[0]
+	valueNode := d.node.Content[0]
+	for index, part := range parts {
+		lastPart := index == len(parts)-1
+		// if the key doesn't exist, create it.
+		// on the last key, put the value.
+		exists := false
+		for childIndex, child := range parentNode.Content {
+			if child.Value == part {
+				exists = true
+				valueIndex := childIndex + 1
+				if valueIndex >= len(parentNode.Content) {
+					newNode := createMappingYamlNode()
+					parentNode.Content = append(parentNode.Content, newNode)
+				}
+
+				valueNode = parentNode.Content[valueIndex]
+				if valueNode.Kind == yaml.MappingNode {
+					parentNode = valueNode
+				}
+
+				break
+			}
+		}
+
+		if !exists {
+			keyNode := &yaml.Node{
+				Kind:  yaml.ScalarNode,
+				Value: part,
+			}
+
+			if !lastPart {
+				newNode := createMappingYamlNode()
+
+				parentNode.Content = append(parentNode.Content, keyNode)
+				parentNode.Content = append(parentNode.Content, newNode)
+
+				parentNode = newNode
+				valueNode = nil
+			} else {
+				parentNode.Content = append(parentNode.Content, keyNode)
+
+				valueNode = &yaml.Node{
+					Kind:  yaml.ScalarNode,
+					Value: fmt.Sprintf("%v", value),
+				}
+
+				parentNode.Content = append(parentNode.Content, valueNode)
+			}
+		}
+	}
+
+	if valueNode == nil {
+		valueNode = &yaml.Node{
+			Kind: yaml.ScalarNode,
+		}
+
+		parentNode.Content = append(parentNode.Content, valueNode)
+	}
+
+	valueNode.Value = fmt.Sprintf("%v", value)
+
+	return valueNode
 }
 
-// Put a value by using dot notation.
-// cats.persian.quantity
-func (d *DynamicYaml) Put(value interface{}, path string) {
-	d.PutByString(value, path, ".")
+func (d *DynamicYaml) PutWithSeparator(key string, value interface{}, separator string) *yaml.Node {
+	return d.PutByParts(strings.Split(key, separator), value)
+}
+
+func (d *DynamicYaml) Put(key string, value interface{}) *yaml.Node {
+	return d.PutWithSeparator(key, value, ".")
+}
+
+func (d *DynamicYaml) String() (string, error) {
+	data, err := yaml.Marshal(d.node)
+	if err != nil {
+		return "", err
+	}
+
+	return string(data), nil
+}
+
+func (d *DynamicYaml) DeleteByParts(parts ...string) error {
+	if len(d.node.Content) == 0 {
+		return nil
+	}
+
+	parentNode := d.node.Content[0]
+	valueNode := d.node.Content[0]
+
+	path := []*yaml.Node{parentNode}
+
+	for _, part := range parts {
+		for childIndex, child := range valueNode.Content {
+			if child.Value == part {
+				valueIndex := childIndex + 1
+				if valueIndex >= len(valueNode.Content) {
+					return nil
+				}
+
+				parentNode = valueNode
+				valueNode = valueNode.Content[valueIndex]
+
+				path = append(path, parentNode)
+
+				break
+			}
+		}
+	}
+
+	lastPart := parts[len(parts)-1]
+
+	keptNodes := []*yaml.Node{}
+	skip := len(parentNode.Content)
+	for i, node := range parentNode.Content {
+		if i == skip {
+			continue
+		}
+
+		if node.Value == lastPart {
+			skip = i + 1
+			continue
+		}
+
+		keptNodes = append(keptNodes, node)
+	}
+
+	parentNode.Content = keptNodes
+
+	return nil
+}
+
+func (d *DynamicYaml) DeleteByString(key, separator string) error {
+	parts := strings.Split(key, separator)
+	return d.DeleteByParts(parts...)
+}
+
+func (d *DynamicYaml) Delete(key string) error {
+	return d.DeleteByString(key, ".")
 }
 
 func (d *DynamicYaml) Flatten(keyFormatter FlatMapKeyFormatter) map[string]interface{} {
 	results := make(map[string]interface{})
 
-	flattenMap("", keyFormatter, d.data, results)
+	flattenMap("", keyFormatter, d.node, results)
 
 	return results
 }
 
-func flattenMap(path string, keyFormatter FlatMapKeyFormatter, obj map[interface{}]interface{}, results map[string]interface{}) {
-	for key := range obj {
-		newKeyAsString, stringOk := key.(string)
-		if !stringOk {
-			log.Printf("[error] key '%v' is not a string", key)
-			continue
-		}
+func flattenMap(path string, keyFormatter FlatMapKeyFormatter, node *yaml.Node, results map[string]interface{}) {
+	for i, childNode := range node.Content {
+		// this is a value node
+		if childNode.Kind == yaml.ScalarNode && (i%2 == 1) {
+			key := node.Content[i-1].Value
+			newPath := keyFormatter(path, key)
 
-		newPath := keyFormatter(path, newKeyAsString)
-		newObj := obj[key]
-
-		objAsMap, ok := newObj.(map[interface{}]interface{})
-		if !ok {
-			results[newPath] = newObj
-			continue
-		}
-
-		flattenMap(newPath, keyFormatter, objAsMap, results)
-	}
-}
-
-// Adapted from https://stackoverflow.com/a/47198590
-func getValue(obj map[interface{}]interface{}, keys []string, indexOfElementInArray int) interface{} {
-	//fmt.Printf("--- Root object:\n%v\n\n", obj)
-	queryObj := obj
-	for i := range keys {
-		if queryObj == nil {
-			break
-		}
-		if i == len(keys)-1 {
-			break
-		}
-		key := keys[i]
-		//fmt.Printf("--- querying for sub object keyed by %v\n", key)
-		if queryObj[key] != nil {
-			queryObj = queryObj[key].(map[interface{}]interface{})
-			//fmt.Printf("--- Sub object keyed by %v :\n%v\n\n", key, queryObj)
-		} else {
-			//fmt.Printf("--- No sub object keyed by %v :\n%v\n\n", key)
-			break
-		}
-	}
-	if queryObj != nil {
-		lastKey := keys[len(keys)-1]
-		//fmt.Printf("--- querying for value keyed by %v\n", lastKey)
-
-		if queryObj[lastKey] != nil {
-			objType := reflect.TypeOf(queryObj[lastKey])
-			//fmt.Printf("Type of value %v\n", objType)
-			if objType.String() == "[]interface {}" {
-				//fmt.Printf("Object is a array %v\n", objType)
-				tempArr := queryObj[lastKey].([]interface{})
-				//fmt.Printf("Length of array is %v\n", len(tempArr))
-				if indexOfElementInArray >= 0 && indexOfElementInArray < len(tempArr) {
-					return queryObj[lastKey].([]interface{})[indexOfElementInArray]
-				}
-			} else {
-				return queryObj[lastKey]
+			finalValue, err := NodeValueToActual(childNode)
+			if err != nil {
+				log.Printf("[error] converting value to correct type: %v", err.Error())
+				continue
 			}
+			results[newPath] = finalValue
+		} else if childNode.Kind == yaml.MappingNode && (i%2 == 1) {
+			key := node.Content[i-1].Value
+			newPath := keyFormatter(path, key)
+
+			flattenMap(newPath, keyFormatter, childNode, results)
+			continue
+		} else if childNode.Kind == yaml.MappingNode {
+			flattenMap(path, keyFormatter, childNode, results)
+			continue
 		}
 	}
-
-	return nil
 }
 
-func (d *DynamicYaml) DeleteByString(path, separator string) error {
-	keys := strings.Split(path, separator)
+func NodeValueToActual(node *yaml.Node) (interface{}, error) {
+	value := node.Value
 
-	return d.DeleteByParts(keys...)
-}
-
-func (d *DynamicYaml) DeleteByParts(keys ...string) error {
-	queryObj := d.data
-
-	for i, key := range keys {
-		data, ok := queryObj[key]
-		if !ok {
-			return fmt.Errorf("key not found %v", strings.Join(keys, "."))
-		}
-
-		if i == (len(keys) - 1) {
-			delete(queryObj, key)
-		}
-
-		queryObj = data.(map[interface{}]interface{})
+	switch node.Tag {
+	case "!!bool":
+		return strconv.ParseBool(value)
+	case "!!int":
+		return strconv.ParseInt(value, 10, 32)
 	}
 
-	return nil
-}
-
-func (d *DynamicYaml) WriteToFile(file *os.File) error {
-	data, err := yaml.Marshal(d.data)
-	if err != nil {
-		return err
-	}
-
-	_, err = file.Write(data)
-
-	return err
+	return value, nil
 }

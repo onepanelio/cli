@@ -231,9 +231,9 @@ var initCmd = &cobra.Command{
 
 		if mergedParams.Get("application.cloud") != nil {
 			if EnableHTTPS {
-				mergedParams.Put(false, "application.cloud.insecure")
+				mergedParams.Put("application.cloud.insecure", false)
 			} else {
-				mergedParams.Put(true, "application.cloud.insecure")
+				mergedParams.Put("application.cloud.insecure", true)
 			}
 		}
 
@@ -243,7 +243,13 @@ var initCmd = &cobra.Command{
 			return
 		}
 
-		if err := mergedParams.WriteToFile(paramsFile); err != nil {
+		paramsString, err := mergedParams.String()
+		if err != nil {
+			log.Printf("[error] unable to write params to a string")
+			return
+		}
+
+		if _, err := paramsFile.WriteString(paramsString); err != nil {
 			log.Printf("Error writing merged parameters: %v", err.Error())
 			return
 		}

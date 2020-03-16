@@ -5,6 +5,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -226,7 +227,7 @@ func applyKubernetesFile(filePath string) (res string, errMessage string, err er
 }
 
 func getDeployedWebUrl(paramsFilePath string) (string, error) {
-	yamlFile, err := util.LoadDynamicYaml(paramsFilePath)
+	yamlFile, err := util.LoadDynamicYamlFromFile(paramsFilePath)
 	if err != nil {
 		return "", err
 	}
@@ -243,7 +244,11 @@ func getDeployedWebUrl(paramsFilePath string) (string, error) {
 
 		hostExtra = fmt.Sprintf("%v", applicationUiPath)
 
-		insecure := yamlFile.Get("application.cloud.insecure").(bool)
+		insecure, err := strconv.ParseBool(yamlFile.Get("application.cloud.insecure").Value)
+		if err != nil {
+			log.Fatal("insecure is not a bool")
+		}
+
 		if !insecure {
 			httpScheme = "https://"
 		}
