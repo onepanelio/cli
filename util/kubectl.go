@@ -54,7 +54,14 @@ func KubectlGet(resource string, resourceName string, namespace string, extraArg
 		}
 		return "", "", errors.New(flagName + ", unexpected flag value type")
 	}
-	args := []string{resource, resourceName}
+
+	var args []string
+	if resource != "" {
+		args = append(args, resource)
+	}
+	if resourceName != "" {
+		args = append(args, resourceName)
+	}
 	args = append(args, extraArgs...)
 
 	if err = getOptions.Complete(f, cmd, args); err != nil {

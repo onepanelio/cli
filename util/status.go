@@ -11,8 +11,8 @@ func DeploymentStatus() (ready bool, err error) {
 	var stdout, stderr string
 	for _, namespace := range namespacesToCheck {
 		flags := make(map[string]interface{})
-		extraArgs := []string{"pods"}
-		stdout, stderr, err = KubectlGet("pod", "*", namespace, extraArgs, flags)
+		var extraArgs []string
+		stdout, stderr, err = KubectlGet("pod", "", namespace, extraArgs, flags)
 		if err != nil {
 			return false, err
 		}
