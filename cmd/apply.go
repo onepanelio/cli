@@ -44,7 +44,7 @@ var applyCmd = &cobra.Command{
 			return
 		}
 
-		applicationKubernetesYamlFilePath := ".application.kubernetes.yaml"
+		applicationKubernetesYamlFilePath := ".onepanel/application.kubernetes.yaml"
 
 		existsApp, err := files.Exists(applicationKubernetesYamlFilePath)
 		if err != nil {
@@ -130,7 +130,7 @@ var applyCmd = &cobra.Command{
 			return
 		}
 
-		finalKubernetesYamlFilePath := ".kubernetes.yaml"
+		finalKubernetesYamlFilePath := ".onepanel/kubernetes.yaml"
 
 		exists, err := files.Exists(finalKubernetesYamlFilePath)
 		if err != nil {

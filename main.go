@@ -15,7 +15,9 @@ limitations under the License.
 */
 package main
 
-import "github.com/onepanelio/cli/cmd"
+import (
+	"github.com/onepanelio/cli/cmd"
+)
 
 func main() {
 	cmd.Execute()
