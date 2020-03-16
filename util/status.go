@@ -12,7 +12,6 @@ func DeploymentStatus() (ready bool, err error) {
 	namespacesToCheck["application-system"] = true
 	namespacesToCheck["cert-manager"] = true
 	namespacesToCheck["istio-system"] = true
-	namespacesToCheck["kube-logging"] = false
 	namespacesToCheck["onepanel"] = true
 	var stdout, stderr string
 	for namespace, required := range namespacesToCheck {

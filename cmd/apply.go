@@ -22,7 +22,7 @@ var applyCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		configFilePath := "config.yaml"
 
-		log.Printf("Starting deployment...\n\n")
+		fmt.Printf("Starting deployment...\n\n")
 
 		if len(args) > 1 {
 			configFilePath = args[0]
@@ -181,7 +181,7 @@ var applyCmd = &cobra.Command{
 		if err != nil {
 			fmt.Printf("\nDeployment failed: %v", err.Error())
 		} else {
-			fmt.Println("Checking status of deployment.")
+			fmt.Println("\nChecking status of deployment...")
 			stopChecking := false
 			attempts := 0
 			maxAttempts := 5

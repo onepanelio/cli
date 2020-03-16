@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+
 	"github.com/onepanelio/cli/util"
 	"github.com/spf13/cobra"
 )
@@ -18,11 +19,10 @@ var statusCmd = &cobra.Command{
 			return
 		}
 		if ready {
-			fmt.Println("Deployment is reporting as ready.")
+			fmt.Println("Your deployment is ready.")
 		} else {
-			fmt.Println("Deployment is not ready.")
+			fmt.Println("Not all required pods are running. Your deployment is not ready.")
 		}
-		fmt.Println("Note: be sure to check that your pods are all running by running this command: kubectl get pods --all-namespaces.")
 	},
 }
 
