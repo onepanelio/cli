@@ -12,6 +12,7 @@ import (
 	"k8s.io/kubectl/pkg/cmd/get"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"os"
+	"strconv"
 )
 
 func KubectlGet(resource string, resourceName string, namespace string, extraArgs []string, flags map[string]interface{}) (stdout string, stderr string, err error) {
@@ -33,18 +34,25 @@ func KubectlGet(resource string, resourceName string, namespace string, extraArg
 	getOptions := get.NewGetOptions("kubectl", ioStreams)
 
 	for flagName, flagVal := range flags {
-		stringVal, ok := flagVal.(string)
-		if !ok {
-			return "", "", errors.New(flagName + ", unexpected flag value type")
+		boolVal, okBool := flagVal.(bool)
+		if okBool {
+			if err = cmd.Flags().Set(flagName, strconv.FormatBool(boolVal)); err != nil {
+				return "", "", err
+			}
+			continue
 		}
+		stringVal, okStr := flagVal.(string)
+		if okStr {
+			if flagName == "output" {
+				getOptions.PrintFlags.OutputFormat = &stringVal
+			}
 
-		if flagName == "output" {
-			getOptions.PrintFlags.OutputFormat = &stringVal
+			if err = cmd.Flags().Set(flagName, stringVal); err != nil {
+				return "", "", err
+			}
+			continue
 		}
-
-		if err = cmd.Flags().Set(flagName, stringVal); err != nil {
-			return "", "", err
-		}
+		return "", "", errors.New(flagName + ", unexpected flag value type")
 	}
 	args := []string{resource, resourceName}
 	args = append(args, extraArgs...)
