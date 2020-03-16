@@ -181,6 +181,12 @@ var applyCmd = &cobra.Command{
 		if err != nil {
 			fmt.Printf("\nDeployment failed: %v", err.Error())
 		} else {
+			fmt.Println("Checking status of deployment.")
+			deploymentStatus, deploymentStatusErr := util.DeploymentStatus()
+			print(deploymentStatus)
+			if deploymentStatusErr != nil {
+				print(deploymentStatusErr.Error())
+			}
 			fmt.Printf("\nDeployment is complete.\n\n")
 
 			url, err := getDeployedWebUrl(config.Spec.Params)
