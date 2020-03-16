@@ -182,12 +182,29 @@ var applyCmd = &cobra.Command{
 			fmt.Printf("\nDeployment failed: %v", err.Error())
 		} else {
 			fmt.Println("Checking status of deployment.")
-			deploymentStatus, deploymentStatusErr := util.DeploymentStatus()
-			print(deploymentStatus)
-			if deploymentStatusErr != nil {
-				print(deploymentStatusErr.Error())
+			stopChecking := false
+			attempts := 0
+			maxAttempts := 5
+			for stopChecking == false {
+				deploymentStatus, deploymentStatusErr := util.DeploymentStatus()
+				if deploymentStatusErr != nil {
+					fmt.Println(deploymentStatusErr.Error())
+					stopChecking = true
+				}
+				if deploymentStatus {
+					stopChecking = true
+					fmt.Printf("\nDeployment is complete.\n\n")
+				} else {
+					if attempts >= maxAttempts {
+						stopChecking = true
+						fmt.Println("Max time expired, deployment cannot be confirmed as ready.")
+					} else {
+						fmt.Println("Waiting for deployment verification...")
+						attempts += 1
+						time.Sleep(5 * time.Second)
+					}
+				}
 			}
-			fmt.Printf("\nDeployment is complete.\n\n")
 
 			url, err := getDeployedWebUrl(config.Spec.Params)
 			if err != nil {
