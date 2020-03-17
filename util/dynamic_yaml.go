@@ -42,6 +42,11 @@ func CapitalizeUnderscoreFlatMapKeyFormatter(path, newPart string) string {
 	return path + "_" + strings.ToUpper(newPart)
 }
 
+type NodePair struct {
+	Key   *yaml.Node
+	Value *yaml.Node
+}
+
 type DynamicYaml struct {
 	node *yaml.Node
 }
@@ -99,7 +104,6 @@ func (d *DynamicYaml) GetByParts(parts ...string) *yaml.Node {
 				valueNode = parentNode.Content[valueIndex]
 				if valueNode.Kind == yaml.MappingNode {
 					parentNode = valueNode
-					valueNode = nil
 				} else {
 					return valueNode
 				}
@@ -121,8 +125,43 @@ func (d *DynamicYaml) Get(key string) *yaml.Node {
 	return d.GetWithSeparator(key, ".")
 }
 
+func (d *DynamicYaml) HasKeyByParts(parts ...string) bool {
+	if len(d.node.Content) == 0 {
+		return false
+	}
+
+	parentNode := d.node.Content[0]
+	var valueNode *yaml.Node
+
+	for _, part := range parts {
+		for childIndex, child := range parentNode.Content {
+			if child.Value == part {
+				valueIndex := childIndex + 1
+				if valueIndex >= len(parentNode.Content) {
+					return false
+				}
+
+				valueNode = parentNode.Content[valueIndex]
+				if valueNode.Kind == yaml.MappingNode {
+					parentNode = valueNode
+					valueNode = nil
+				}
+
+				break
+			}
+		}
+	}
+
+	return valueNode != nil
+}
+
+func (d *DynamicYaml) HasKeyWithSeparator(key, separator string) bool {
+	parts := strings.Split(key, separator)
+	return d.HasKeyByParts(parts...)
+}
+
 func (d *DynamicYaml) HasKey(key string) bool {
-	return d.Get(key) != nil
+	return d.HasKeyWithSeparator(key, ".")
 }
 
 func createMappingYamlNode() *yaml.Node {
@@ -140,6 +179,84 @@ func createMappingYamlNode() *yaml.Node {
 		Line:        0,
 		Column:      0,
 	}
+}
+
+func (d *DynamicYaml) PutByPartsNode(parts []string, value *yaml.Node) (*yaml.Node, error) {
+	if value == nil {
+		return nil, fmt.Errorf("nil passed in as value")
+	}
+
+	if d.node == nil {
+		d.node = &yaml.Node{
+			Kind: yaml.DocumentNode,
+		}
+	}
+
+	if len(d.node.Content) == 0 {
+		newNode := createMappingYamlNode()
+		d.node.Content = append(d.node.Content, newNode)
+	}
+
+	parentNode := d.node.Content[0]
+	valueNode := d.node.Content[0]
+	for index, part := range parts {
+		lastPart := index == len(parts)-1
+		// if the key doesn't exist, create it.
+		// on the last key, put the value.
+		exists := false
+		for childIndex, child := range parentNode.Content {
+			if child.Value == part {
+				exists = true
+				valueIndex := childIndex + 1
+				if valueIndex >= len(parentNode.Content) {
+					newNode := createMappingYamlNode()
+					parentNode.Content = append(parentNode.Content, newNode)
+				}
+
+				valueNode = parentNode.Content[valueIndex]
+				if valueNode.Kind == yaml.MappingNode {
+					parentNode = valueNode
+				}
+
+				break
+			}
+		}
+
+		if !exists {
+			keyNode := &yaml.Node{
+				Kind:  yaml.ScalarNode,
+				Value: part,
+			}
+
+			if !lastPart {
+				newNode := createMappingYamlNode()
+
+				parentNode.Content = append(parentNode.Content, keyNode)
+				parentNode.Content = append(parentNode.Content, newNode)
+
+				parentNode = newNode
+				valueNode = nil
+			} else {
+				parentNode.Content = append(parentNode.Content, keyNode)
+
+				valueNode = &yaml.Node{
+					Kind:  yaml.ScalarNode,
+					Value: fmt.Sprintf("%v", value),
+				}
+
+				parentNode.Content = append(parentNode.Content, valueNode)
+			}
+		}
+	}
+
+	if valueNode == nil {
+		parentNode.Content = append(parentNode.Content, value)
+		valueNode = value
+	}
+
+	*valueNode = *value
+
+	return valueNode, nil
 }
 
 func (d *DynamicYaml) PutByParts(parts []string, value interface{}) *yaml.Node {
@@ -223,8 +340,16 @@ func (d *DynamicYaml) PutWithSeparator(key string, value interface{}, separator 
 	return d.PutByParts(strings.Split(key, separator), value)
 }
 
+func (d *DynamicYaml) PutWithSeparatorNode(key string, value *yaml.Node, separator string) (*yaml.Node, error) {
+	return d.PutByPartsNode(strings.Split(key, separator), value)
+}
+
 func (d *DynamicYaml) Put(key string, value interface{}) *yaml.Node {
 	return d.PutWithSeparator(key, value, ".")
+}
+
+func (d *DynamicYaml) PutNode(key string, value *yaml.Node) (*yaml.Node, error) {
+	return d.PutWithSeparatorNode(key, value, ".")
 }
 
 func (d *DynamicYaml) String() (string, error) {
@@ -295,27 +420,136 @@ func (d *DynamicYaml) Delete(key string) error {
 	return d.DeleteByString(key, ".")
 }
 
-func (d *DynamicYaml) Flatten(keyFormatter FlatMapKeyFormatter) map[string]interface{} {
-	results := make(map[string]interface{})
+func (d *DynamicYaml) Flatten(keyFormatter FlatMapKeyFormatter) map[string]NodePair {
+	results := make(map[string]NodePair)
 
 	flattenMap("", keyFormatter, d.node, results)
 
 	return results
 }
 
-func flattenMap(path string, keyFormatter FlatMapKeyFormatter, node *yaml.Node, results map[string]interface{}) {
+func (d *DynamicYaml) FlattenToKeyValue(keyFormatter FlatMapKeyFormatter) map[string]interface{} {
+	results := make(map[string]NodePair)
+
+	flattenMap("", keyFormatter, d.node, results)
+
+	flatResult := make(map[string]interface{})
+
+	for key := range results {
+		value, err := NodeValueToActual(results[key].Value)
+		if err != nil {
+			log.Fatal("Unable to convert node value: %v", err.Error())
+			continue
+		}
+
+		flatResult[key] = value
+	}
+
+	return flatResult
+}
+
+func (d *DynamicYaml) FlattenRequiredDefault() {
+	flatMap := d.Flatten(AppendDotFlatMapKeyFormatter)
+
+	for key := range flatMap {
+		defaultIndex := strings.Index(key, ".default")
+		if defaultIndex < 0 {
+			continue
+		}
+
+		partialKey := key[0:defaultIndex]
+		partialNode := d.Get(key)
+
+		valueNode := d.Put(partialKey, partialNode.Value)
+		valueNode.Content = []*yaml.Node{}
+		valueNode.Kind = partialNode.Kind
+		valueNode.Tag = partialNode.Tag
+	}
+}
+
+func (d *DynamicYaml) Merge(y *DynamicYaml) {
+	if len(y.node.Content) == 0 || len(y.node.Content[0].Content) == 0 {
+		return
+	}
+
+	if d.node == nil {
+		d.node = &yaml.Node{
+			Kind: yaml.DocumentNode,
+		}
+	}
+
+	if len(d.node.Content) == 0 {
+		newNode := createMappingYamlNode()
+		d.node.Content = append(d.node.Content, newNode)
+	}
+
+	destination := d.node.Content[0]
+	values := y.node.Content[0]
+	for i := 0; i < len(values.Content)-1; i += 2 {
+		keyNode := values.Content[i]
+		valueNode := values.Content[i+1]
+
+		alreadyExists := false
+		var jValue *yaml.Node = nil
+		for j := 0; j < len(destination.Content)-1; j++ {
+			jKey := destination.Content[j]
+			jValue = destination.Content[j+1]
+
+			if keyNode.Value == jKey.Value {
+				alreadyExists = true
+			}
+		}
+
+		if alreadyExists {
+			mergeNodes(valueNode, jValue)
+		} else {
+			destination.Content = append(destination.Content, keyNode)
+			destination.Content = append(destination.Content, valueNode)
+		}
+	}
+}
+
+func mergeNodes(a, b *yaml.Node) {
+	// We can't do anything if it's just a key.
+	if a.Kind == yaml.ScalarNode {
+		return
+	}
+
+	if a.Kind == yaml.MappingNode && b.Kind == yaml.MappingNode {
+		for i := 0; i < len(b.Content)-1; i += 2 {
+			bKeyNode := b.Content[i]
+			bValueNode := b.Content[i+1]
+
+			alreadyExists := false
+			var aKeyNode *yaml.Node = nil
+			for j := 0; j < len(a.Content)-1; j += 2 {
+				aKeyNode = a.Content[j]
+
+				if aKeyNode.Value == bKeyNode.Value {
+					alreadyExists = true
+				}
+			}
+
+			if !alreadyExists {
+				a.Content = append(a.Content, bKeyNode)
+				a.Content = append(a.Content, bValueNode)
+			}
+		}
+	}
+}
+
+func flattenMap(path string, keyFormatter FlatMapKeyFormatter, node *yaml.Node, results map[string]NodePair) {
 	for i, childNode := range node.Content {
 		// this is a value node
 		if childNode.Kind == yaml.ScalarNode && (i%2 == 1) {
-			key := node.Content[i-1].Value
+			keyNode := node.Content[i-1]
+			key := keyNode.Value
 			newPath := keyFormatter(path, key)
 
-			finalValue, err := NodeValueToActual(childNode)
-			if err != nil {
-				log.Printf("[error] converting value to correct type: %v", err.Error())
-				continue
+			results[newPath] = NodePair{
+				Key:   node.Content[i-1],
+				Value: childNode,
 			}
-			results[newPath] = finalValue
 		} else if childNode.Kind == yaml.MappingNode && (i%2 == 1) {
 			key := node.Content[i-1].Value
 			newPath := keyFormatter(path, key)
@@ -336,7 +570,7 @@ func NodeValueToActual(node *yaml.Node) (interface{}, error) {
 	case "!!bool":
 		return strconv.ParseBool(value)
 	case "!!int":
-		return strconv.ParseInt(value, 10, 32)
+		return strconv.Atoi(value)
 	}
 
 	return value, nil

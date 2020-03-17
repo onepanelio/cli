@@ -2,6 +2,9 @@ package files
 
 import (
 	"github.com/onepanelio/cli/util"
+	"gopkg.in/yaml.v3"
+	"log"
+	"strconv"
 	"strings"
 )
 
@@ -11,9 +14,11 @@ type ConfigVar struct {
 }
 
 type ManifestVariable struct {
-	Key      string
-	Required bool         `yaml:"required"`
-	Default  *interface{} `yaml:"default"`
+	Key       string
+	Required  bool        `yaml:"required"`
+	Default   interface{} `yaml:"default"`
+	KeyNode   *yaml.Node
+	ValueNode *yaml.Node
 }
 
 func (c *ConfigVar) HasDefault() bool {
@@ -48,16 +53,18 @@ func (v VarsFile) GetVariables() []*ManifestVariable {
 		defaultKey := key + ".default"
 
 		newVar := &ManifestVariable{
-			Key: key,
+			Key:       key,
+			KeyNode:   flatMap[requiredKey].Key,
+			ValueNode: flatMap[key].Value,
 		}
 
 		if requiredValue, ok := flatMap[requiredKey]; ok {
-			requiredValueBool := requiredValue.(bool)
+			requiredValueBool, _ := strconv.ParseBool(requiredValue.Value.Value)
 			newVar.Required = requiredValueBool
 		}
 
 		if defaultValue, ok := flatMap[defaultKey]; ok {
-			newVar.Default = &defaultValue
+			newVar.Default, _ = util.NodeValueToActual(defaultValue.Value)
 		}
 
 		result = append(result, newVar)
@@ -81,8 +88,12 @@ func MergeParametersFiles(path string, newVars []*ManifestVariable) (result *uti
 				continue
 			}
 
+			if newVar.ValueNode == nil {
+				log.Printf("null")
+			}
+
 			if newVar.Default != nil {
-				yamlFile.Put(newVar.Key, *newVar.Default)
+				yamlFile.PutNode(newVar.Key, newVar.ValueNode)
 			} else {
 				yamlFile.Put(newVar.Key, "TODO")
 			}

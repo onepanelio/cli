@@ -218,10 +218,14 @@ var initCmd = &cobra.Command{
 			return
 		}
 
-		mergedParams, err := files.MergeParametersFiles(ParametersFilePath, bld.GetVarsArray())
+		mergedParams, err := util.LoadDynamicYamlFromFile(ParametersFilePath)
 		if err != nil {
-			log.Printf("Error merging parameters: %v", err.Error())
+			log.Printf("[error] loading params file: %v", err.Error())
 			return
+		}
+
+		for _, newYaml := range bld.GetYamls() {
+			mergedParams.Merge(newYaml)
 		}
 
 		if err := filterMergedParams(Provider, mergedParams); err != nil {

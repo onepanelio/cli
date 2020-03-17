@@ -173,6 +173,26 @@ func (b *Builder) GetVarsArray() []*files.ManifestVariable {
 	return varsArray
 }
 
+func (b *Builder) GetYamls() []*util.DynamicYaml {
+	varsArray := make([]*util.DynamicYaml, 0)
+
+	filePaths := b.GetVarsFilePaths()
+
+	for _, path := range filePaths {
+		temp, err := util.LoadDynamicYamlFromFile(path)
+		if err != nil {
+			log.Printf("[error] LoadDynamicYaml %v. Error %v", path, err.Error())
+			continue
+		}
+
+		temp.FlattenRequiredDefault()
+
+		varsArray = append(varsArray, temp)
+	}
+
+	return varsArray
+}
+
 // Gets all of the existing vars file paths.
 func (b *Builder) GetVarsFilePaths() []string {
 	vars := make([]string, 0)

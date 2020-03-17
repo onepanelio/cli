@@ -108,7 +108,7 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 	}
 
 	host := yamlFile.Get("application.host").Value
-	if yamlFile.Get("application.local") != nil {
+	if yamlFile.HasKey("application.local") {
 		applicationApiHttpPort, _ := strconv.Atoi(yamlFile.Get("application.local.apiHTTPPort").Value)
 		applicationApiGrpcPort, _ := strconv.Atoi(yamlFile.Get("application.local.apiGRPCPort").Value)
 		applicationUiPort, _ := strconv.Atoi(yamlFile.Get("application.local.uiHTTPPort").Value)
@@ -121,10 +121,9 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 		yamlFile.PutWithSeparator("applicationApiGrpcPort", applicationApiGrpcPort, ".")
 		yamlFile.PutWithSeparator("applicationUIPort", applicationUiPort, ".")
 	} else {
-
 		applicationApiPath := yamlFile.Get("application.cloud.apiPath").Value
-		applicationApiGrpcPort := yamlFile.Get("application.cloud.apiGRPCPort")(int)
-		applicationUiPath := yamlFile.Get("application.cloud.uiPath")
+		applicationApiGrpcPort, _ := strconv.Atoi(yamlFile.Get("application.cloud.apiGRPCPort").Value)
+		applicationUiPath := yamlFile.Get("application.cloud.uiPath").Value
 
 		insecure, _ := strconv.ParseBool(yamlFile.Get("application.cloud.insecure").Value)
 		httpScheme := "http://"
@@ -144,7 +143,7 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 		yamlFile.PutWithSeparator("applicationApiGrpcPort", applicationApiGrpcPort, ".")
 	}
 
-	flatMap := yamlFile.Flatten(util.LowerCamelCaseFlatMapKeyFormatter)
+	flatMap := yamlFile.FlattenToKeyValue(util.LowerCamelCaseFlatMapKeyFormatter)
 
 	//Read workflow-config-map-hidden for the rest of the values
 	workflowEnvHiddenPath := filepath.Join(localManifestsCopyPath, "vars", "workflow-config-map-hidden.env")
@@ -191,8 +190,8 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 		log.Fatal("Missing required values in params.yaml, artifactRepository. Check bucket, endpoint, or insecure.")
 	}
 	//logging-config-map.env, optional component
-	if yamlFile.Get("logging.image") != nil &&
-		yamlFile.Get("logging.volumeStorage") != nil {
+	if yamlFile.HasKey("logging.image") &&
+		yamlFile.HasKey("logging.volumeStorage") {
 		//Clear previous env file
 		paramsPath := filepath.Join(localManifestsCopyPath, "vars", "logging-config-map.env")
 		if _, err := files.DeleteIfExists(paramsPath); err != nil {
@@ -212,7 +211,7 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 		}
 	}
 	//onepanel-config-map.env
-	if yamlFile.Get("defaultNamespace") != nil {
+	if yamlFile.HasKey("defaultNamespace") {
 		//Clear previous env file
 		paramsPath := filepath.Join(localManifestsCopyPath, "vars", "onepanel-config-map.env")
 		if _, err := files.DeleteIfExists(paramsPath); err != nil {
@@ -235,8 +234,8 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 	//Write to secret files
 	//common/onepanel/base/secrets.yaml
 	var secretKeysValues []string
-	if yamlFile.Get("artifactRepository.accessKey") != nil &&
-		yamlFile.Get("artifactRepository.secretKey") != nil {
+	if yamlFile.HasKey("artifactRepository.accessKey") &&
+		yamlFile.HasKey("artifactRepository.secretKey") {
 		secretKeysValues = append(secretKeysValues, "artifactRepositoryAccessKey", "artifactRepositorySecretKey")
 		for _, key := range secretKeysValues {
 			//Path to secrets file
