@@ -181,7 +181,7 @@ var applyCmd = &cobra.Command{
 		if err != nil {
 			fmt.Printf("\nDeployment failed: %v", err.Error())
 		} else {
-			fmt.Println("\nChecking status of deployment...")
+			fmt.Println("\nWaiting for deployment to complete...")
 			stopChecking := false
 			attempts := 0
 			maxAttempts := 5
@@ -197,11 +197,11 @@ var applyCmd = &cobra.Command{
 				} else {
 					if attempts >= maxAttempts {
 						stopChecking = true
-						fmt.Println("Max time expired, deployment cannot be confirmed as ready.")
+						fmt.Println("\nDeployment is still in progress. Check again with `opctl status` in a few minutes.")
 					} else {
-						fmt.Println("Waiting for deployment verification...")
-						attempts += 1
-						time.Sleep(5 * time.Second)
+						time.Sleep(10 * time.Second)
+						fmt.Println("Waiting for deployment to complete...")
+						attempts++
 					}
 				}
 			}
@@ -229,7 +229,7 @@ var applyCmd = &cobra.Command{
 			if !isIpv4(stdout) {
 				dnsRecordMessage = "a CNAME"
 			}
-			fmt.Printf("In your DNS, add %v record for %v and point it to %v\n", dnsRecordMessage, getWildCardDNS(url), stdout)
+			fmt.Printf("\nIn your DNS, add %v record for %v and point it to %v\n", dnsRecordMessage, getWildCardDNS(url), stdout)
 			fmt.Printf("Once complete, your application will be running at %v\n\n", url)
 		}
 	},
