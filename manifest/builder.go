@@ -152,27 +152,6 @@ func (b *Builder) Build() error {
 	return nil
 }
 
-func (b *Builder) GetVarsArray() []*files.ManifestVariable {
-	varsArray := make([]*files.ManifestVariable, 0)
-
-	filePaths := b.GetVarsFilePaths()
-
-	for _, path := range filePaths {
-		temp, err := util.LoadDynamicYamlFromFile(path)
-		if err != nil {
-			log.Printf("[error] LoadDynamicYaml %v. Error %v", path, err.Error())
-			continue
-		}
-
-		varFile := files.VarsFile(*temp)
-		manifestVariables := varFile.GetVariables()
-
-		varsArray = append(varsArray, manifestVariables...)
-	}
-
-	return varsArray
-}
-
 func (b *Builder) GetYamls() []*util.DynamicYaml {
 	varsArray := make([]*util.DynamicYaml, 0)
 
