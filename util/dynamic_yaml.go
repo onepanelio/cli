@@ -392,12 +392,19 @@ func (d *DynamicYaml) PutNode(key string, value *yaml.Node) (*yaml.Node, error) 
 }
 
 func (d *DynamicYaml) String() (string, error) {
-	data, err := yaml.Marshal(d.node)
+	builder := &strings.Builder{}
+	encoder := yaml.NewEncoder(builder)
+	encoder.SetIndent(2)
+
+	defer encoder.Close()
+	err := encoder.Encode(d.node)
 	if err != nil {
 		return "", err
 	}
 
-	return string(data), nil
+	data := builder.String()
+
+	return data, nil
 }
 
 func (d *DynamicYaml) DeleteByParts(parts ...string) error {
