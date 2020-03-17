@@ -536,11 +536,12 @@ func (d *DynamicYaml) Merge(y *DynamicYaml) {
 
 			if keyNode.Value == jKey.Value {
 				alreadyExists = true
+				break
 			}
 		}
 
 		if alreadyExists {
-			mergeNodes(valueNode, jValue)
+			mergeNodes(jValue, valueNode)
 		} else {
 			destination.Content = append(destination.Content, keyNode)
 			destination.Content = append(destination.Content, valueNode)
@@ -563,9 +564,14 @@ func mergeNodes(a, b *yaml.Node) {
 			var aKeyNode *yaml.Node = nil
 			for j := 0; j < len(a.Content)-1; j += 2 {
 				aKeyNode = a.Content[j]
+				aValueNode := a.Content[j+1]
 
 				if aKeyNode.Value == bKeyNode.Value {
 					alreadyExists = true
+
+					mergeNodes(aValueNode, bValueNode)
+
+					break
 				}
 			}
 
