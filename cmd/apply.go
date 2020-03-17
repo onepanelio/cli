@@ -187,7 +187,8 @@ var applyCmd = &cobra.Command{
 			maxAttempts := 5
 			for stopChecking == false {
 				deploymentStatus, deploymentStatusErr := util.DeploymentStatus()
-				if deploymentStatusErr != nil {
+				if deploymentStatusErr != nil &&
+					!strings.Contains(deploymentStatusErr.Error(), "No resources found") {
 					fmt.Println(deploymentStatusErr.Error())
 					stopChecking = true
 				}
@@ -199,7 +200,7 @@ var applyCmd = &cobra.Command{
 						stopChecking = true
 						fmt.Println("\nDeployment is still in progress. Check again with `opctl status` in a few minutes.")
 					} else {
-						time.Sleep(10 * time.Second)
+						time.Sleep(20 * time.Second)
 						fmt.Println("Waiting for deployment to complete...")
 						attempts++
 					}
