@@ -67,7 +67,18 @@ func GetBearerToken(in *restclient.Config, explicitKubeConfigPath string) (strin
 		if in.AuthProvider.Name == "gcp" {
 			token := in.AuthProvider.Config["access-token"]
 			if token == "" {
-				return "", errors.New("GCP Access Token is not set. Try running a kubectl command, such as kubectl get nodes to set creds.")
+				flags := make(map[string]interface{})
+				var extraArgs []string
+				_, stderr, err := KubectlGet("node", "", "", extraArgs, flags)
+				if stderr != "" {
+					return "", errors.New(stderr)
+				}
+				if err != nil {
+					return "", err
+				}
+				refreshedConfig := NewConfig()
+				getTokenAgain, getErr := GetBearerToken(refreshedConfig, "")
+				return getTokenAgain, getErr
 			}
 			token, err := RefreshTokenIfExpired(in, explicitKubeConfigPath, token)
 			if err != nil {
