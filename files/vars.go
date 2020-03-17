@@ -82,7 +82,7 @@ func MergeParametersFiles(path string, newVars []*ManifestVariable) (result *uti
 	}
 
 	for _, newVar := range newVars {
-		value := yamlFile.Get(newVar.Key)
+		_, value := yamlFile.Get(newVar.Key)
 		if value == nil {
 			if !newVar.Required && newVar.Default == nil {
 				continue

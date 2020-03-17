@@ -107,25 +107,25 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 		return "", err
 	}
 
-	host := yamlFile.Get("application.host").Value
+	host := yamlFile.GetValue("application.host").Value
 	if yamlFile.HasKey("application.local") {
-		applicationApiHttpPort, _ := strconv.Atoi(yamlFile.Get("application.local.apiHTTPPort").Value)
-		applicationApiGrpcPort, _ := strconv.Atoi(yamlFile.Get("application.local.apiGRPCPort").Value)
-		applicationUiPort, _ := strconv.Atoi(yamlFile.Get("application.local.uiHTTPPort").Value)
+		applicationApiHttpPort, _ := strconv.Atoi(yamlFile.GetValue("application.local.apiHTTPPort").Value)
+		applicationApiGrpcPort, _ := strconv.Atoi(yamlFile.GetValue("application.local.apiGRPCPort").Value)
+		applicationUiPort, _ := strconv.Atoi(yamlFile.GetValue("application.local.uiHTTPPort").Value)
 		applicationApiUrl := formatUrlForUi(fmt.Sprintf("http://%v:%v", host, applicationApiHttpPort))
 		uiApiWsPath := formatUrlForUi(fmt.Sprintf("ws://%v:%v", host, applicationApiHttpPort))
 
-		yamlFile.PutWithSeparator("applicationApiUrl", applicationApiUrl, ".")
-		yamlFile.PutWithSeparator("applicationApiWsUrl", uiApiWsPath, ".")
-		yamlFile.PutWithSeparator("applicationApiHttpPort", applicationApiHttpPort, ".")
-		yamlFile.PutWithSeparator("applicationApiGrpcPort", applicationApiGrpcPort, ".")
-		yamlFile.PutWithSeparator("applicationUIPort", applicationUiPort, ".")
+		yamlFile.Put("applicationApiUrl", applicationApiUrl)
+		yamlFile.Put("applicationApiWsUrl", uiApiWsPath)
+		yamlFile.Put("applicationApiHttpPort", applicationApiHttpPort)
+		yamlFile.Put("applicationApiGrpcPort", applicationApiGrpcPort)
+		yamlFile.Put("applicationUIPort", applicationUiPort)
 	} else {
-		applicationApiPath := yamlFile.Get("application.cloud.apiPath").Value
-		applicationApiGrpcPort, _ := strconv.Atoi(yamlFile.Get("application.cloud.apiGRPCPort").Value)
-		applicationUiPath := yamlFile.Get("application.cloud.uiPath").Value
+		applicationApiPath := yamlFile.GetValue("application.cloud.apiPath").Value
+		applicationApiGrpcPort, _ := strconv.Atoi(yamlFile.GetValue("application.cloud.apiGRPCPort").Value)
+		applicationUiPath := yamlFile.GetValue("application.cloud.uiPath").Value
 
-		insecure, _ := strconv.ParseBool(yamlFile.Get("application.cloud.insecure").Value)
+		insecure, _ := strconv.ParseBool(yamlFile.GetValue("application.cloud.insecure").Value)
 		httpScheme := "http://"
 		wsScheme := "ws://"
 		if !insecure {
@@ -163,10 +163,7 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 
 	//Write to env files
 	//workflow-config-map.env
-	if yamlFile.Get("artifactRepository.bucket") != nil &&
-		yamlFile.Get("artifactRepository.endpoint") != nil &&
-		yamlFile.Get("artifactRepository.insecure") != nil &&
-		yamlFile.Get("artifactRepository.region") != nil {
+	if yamlFile.HasKeys("artifactRepository.bucket", "artifactRepository.endpoint", "artifactRepository.insecure", "artifactRepository.region") {
 		//Clear previous env file
 		paramsPath := filepath.Join(localManifestsCopyPath, "vars", "workflow-config-map.env")
 		if _, err := files.DeleteIfExists(paramsPath); err != nil {

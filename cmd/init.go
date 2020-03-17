@@ -233,7 +233,7 @@ var initCmd = &cobra.Command{
 			return
 		}
 
-		if mergedParams.Get("application.cloud") != nil {
+		if mergedParams.HasKey("application.cloud") {
 			if EnableHTTPS {
 				mergedParams.Put("application.cloud.insecure", false)
 			} else {
