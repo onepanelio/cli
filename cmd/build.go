@@ -102,33 +102,30 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 		return "", err
 	}
 
-	yamlFile, err := util.LoadDynamicYaml(config.Spec.Params)
+	yamlFile, err := util.LoadDynamicYamlFromFile(config.Spec.Params)
 	if err != nil {
 		return "", err
 	}
 
-	host, ok := yamlFile.Get("application.host").(string)
-	if !ok {
-		return "", fmt.Errorf("application.host is not a string")
-	}
-	if yamlFile.Get("application.local") != nil {
-		applicationApiHttpPort := yamlFile.Get("application.local.apiHTTPPort").(int)
-		applicationApiGrpcPort := yamlFile.Get("application.local.apiGRPCPort").(int)
-		applicationUiPort := yamlFile.Get("application.local.uiHTTPPort").(int)
+	host := yamlFile.GetValue("application.host").Value
+	if yamlFile.HasKey("application.local") {
+		applicationApiHttpPort, _ := strconv.Atoi(yamlFile.GetValue("application.local.apiHTTPPort").Value)
+		applicationApiGrpcPort, _ := strconv.Atoi(yamlFile.GetValue("application.local.apiGRPCPort").Value)
+		applicationUiPort, _ := strconv.Atoi(yamlFile.GetValue("application.local.uiHTTPPort").Value)
 		applicationApiUrl := formatUrlForUi(fmt.Sprintf("http://%v:%v", host, applicationApiHttpPort))
 		uiApiWsPath := formatUrlForUi(fmt.Sprintf("ws://%v:%v", host, applicationApiHttpPort))
 
-		yamlFile.PutByString(applicationApiUrl, "applicationApiUrl", ".")
-		yamlFile.PutByString(uiApiWsPath, "applicationApiWsUrl", ".")
-		yamlFile.PutByString(applicationApiHttpPort, "applicationApiHttpPort", ".")
-		yamlFile.PutByString(applicationApiGrpcPort, "applicationApiGrpcPort", ".")
-		yamlFile.PutByString(applicationUiPort, "applicationUIPort", ".")
+		yamlFile.Put("applicationApiUrl", applicationApiUrl)
+		yamlFile.Put("applicationApiWsUrl", uiApiWsPath)
+		yamlFile.Put("applicationApiHttpPort", applicationApiHttpPort)
+		yamlFile.Put("applicationApiGrpcPort", applicationApiGrpcPort)
+		yamlFile.Put("applicationUIPort", applicationUiPort)
 	} else {
-		applicationApiPath := yamlFile.Get("application.cloud.apiPath").(string)
-		applicationApiGrpcPort := yamlFile.Get("application.cloud.apiGRPCPort").(int)
-		applicationUiPath := yamlFile.Get("application.cloud.uiPath").(string)
+		applicationApiPath := yamlFile.GetValue("application.cloud.apiPath").Value
+		applicationApiGrpcPort, _ := strconv.Atoi(yamlFile.GetValue("application.cloud.apiGRPCPort").Value)
+		applicationUiPath := yamlFile.GetValue("application.cloud.uiPath").Value
 
-		insecure := yamlFile.Get("application.cloud.insecure").(bool)
+		insecure, _ := strconv.ParseBool(yamlFile.GetValue("application.cloud.insecure").Value)
 		httpScheme := "http://"
 		wsScheme := "ws://"
 		if !insecure {
@@ -139,14 +136,14 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 		uiApiPath := formatUrlForUi(httpScheme + host + applicationApiPath)
 		uiApiWsPath := formatUrlForUi(wsScheme + host + applicationApiPath)
 
-		yamlFile.PutByString(uiApiPath, "applicationApiUrl", ".")
-		yamlFile.PutByString(uiApiWsPath, "applicationApiWsUrl", ".")
-		yamlFile.PutByString(applicationApiPath, "applicationApiPath", ".")
-		yamlFile.PutByString(applicationUiPath, "applicationUiPath", ".")
-		yamlFile.PutByString(applicationApiGrpcPort, "applicationApiGrpcPort", ".")
+		yamlFile.PutWithSeparator("applicationApiUrl", uiApiPath, ".")
+		yamlFile.PutWithSeparator("applicationApiWsUrl", uiApiWsPath, ".")
+		yamlFile.PutWithSeparator("applicationApiPath", applicationApiPath, ".")
+		yamlFile.PutWithSeparator("applicationUiPath", applicationUiPath, ".")
+		yamlFile.PutWithSeparator("applicationApiGrpcPort", applicationApiGrpcPort, ".")
 	}
 
-	flatMap := yamlFile.Flatten(util.LowerCamelCaseFlatMapKeyFormatter)
+	flatMap := yamlFile.FlattenToKeyValue(util.LowerCamelCaseFlatMapKeyFormatter)
 
 	//Read workflow-config-map-hidden for the rest of the values
 	workflowEnvHiddenPath := filepath.Join(localManifestsCopyPath, "vars", "workflow-config-map-hidden.env")
@@ -166,10 +163,7 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 
 	//Write to env files
 	//workflow-config-map.env
-	if yamlFile.Get("artifactRepository.bucket") != nil &&
-		yamlFile.Get("artifactRepository.endpoint") != nil &&
-		yamlFile.Get("artifactRepository.insecure") != nil &&
-		yamlFile.Get("artifactRepository.region") != nil {
+	if yamlFile.HasKeys("artifactRepository.bucket", "artifactRepository.endpoint", "artifactRepository.insecure", "artifactRepository.region") {
 		//Clear previous env file
 		paramsPath := filepath.Join(localManifestsCopyPath, "vars", "workflow-config-map.env")
 		if _, err := files.DeleteIfExists(paramsPath); err != nil {
@@ -193,8 +187,8 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 		log.Fatal("Missing required values in params.yaml, artifactRepository. Check bucket, endpoint, or insecure.")
 	}
 	//logging-config-map.env, optional component
-	if yamlFile.Get("logging.image") != nil &&
-		yamlFile.Get("logging.volumeStorage") != nil {
+	if yamlFile.HasKey("logging.image") &&
+		yamlFile.HasKey("logging.volumeStorage") {
 		//Clear previous env file
 		paramsPath := filepath.Join(localManifestsCopyPath, "vars", "logging-config-map.env")
 		if _, err := files.DeleteIfExists(paramsPath); err != nil {
@@ -214,7 +208,7 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 		}
 	}
 	//onepanel-config-map.env
-	if yamlFile.Get("defaultNamespace") != nil {
+	if yamlFile.HasKey("defaultNamespace") {
 		//Clear previous env file
 		paramsPath := filepath.Join(localManifestsCopyPath, "vars", "onepanel-config-map.env")
 		if _, err := files.DeleteIfExists(paramsPath); err != nil {
@@ -237,8 +231,8 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 	//Write to secret files
 	//common/onepanel/base/secrets.yaml
 	var secretKeysValues []string
-	if yamlFile.Get("artifactRepository.accessKey") != nil &&
-		yamlFile.Get("artifactRepository.secretKey") != nil {
+	if yamlFile.HasKey("artifactRepository.accessKey") &&
+		yamlFile.HasKey("artifactRepository.secretKey") {
 		secretKeysValues = append(secretKeysValues, "artifactRepositoryAccessKey", "artifactRepositorySecretKey")
 		for _, key := range secretKeysValues {
 			//Path to secrets file

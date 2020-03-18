@@ -218,10 +218,14 @@ var initCmd = &cobra.Command{
 			return
 		}
 
-		mergedParams, err := files.MergeParametersFiles(ParametersFilePath, bld.GetVarsArray())
+		mergedParams, err := util.LoadDynamicYamlFromFile(ParametersFilePath)
 		if err != nil {
-			log.Printf("Error merging parameters: %v", err.Error())
+			log.Printf("[error] loading params file: %v", err.Error())
 			return
+		}
+
+		for _, newYaml := range bld.GetYamls() {
+			mergedParams.Merge(newYaml)
 		}
 
 		if err := filterMergedParams(Provider, mergedParams); err != nil {
@@ -229,11 +233,11 @@ var initCmd = &cobra.Command{
 			return
 		}
 
-		if mergedParams.Get("application.cloud") != nil {
+		if mergedParams.HasKey("application.cloud") {
 			if EnableHTTPS {
-				mergedParams.Put(false, "application.cloud.insecure")
+				mergedParams.Put("application.cloud.insecure", false)
 			} else {
-				mergedParams.Put(true, "application.cloud.insecure")
+				mergedParams.Put("application.cloud.insecure", true)
 			}
 		}
 
@@ -243,7 +247,14 @@ var initCmd = &cobra.Command{
 			return
 		}
 
-		if err := mergedParams.WriteToFile(paramsFile); err != nil {
+		mergedParams.Sort()
+		paramsString, err := mergedParams.String()
+		if err != nil {
+			log.Printf("[error] unable to write params to a string")
+			return
+		}
+
+		if _, err := paramsFile.WriteString(paramsString); err != nil {
 			log.Printf("Error writing merged parameters: %v", err.Error())
 			return
 		}

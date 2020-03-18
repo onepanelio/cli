@@ -129,12 +129,6 @@ func (b *Builder) Build() error {
 			return err
 		}
 
-		if info.Name() == "vars.yaml" {
-			if err := b.addVarsFile(path); err != nil {
-				return err
-			}
-		}
-
 		// Don't consider individual files unless its vars.yaml, just overlays and components.
 		if !info.IsDir() {
 			return nil
@@ -173,12 +167,6 @@ func (b *Builder) Build() error {
 		// skip common directory as we already processed it
 		if info.Name() == "common" {
 			return filepath.SkipDir
-		}
-
-		if info.Name() == "vars.yaml" {
-			if err := b.addVarsFile(path); err != nil {
-				return err
-			}
 		}
 
 		// Don't consider individual files unless its vars.yaml, just overlays and components.
@@ -320,28 +308,6 @@ func (b *Builder) addOrReplaceSource(path, componentName string, order int, isOv
 	}
 
 	b.Sources[componentName] = append(b.Sources[componentName], newSource)
-
-	return nil
-}
-
-// TODO remove?
-func (b *Builder) addVarsFile(path string) error {
-	// TODO skip env vars if the component or overlay is part of the ones considered
-	//data, err := ioutil.ReadFile(path)
-	//if err != nil {
-	//	return err
-	//}
-
-	//varFile := files.CreateVarsFile()
-	//if err := yaml.Unmarshal(data, &varFile); err != nil {
-	//	return err
-	//}
-
-	// TODO
-	//for i := range varFile.Vars {
-	//	varName := varFile.Vars[i]
-	//	b.addVar(path, varName)
-	//}
 
 	return nil
 }

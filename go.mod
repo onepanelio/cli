@@ -12,6 +12,7 @@ require (
 	github.com/spf13/cobra v0.0.5
 	github.com/spf13/viper v1.5.0
 	gopkg.in/yaml.v2 v2.2.8
+	gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c
 	k8s.io/apimachinery v0.17.3
 	k8s.io/cli-runtime v0.17.3
 	k8s.io/client-go v0.17.3
