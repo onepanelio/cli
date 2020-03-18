@@ -247,6 +247,7 @@ var initCmd = &cobra.Command{
 			return
 		}
 
+		mergedParams.Sort()
 		paramsString, err := mergedParams.String()
 		if err != nil {
 			log.Printf("[error] unable to write params to a string")

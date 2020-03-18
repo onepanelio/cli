@@ -6,6 +6,7 @@ import (
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
 	"log"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -389,6 +390,53 @@ func (d *DynamicYaml) Put(key string, value interface{}) *yaml.Node {
 
 func (d *DynamicYaml) PutNode(key string, value *yaml.Node) (*yaml.Node, error) {
 	return d.PutWithSeparatorNode(key, value, ".")
+}
+
+func (d *DynamicYaml) Sort() {
+	sortNode(d.node)
+}
+
+func sortNode(node *yaml.Node) {
+	sortNodePairs(node)
+
+	for _, child := range node.Content {
+		if child.Kind == yaml.MappingNode {
+			sortNode(child)
+		}
+	}
+}
+
+func sortNodePairs(node *yaml.Node) {
+	if node.Kind != yaml.MappingNode {
+		return
+	}
+
+	keys := make([]*yaml.Node, 0)
+	keyChild := make(map[string]*yaml.Node)
+	for i := 0; i < len(node.Content)-1; i += 2 {
+		keyNode := node.Content[i]
+		valueNode := node.Content[i+1]
+
+		keyChild[keyNode.Value] = valueNode
+		keys = append(keys, keyNode)
+	}
+
+	sort.Slice(keys, func(i, j int) bool {
+		keyA := keys[i]
+		keyB := keys[j]
+		return strings.Compare(keyA.Value, keyB.Value) < 0
+	})
+
+	sorted := make([]*yaml.Node, 0)
+	for _, key := range keys {
+		sorted = append(sorted, key)
+
+		if value, ok := keyChild[key.Value]; ok {
+			sorted = append(sorted, value)
+		}
+	}
+
+	node.Content = sorted
 }
 
 func (d *DynamicYaml) String() (string, error) {
