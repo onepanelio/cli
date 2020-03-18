@@ -155,43 +155,10 @@ func (d *DynamicYaml) GetValue(key string) (value *yaml.Node) {
 	return d.GetValueWithSeparator(key, ".")
 }
 
-func (d *DynamicYaml) HasKeyByParts(parts ...string) bool {
-	if len(d.node.Content) == 0 {
-		return false
-	}
-
-	parentNode := d.node.Content[0]
-	var valueNode *yaml.Node
-
-	for _, part := range parts {
-		for childIndex, child := range parentNode.Content {
-			if child.Value == part {
-				valueIndex := childIndex + 1
-				if valueIndex >= len(parentNode.Content) {
-					return false
-				}
-
-				valueNode = parentNode.Content[valueIndex]
-				if valueNode.Kind == yaml.MappingNode {
-					parentNode = valueNode
-					valueNode = nil
-				}
-
-				break
-			}
-		}
-	}
-
-	return valueNode != nil
-}
-
-func (d *DynamicYaml) HasKeyWithSeparator(key, separator string) bool {
-	parts := strings.Split(key, separator)
-	return d.HasKeyByParts(parts...)
-}
-
 func (d *DynamicYaml) HasKey(key string) bool {
-	return d.HasKeyWithSeparator(key, ".")
+	_, value := d.Get(key)
+
+	return value != nil
 }
 
 func (d *DynamicYaml) HasKeys(keys ...string) bool {
