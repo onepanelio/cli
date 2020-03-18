@@ -5,8 +5,10 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"net/http"
+	"os"
 	"regexp"
 	"strings"
+	"time"
 
 	"k8s.io/client-go/plugin/pkg/client/auth/exec"
 	restclient "k8s.io/client-go/rest"
@@ -64,6 +66,24 @@ func GetBearerToken(in *restclient.Config, explicitKubeConfigPath string) (strin
 	if in.AuthProvider != nil {
 		if in.AuthProvider.Name == "gcp" {
 			token := in.AuthProvider.Config["access-token"]
+			if token == "" {
+				flags := make(map[string]interface{})
+				var extraArgs []string
+				_, stderr, err := KubectlGet("node", "", "", extraArgs, flags)
+				if stderr != "" {
+					return "", errors.New(stderr)
+				}
+				if err != nil {
+					return "", err
+				}
+				refreshedConfig := NewConfig()
+				getTokenAgain, getErr := GetBearerToken(refreshedConfig, "")
+				return getTokenAgain, getErr
+			}
+			token, err := RefreshTokenIfExpired(in, explicitKubeConfigPath, token)
+			if err != nil {
+				return "", err
+			}
 			return strings.TrimPrefix(token, "Bearer "), nil
 		}
 	}
@@ -83,4 +103,59 @@ func GetBearerToken(in *restclient.Config, explicitKubeConfigPath string) (strin
 		}
 	}
 	return "", errors.Errorf("could not find a token")
+}
+
+func RefreshTokenIfExpired(restConfig *restclient.Config, explicitPath, curentToken string) (string, error) {
+	if restConfig.AuthProvider != nil {
+		timestr := restConfig.AuthProvider.Config["expiry"]
+		if timestr != "" {
+			t, err := time.Parse(time.RFC3339, timestr)
+			if err != nil {
+				return "", errors.Errorf("Invalid expiry date in Kubeconfig. %v", err)
+			}
+			if time.Now().After(t) {
+				err = RefreshAuthToken(restConfig)
+				if err != nil {
+					return "", err
+				}
+				config := ReloadKubeConfig(explicitPath)
+				restConfig, err = config.ClientConfig()
+				if err != nil {
+					return "", err
+				}
+				return restConfig.AuthProvider.Config["access-token"], nil
+			}
+		}
+	}
+	return curentToken, nil
+}
+
+func ReloadKubeConfig(explicitPath string) clientcmd.ClientConfig {
+	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
+	loadingRules.DefaultClientConfig = &clientcmd.DefaultClientConfig
+	loadingRules.ExplicitPath = explicitPath
+	overrides := clientcmd.ConfigOverrides{}
+	return clientcmd.NewInteractiveDeferredLoadingClientConfig(loadingRules, &overrides, os.Stdin)
+}
+
+func RefreshAuthToken(in *restclient.Config) error {
+	tc, err := in.TransportConfig()
+	if err != nil {
+		return err
+	}
+
+	auth, err := restclient.GetAuthProvider(in.Host, in.AuthProvider, in.AuthConfigPersister)
+	if err != nil {
+		return err
+	}
+
+	rt, err := transport.New(tc)
+	if err != nil {
+		return err
+	}
+	rt = auth.WrapTransport(rt)
+	req := http.Request{Header: map[string][]string{}}
+
+	_, _ = rt.RoundTrip(&req)
+	return nil
 }
