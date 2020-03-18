@@ -257,7 +257,7 @@ func getDeployedWebUrl(paramsFilePath string) (string, error) {
 	}
 
 	httpScheme := "http://"
-	_, host := yamlFile.Get("application.host")
+	host := yamlFile.GetValue("application.host").Value
 	hostExtra := ""
 
 	if yamlFile.HasKey("application.local") {
