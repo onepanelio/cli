@@ -22,7 +22,7 @@ var statusCmd = &cobra.Command{
 		}
 		yamlFile, err := util.LoadDynamicYamlFromFile(config.Spec.Params)
 		if err != nil {
-			fmt.Println("Error opening params.yaml file.")
+			fmt.Println("Error parsing configuration file.")
 			return
 		}
 		ready, err := util.DeploymentStatus(yamlFile)
