@@ -6,13 +6,21 @@ import (
 	"strings"
 )
 
-func DeploymentStatus() (ready bool, err error) {
+func DeploymentStatus(yamlFile *DynamicYaml) (ready bool, err error) {
 	//True is a required namespace
 	namespacesToCheck := make(map[string]bool)
 	namespacesToCheck["application-system"] = true
-	namespacesToCheck["cert-manager"] = true
-	namespacesToCheck["istio-system"] = true
 	namespacesToCheck["onepanel"] = true
+	if yamlFile.HasKey("application.cloud") {
+		namespacesToCheck["istio-system"] = true
+	}
+	if yamlFile.HasKey("certManager") {
+		namespacesToCheck["cert-manager"] = true
+	}
+	if yamlFile.HasKey("logging") {
+		namespacesToCheck["kube-logging"] = true
+	}
+
 	var stdout, stderr string
 	for namespace, required := range namespacesToCheck {
 		flags := make(map[string]interface{})

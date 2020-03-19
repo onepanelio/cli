@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 
+	opConfig "github.com/onepanelio/cli/config"
 	"github.com/onepanelio/cli/util"
 	"github.com/spf13/cobra"
 )
@@ -13,7 +14,18 @@ var statusCmd = &cobra.Command{
 	Long:    "Check deployment status by checking pods statuses.",
 	Example: "status",
 	Run: func(cmd *cobra.Command, args []string) {
-		ready, err := util.DeploymentStatus()
+		configFilePath := "config.yaml"
+		config, err := opConfig.FromFile(configFilePath)
+		if err != nil {
+			fmt.Printf("Unable to read configuration file: %v", err.Error())
+			return
+		}
+		yamlFile, err := util.LoadDynamicYamlFromFile(config.Spec.Params)
+		if err != nil {
+			fmt.Println("Error opening params.yaml file.")
+			return
+		}
+		ready, err := util.DeploymentStatus(yamlFile)
 		if err != nil {
 			fmt.Println(err.Error())
 			return

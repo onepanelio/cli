@@ -179,6 +179,11 @@ var applyCmd = &cobra.Command{
 			log.Printf("%v", errRes)
 		}
 
+		yamlFile, err := util.LoadDynamicYamlFromFile(config.Spec.Params)
+		if err != nil {
+			fmt.Println("Error opening params.yaml file.")
+			return
+		}
 		if err != nil {
 			fmt.Printf("\nDeployment failed: %v", err.Error())
 		} else {
@@ -187,7 +192,7 @@ var applyCmd = &cobra.Command{
 			attempts := 0
 			maxAttempts := 5
 			for stopChecking == false {
-				deploymentStatus, deploymentStatusErr := util.DeploymentStatus()
+				deploymentStatus, deploymentStatusErr := util.DeploymentStatus(yamlFile)
 				if deploymentStatusErr != nil &&
 					!strings.Contains(deploymentStatusErr.Error(), "No resources found") {
 					fmt.Println(deploymentStatusErr.Error())
@@ -208,9 +213,15 @@ var applyCmd = &cobra.Command{
 				}
 			}
 
-			url, err := getDeployedWebUrl(config.Spec.Params)
+			url, err := getDeployedWebURL(yamlFile)
 			if err != nil {
 				fmt.Printf("[error] Unable to get deployed url from configuration: %v", err.Error())
+				return
+			}
+
+			// No need to get cluster IP if local deployment
+			if yamlFile.HasKey("application.local") {
+				fmt.Printf("Your application is running at %v\n\n", url)
 				return
 			}
 
@@ -250,23 +261,18 @@ func applyKubernetesFile(filePath string) (res string, errMessage string, err er
 	return util.KubectlApply(filePath)
 }
 
-func getDeployedWebUrl(paramsFilePath string) (string, error) {
-	yamlFile, err := util.LoadDynamicYamlFromFile(paramsFilePath)
-	if err != nil {
-		return "", err
-	}
-
+func getDeployedWebURL(yamlFile *util.DynamicYaml) (string, error) {
 	httpScheme := "http://"
 	host := yamlFile.GetValue("application.host").Value
 	hostExtra := ""
 
 	if yamlFile.HasKey("application.local") {
-		applicationUiPort := yamlFile.GetValue("application.local.uiHTTPPort").Value
-		hostExtra = fmt.Sprintf(":%v", applicationUiPort)
+		applicationUIPort := yamlFile.GetValue("application.local.uiHTTPPort").Value
+		hostExtra = fmt.Sprintf(":%v", applicationUIPort)
 	} else {
-		applicationUiPath := yamlFile.GetValue("application.cloud.uiPath").Value
+		applicationUIPath := yamlFile.GetValue("application.cloud.uiPath").Value
 
-		hostExtra = fmt.Sprintf("%v", applicationUiPath)
+		hostExtra = fmt.Sprintf("%v", applicationUIPath)
 
 		insecure, err := strconv.ParseBool(yamlFile.GetValue("application.cloud.insecure").Value)
 		if err != nil {
