@@ -513,7 +513,17 @@ func (d *DynamicYaml) FlattenRequiredDefault() {
 	flatMap := d.Flatten(AppendDotFlatMapKeyFormatter)
 
 	for key := range flatMap {
-		defaultIndex := strings.Index(key, ".default")
+		//Handle case of application.defaultNamespace.default
+		lastIndex := strings.LastIndex(key, ".")
+		if lastIndex < 0 {
+			continue
+		}
+		postfixDefault := ".default"
+		if key[lastIndex:] != postfixDefault {
+			continue
+		}
+
+		defaultIndex := strings.LastIndex(key, postfixDefault)
 		if defaultIndex < 0 {
 			continue
 		}

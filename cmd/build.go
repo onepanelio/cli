@@ -208,7 +208,7 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 		}
 	}
 	//onepanel-config-map.env
-	if yamlFile.HasKey("defaultNamespace") {
+	if yamlFile.HasKey("application.defaultNamespace") {
 		//Clear previous env file
 		paramsPath := filepath.Join(localManifestsCopyPath, "vars", "onepanel-config-map.env")
 		if _, err := files.DeleteIfExists(paramsPath); err != nil {
@@ -219,14 +219,14 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 			return "", err
 		}
 		var stringToWrite = fmt.Sprintf("%v=%v\n",
-			"defaultNamespace", flatMap["defaultNamespace"],
+			"applicationDefaultNamespace", flatMap["applicationDefaultNamespace"],
 		)
 		_, err = paramsFile.WriteString(stringToWrite)
 		if err != nil {
 			return "", err
 		}
 	} else {
-		log.Fatal("Missing required values in params.yaml, defaultNamespace")
+		log.Fatal("Missing required values in params.yaml, applicationDefaultNamespace")
 	}
 	//Write to secret files
 	//common/onepanel/base/secrets.yaml
@@ -264,7 +264,7 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 		log.Fatal("Missing required values in params.yaml, artifactRepository. Check accessKey, or secretKey.")
 	}
 
-	//To properly replace $(defaultNamespace), we need to update it in quite a few files.
+	//To properly replace $(applicationDefaultNamespace), we need to update it in quite a few files.
 	//Find those files
 	listOfFiles, errorWalking := FilePathWalkDir(localManifestsCopyPath)
 	if errorWalking != nil {
@@ -277,7 +277,6 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 			return "", manifestFileOpenErr
 		}
 		manifestFileContentStr := string(manifestFileContent)
-		//"defaultNamespace",flatMap["defaultNamespace"]
 		configMapCheck := "kind: ConfigMap"
 		configMapFile := false
 		if strings.Contains(manifestFileContentStr, configMapCheck) {
