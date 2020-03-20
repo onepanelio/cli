@@ -121,6 +121,7 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 		yamlFile.Put("applicationApiGrpcPort", applicationApiGrpcPort)
 		yamlFile.Put("applicationUIPort", applicationUiPort)
 		yamlFile.Put("providerType", "local")
+		yamlFile.Put("onepanelApiUrl", applicationApiUrl)
 	} else {
 		applicationApiPath := yamlFile.GetValue("application.cloud.apiPath").Value
 		applicationApiGrpcPort, _ := strconv.Atoi(yamlFile.GetValue("application.cloud.apiGRPCPort").Value)
@@ -143,6 +144,7 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 		yamlFile.PutWithSeparator("applicationUiPath", applicationUiPath, ".")
 		yamlFile.PutWithSeparator("applicationApiGrpcPort", applicationApiGrpcPort, ".")
 		yamlFile.PutWithSeparator("providerType", "cloud", ".")
+		yamlFile.PutWithSeparator("onepanelApiUrl", uiApiPath, ".")
 	}
 
 	flatMap := yamlFile.FlattenToKeyValue(util.LowerCamelCaseFlatMapKeyFormatter)
