@@ -112,14 +112,17 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 		applicationApiHttpPort, _ := strconv.Atoi(yamlFile.GetValue("application.local.apiHTTPPort").Value)
 		applicationApiGrpcPort, _ := strconv.Atoi(yamlFile.GetValue("application.local.apiGRPCPort").Value)
 		applicationUiPort, _ := strconv.Atoi(yamlFile.GetValue("application.local.uiHTTPPort").Value)
-		applicationApiUrl := formatUrlForUi(fmt.Sprintf("http://%v:%v", host, applicationApiHttpPort))
+		applicationApiUrl := fmt.Sprintf("http://%v:%v", host, applicationApiHttpPort)
+		applicationApiUrlUI := formatUrlForUi(applicationApiUrl)
 		uiApiWsPath := formatUrlForUi(fmt.Sprintf("ws://%v:%v", host, applicationApiHttpPort))
 
-		yamlFile.Put("applicationApiUrl", applicationApiUrl)
+		yamlFile.Put("applicationApiUrl", applicationApiUrlUI)
 		yamlFile.Put("applicationApiWsUrl", uiApiWsPath)
 		yamlFile.Put("applicationApiHttpPort", applicationApiHttpPort)
 		yamlFile.Put("applicationApiGrpcPort", applicationApiGrpcPort)
 		yamlFile.Put("applicationUIPort", applicationUiPort)
+		yamlFile.Put("providerType", "local")
+		yamlFile.Put("onepanelApiUrl", applicationApiUrl)
 	} else {
 		applicationApiPath := yamlFile.GetValue("application.cloud.apiPath").Value
 		applicationApiGrpcPort, _ := strconv.Atoi(yamlFile.GetValue("application.cloud.apiGRPCPort").Value)
@@ -133,7 +136,8 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 			wsScheme = "wss://"
 		}
 
-		uiApiPath := formatUrlForUi(httpScheme + host + applicationApiPath)
+		apiPath := httpScheme + host + applicationApiPath
+		uiApiPath := formatUrlForUi(apiPath)
 		uiApiWsPath := formatUrlForUi(wsScheme + host + applicationApiPath)
 
 		yamlFile.PutWithSeparator("applicationApiUrl", uiApiPath, ".")
@@ -141,6 +145,8 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 		yamlFile.PutWithSeparator("applicationApiPath", applicationApiPath, ".")
 		yamlFile.PutWithSeparator("applicationUiPath", applicationUiPath, ".")
 		yamlFile.PutWithSeparator("applicationApiGrpcPort", applicationApiGrpcPort, ".")
+		yamlFile.PutWithSeparator("providerType", "cloud", ".")
+		yamlFile.PutWithSeparator("onepanelApiUrl", apiPath, ".")
 	}
 
 	flatMap := yamlFile.FlattenToKeyValue(util.LowerCamelCaseFlatMapKeyFormatter)
