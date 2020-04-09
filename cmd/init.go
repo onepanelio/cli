@@ -24,6 +24,7 @@ var (
 	ParametersFilePath    string
 	Provider              string
 	DNS                   string
+	Dev                   bool
 	EnableEFKLogging      bool
 	EnableHTTPS           bool
 	EnableCertManager     bool
@@ -241,6 +242,14 @@ var initCmd = &cobra.Command{
 			}
 		}
 
+		if Dev {
+			mergedParams.Put("application.core.imageTag", "develop")
+			mergedParams.Put("application.core.imagePullPolicy", "Always")
+
+			mergedParams.Put("application.coreui.imageTag", "develop")
+			mergedParams.Put("application.coreui.imagePullPolicy", "Always")
+		}
+
 		paramsFile, err := os.OpenFile(ParametersFilePath, os.O_RDWR, 0)
 		if err != nil {
 			log.Printf("Error opening parameters file: %v", err.Error())
@@ -295,6 +304,7 @@ func init() {
 	initCmd.Flags().StringVarP(&DNS, "dns-provider", "d", "", "Provider for DNS. Valid values are: azuredns, clouddns (google), cloudflare, route53")
 	initCmd.Flags().StringVarP(&ConfigurationFilePath, "config", "c", "config.yaml", "File path of the resulting config file")
 	initCmd.Flags().StringVarP(&ParametersFilePath, "params", "e", "params.yaml", "File path of the resulting parameters file")
+	initCmd.Flags().BoolVarP(&Dev, "develop", "", false, "Sets conditions to allow development testing.")
 	initCmd.Flags().BoolVarP(&EnableEFKLogging, "enable-efk-logging", "", false, "Enable Elasticsearch, Fluentd and Kibana (EFK) logging")
 	initCmd.Flags().BoolVarP(&EnableHTTPS, "enable-https", "", false, "Enable HTTPS scheme and redirect all requests to https://")
 	initCmd.Flags().BoolVarP(&EnableCertManager, "enable-cert-manager", "", false, "Automatically create/renew TLS certs using Let's Encrypt")
