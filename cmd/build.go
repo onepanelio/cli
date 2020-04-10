@@ -57,6 +57,7 @@ var generateCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(generateCmd)
+	generateCmd.Flags().BoolVarP(&Dev, "develop", "", false, "Sets conditions to allow development testing.")
 }
 
 // Given the path to the manifests, and a kustomize config, creates the final kustomization file.
@@ -148,6 +149,22 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 		yamlFile.PutWithSeparator("providerType", "cloud", ".")
 		yamlFile.PutWithSeparator("onepanelApiUrl", apiPath, ".")
 	}
+
+	coreImageTag := "latest"
+	coreImagePullPolicy := "IfNotPresent"
+	coreUiImageTag := "latest"
+	coreUiImagePullPolicy := "IfNotPresent"
+	if Dev {
+		coreImageTag = "develop"
+		coreImagePullPolicy = "Always"
+		coreUiImageTag = "develop"
+		coreUiImagePullPolicy = "Always"
+	}
+	yamlFile.PutWithSeparator("applicationCoreImageTag", coreImageTag, ".")
+	yamlFile.PutWithSeparator("applicationCoreImagePullPolicy", coreImagePullPolicy, ".")
+
+	yamlFile.PutWithSeparator("applicationCoreuiImageTag", coreUiImageTag, ".")
+	yamlFile.PutWithSeparator("applicationCoreuiImagePullPolicy", coreUiImagePullPolicy, ".")
 
 	flatMap := yamlFile.FlattenToKeyValue(util.LowerCamelCaseFlatMapKeyFormatter)
 
