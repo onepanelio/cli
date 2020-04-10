@@ -24,6 +24,7 @@ var (
 	ParametersFilePath    string
 	Provider              string
 	DNS                   string
+	Dev                   bool
 	EnableEFKLogging      bool
 	EnableHTTPS           bool
 	EnableCertManager     bool
