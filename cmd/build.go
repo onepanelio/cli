@@ -3,6 +3,7 @@ package cmd
 import (
 	"encoding/base64"
 	"fmt"
+	yaml2 "gopkg.in/yaml.v3"
 	"io/ioutil"
 	"log"
 	"os"
@@ -165,6 +166,9 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 
 	yamlFile.PutWithSeparator("applicationCoreuiImageTag", coreUiImageTag, ".")
 	yamlFile.PutWithSeparator("applicationCoreuiImagePullPolicy", coreUiImagePullPolicy, ".")
+
+	applicationNodePoolOptionsConfigMapStr := generateApplicationNodePoolOptions(yamlFile.GetValue("application.nodePool").Content)
+	yamlFile.PutWithSeparator("applicationNodePoolOptions", applicationNodePoolOptionsConfigMapStr, ".")
 
 	flatMap := yamlFile.FlattenToKeyValue(util.LowerCamelCaseFlatMapKeyFormatter)
 
@@ -440,4 +444,32 @@ func runKustomizeBuild(path string) (rm resmap.ResMap, err error) {
 	}
 
 	return rm, nil
+}
+
+func generateApplicationNodePoolOptions(nodePoolData []*yaml2.Node) string {
+	applicationNodePoolOptions := []string{"|\n"}
+	var optionChunk []string
+	var prefix string
+	for _, poolNode := range nodePoolData {
+		//Find the sequence tag, which refers to options
+		if poolNode.Tag == "!!seq" {
+			optionsNodes := poolNode.Content
+			for _, optionNode := range optionsNodes {
+				for idx, optionDatum := range optionNode.Content {
+					if idx%2 == 1 {
+						continue
+					}
+					prefix = "  " //spaces instead of tabs
+					if strings.Contains(optionDatum.Value, "name") {
+						prefix = "- "
+					}
+					optionChunk = append(optionChunk, "    "+prefix+optionDatum.Value+": "+optionNode.Content[idx+1].Value+"\n")
+				}
+				optionChunk = append(optionChunk, "")
+			}
+			break
+		}
+	}
+	applicationNodePoolOptions = append(applicationNodePoolOptions, strings.Join(optionChunk, ""))
+	return strings.Join(applicationNodePoolOptions, "")
 }
