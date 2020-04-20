@@ -450,6 +450,8 @@ func generateApplicationNodePoolOptions(nodePoolData []*yaml2.Node) string {
 	applicationNodePoolOptions := []string{"|\n"}
 	var optionChunk []string
 	var prefix string
+	var optionChunkAppend string
+	addSingleQuotes := false
 	for _, poolNode := range nodePoolData {
 		//Find the sequence tag, which refers to options
 		if poolNode.Tag == "!!seq" {
@@ -462,8 +464,15 @@ func generateApplicationNodePoolOptions(nodePoolData []*yaml2.Node) string {
 					prefix = "  " //spaces instead of tabs
 					if strings.Contains(optionDatum.Value, "name") {
 						prefix = "- "
+						addSingleQuotes = true
 					}
-					optionChunk = append(optionChunk, "    "+prefix+optionDatum.Value+": "+optionNode.Content[idx+1].Value+"\n")
+					if addSingleQuotes {
+						optionChunkAppend = "    " + prefix + optionDatum.Value + ": '" + optionNode.Content[idx+1].Value + "'\n"
+					} else {
+						optionChunkAppend = "    " + prefix + optionDatum.Value + ": " + optionNode.Content[idx+1].Value + "\n"
+					}
+					optionChunk = append(optionChunk, optionChunkAppend)
+					addSingleQuotes = false
 				}
 				optionChunk = append(optionChunk, "")
 			}
