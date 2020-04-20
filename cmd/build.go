@@ -464,6 +464,8 @@ func generateApplicationNodePoolOptions(nodePoolData []*yaml2.Node) string {
 					prefix = "  " //spaces instead of tabs
 					if strings.Contains(optionDatum.Value, "name") {
 						prefix = "- "
+					}
+					if optionNode.Content[idx+1].Tag == "!!str" {
 						addSingleQuotes = true
 					}
 					if addSingleQuotes {
