@@ -139,3 +139,25 @@ func validatePruneAll(prune, all bool, selector string) error {
 	}
 	return nil
 }
+
+func GetClusterIp(url string) {
+	kubectlGetFlags := make(map[string]interface{})
+	kubectlGetFlags["output"] = "jsonpath='{.status.loadBalancer.ingress[0].ip}'"
+	extraArgs := []string{}
+	stdout, stderr, err := KubectlGet("service", "istio-ingressgateway", "istio-system", extraArgs, kubectlGetFlags)
+	if err != nil {
+		fmt.Printf("[error] Unable to get IP from istio-ingressgateway service: %v", err.Error())
+		return
+	}
+	if stderr != "" {
+		fmt.Printf("[error] Unable to get IP from istio-ingressgateway service: %v", stderr)
+		return
+	}
+
+	dnsRecordMessage := "an A"
+	if !IsIpv4(stdout) {
+		dnsRecordMessage = "a CNAME"
+	}
+	fmt.Printf("\nIn your DNS, add %v record for %v and point it to %v\n", dnsRecordMessage, GetWildCardDNS(url), stdout)
+	fmt.Printf("Once complete, your application will be running at %v\n\n", url)
+}

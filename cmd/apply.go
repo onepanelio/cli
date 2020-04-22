@@ -3,9 +3,7 @@ package cmd
 import (
 	"fmt"
 	"log"
-	"net"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
@@ -213,7 +211,7 @@ var applyCmd = &cobra.Command{
 				}
 			}
 
-			url, err := getDeployedWebURL(yamlFile)
+			url, err := util.GetDeployedWebURL(yamlFile)
 			if err != nil {
 				fmt.Printf("[error] Unable to get deployed url from configuration: %v", err.Error())
 				return
@@ -224,26 +222,7 @@ var applyCmd = &cobra.Command{
 				fmt.Printf("Your application is running at %v\n\n", url)
 				return
 			}
-
-			kubectlGetFlags := make(map[string]interface{})
-			kubectlGetFlags["output"] = "jsonpath='{.status.loadBalancer.ingress[0].ip}'"
-			extraArgs := []string{}
-			stdout, stderr, err := util.KubectlGet("service", "istio-ingressgateway", "istio-system", extraArgs, kubectlGetFlags)
-			if err != nil {
-				fmt.Printf("[error] Unable to get IP from istio-ingressgateway service: %v", err.Error())
-				return
-			}
-			if stderr != "" {
-				fmt.Printf("[error] Unable to get IP from istio-ingressgateway service: %v", stderr)
-				return
-			}
-
-			dnsRecordMessage := "an A"
-			if !isIpv4(stdout) {
-				dnsRecordMessage = "a CNAME"
-			}
-			fmt.Printf("\nIn your DNS, add %v record for %v and point it to %v\n", dnsRecordMessage, getWildCardDNS(url), stdout)
-			fmt.Printf("Once complete, your application will be running at %v\n\n", url)
+			util.GetClusterIp(url)
 		}
 	},
 }
@@ -260,42 +239,4 @@ func getPodInfo(podName string, podNamespace string) (res string, errMessage str
 
 func applyKubernetesFile(filePath string) (res string, errMessage string, err error) {
 	return util.KubectlApply(filePath)
-}
-
-func getDeployedWebURL(yamlFile *util.DynamicYaml) (string, error) {
-	httpScheme := "http://"
-	host := yamlFile.GetValue("application.host").Value
-	hostExtra := ""
-
-	if yamlFile.HasKey("application.local") {
-		applicationUIPort := yamlFile.GetValue("application.local.uiHTTPPort").Value
-		hostExtra = fmt.Sprintf(":%v", applicationUIPort)
-	} else {
-		applicationUIPath := yamlFile.GetValue("application.cloud.uiPath").Value
-
-		hostExtra = fmt.Sprintf("%v", applicationUIPath)
-
-		insecure, err := strconv.ParseBool(yamlFile.GetValue("application.cloud.insecure").Value)
-		if err != nil {
-			log.Fatal("insecure is not a bool")
-		}
-
-		if !insecure {
-			httpScheme = "https://"
-		}
-	}
-
-	return fmt.Sprintf("%v%v%v", httpScheme, host, hostExtra), nil
-}
-
-func getWildCardDNS(url string) string {
-	url = strings.ReplaceAll(url, "/", "")
-	parts := strings.Split(url, ".")
-	url = strings.Join(parts[1:], ".")
-
-	return fmt.Sprintf("*.%v", url)
-}
-
-func isIpv4(host string) bool {
-	return net.ParseIP(strings.Trim(host, "'")) != nil
 }
