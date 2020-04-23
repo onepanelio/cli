@@ -190,7 +190,7 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 
 	//Write to env files
 	//workflow-config-map.env
-	if yamlFile.HasKeys("artifactRepository.bucket", "artifactRepository.endpoint", "artifactRepository.insecure", "artifactRepository.region") {
+	if yamlFile.HasKeys("artifactRepository.s3.bucket", "artifactRepository.s3.endpoint", "artifactRepository.s3.insecure", "artifactRepository.s3.region") {
 		//Clear previous env file
 		paramsPath := filepath.Join(localManifestsCopyPath, "vars", "workflow-config-map.env")
 		if _, err := files.DeleteIfExists(paramsPath); err != nil {
@@ -201,10 +201,10 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 			return "", err
 		}
 		var stringToWrite = fmt.Sprintf("%v=%v\n%v=%v\n%v=%v\n%v=%v\n",
-			"artifactRepositoryBucket", flatMap["artifactRepositoryBucket"],
-			"artifactRepositoryEndpoint", flatMap["artifactRepositoryEndpoint"],
-			"artifactRepositoryInsecure", flatMap["artifactRepositoryInsecure"],
-			"artifactRepositoryRegion", flatMap["artifactRepositoryRegion"],
+			"artifactRepositoryBucket", flatMap["artifactRepositoryS3Bucket"],
+			"artifactRepositoryEndpoint", flatMap["artifactRepositoryS3Endpoint"],
+			"artifactRepositoryInsecure", flatMap["artifactRepositoryIS3nsecure"],
+			"artifactRepositoryRegion", flatMap["artifactRepositoryS3Region"],
 		)
 		_, err = paramsFile.WriteString(stringToWrite)
 		if err != nil {
@@ -258,9 +258,9 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 	//Write to secret files
 	//common/onepanel/base/secrets.yaml
 	var secretKeysValues []string
-	if yamlFile.HasKey("artifactRepository.accessKey") &&
-		yamlFile.HasKey("artifactRepository.secretKey") {
-		secretKeysValues = append(secretKeysValues, "artifactRepositoryAccessKey", "artifactRepositorySecretKey")
+	if yamlFile.HasKey("artifactRepository.s3.accessKey") &&
+		yamlFile.HasKey("artifactRepository.s3.secretKey") {
+		secretKeysValues = append(secretKeysValues, "artifactRepositoryS3AccessKey", "artifactRepositoryS3SecretKey")
 		for _, key := range secretKeysValues {
 			//Path to secrets file
 			secretsPath := filepath.Join(localManifestsCopyPath, "common", "onepanel", "base", "secret-onepanel-defaultnamespace.yaml")
