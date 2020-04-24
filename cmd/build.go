@@ -109,14 +109,14 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 		return "", err
 	}
 
-	appUrl := yamlFile.GetValue("application.url").Value
+	fqdn := yamlFile.GetValue("application.fqdn").Value
 	if yamlFile.HasKey("application.local") {
 		applicationApiHttpPort, _ := strconv.Atoi(yamlFile.GetValue("application.local.apiHTTPPort").Value)
 		applicationApiGrpcPort, _ := strconv.Atoi(yamlFile.GetValue("application.local.apiGRPCPort").Value)
 		applicationUiPort, _ := strconv.Atoi(yamlFile.GetValue("application.local.uiHTTPPort").Value)
-		applicationApiUrl := fmt.Sprintf("http://%v:%v", appUrl, applicationApiHttpPort)
+		applicationApiUrl := fmt.Sprintf("http://%v:%v", fqdn, applicationApiHttpPort)
 		applicationApiUrlUI := formatUrlForUi(applicationApiUrl)
-		uiApiWsPath := formatUrlForUi(fmt.Sprintf("ws://%v:%v", appUrl, applicationApiHttpPort))
+		uiApiWsPath := formatUrlForUi(fmt.Sprintf("ws://%v:%v", fqdn, applicationApiHttpPort))
 
 		yamlFile.Put("applicationApiUrl", applicationApiUrlUI)
 		yamlFile.Put("applicationApiWsUrl", uiApiWsPath)
@@ -138,9 +138,9 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 			wsScheme = "wss://"
 		}
 
-		apiPath := httpScheme + appUrl + applicationApiPath
+		apiPath := httpScheme + fqdn + applicationApiPath
 		uiApiPath := formatUrlForUi(apiPath)
-		uiApiWsPath := formatUrlForUi(wsScheme + appUrl + applicationApiPath)
+		uiApiWsPath := formatUrlForUi(wsScheme + fqdn + applicationApiPath)
 
 		yamlFile.PutWithSeparator("applicationApiUrl", uiApiPath, ".")
 		yamlFile.PutWithSeparator("applicationApiWsUrl", uiApiWsPath, ".")
