@@ -3,6 +3,7 @@ package cmd
 import (
 	"encoding/base64"
 	"fmt"
+	yaml2 "gopkg.in/yaml.v3"
 	"io/ioutil"
 	"log"
 	"os"
@@ -108,14 +109,14 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 		return "", err
 	}
 
-	host := yamlFile.GetValue("application.host").Value
+	fqdn := yamlFile.GetValue("application.fqdn").Value
 	if yamlFile.HasKey("application.local") {
 		applicationApiHttpPort, _ := strconv.Atoi(yamlFile.GetValue("application.local.apiHTTPPort").Value)
 		applicationApiGrpcPort, _ := strconv.Atoi(yamlFile.GetValue("application.local.apiGRPCPort").Value)
 		applicationUiPort, _ := strconv.Atoi(yamlFile.GetValue("application.local.uiHTTPPort").Value)
-		applicationApiUrl := fmt.Sprintf("http://%v:%v", host, applicationApiHttpPort)
+		applicationApiUrl := fmt.Sprintf("http://%v:%v", fqdn, applicationApiHttpPort)
 		applicationApiUrlUI := formatUrlForUi(applicationApiUrl)
-		uiApiWsPath := formatUrlForUi(fmt.Sprintf("ws://%v:%v", host, applicationApiHttpPort))
+		uiApiWsPath := formatUrlForUi(fmt.Sprintf("ws://%v:%v", fqdn, applicationApiHttpPort))
 
 		yamlFile.Put("applicationApiUrl", applicationApiUrlUI)
 		yamlFile.Put("applicationApiWsUrl", uiApiWsPath)
@@ -137,9 +138,9 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 			wsScheme = "wss://"
 		}
 
-		apiPath := httpScheme + host + applicationApiPath
+		apiPath := httpScheme + fqdn + applicationApiPath
 		uiApiPath := formatUrlForUi(apiPath)
-		uiApiWsPath := formatUrlForUi(wsScheme + host + applicationApiPath)
+		uiApiWsPath := formatUrlForUi(wsScheme + fqdn + applicationApiPath)
 
 		yamlFile.PutWithSeparator("applicationApiUrl", uiApiPath, ".")
 		yamlFile.PutWithSeparator("applicationApiWsUrl", uiApiWsPath, ".")
@@ -166,6 +167,9 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 	yamlFile.PutWithSeparator("applicationCoreuiImageTag", coreUiImageTag, ".")
 	yamlFile.PutWithSeparator("applicationCoreuiImagePullPolicy", coreUiImagePullPolicy, ".")
 
+	applicationNodePoolOptionsConfigMapStr := generateApplicationNodePoolOptions(yamlFile.GetValue("application.nodePool").Content)
+	yamlFile.PutWithSeparator("applicationNodePoolOptions", applicationNodePoolOptionsConfigMapStr, ".")
+
 	flatMap := yamlFile.FlattenToKeyValue(util.LowerCamelCaseFlatMapKeyFormatter)
 
 	//Read workflow-config-map-hidden for the rest of the values
@@ -186,7 +190,7 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 
 	//Write to env files
 	//workflow-config-map.env
-	if yamlFile.HasKeys("artifactRepository.bucket", "artifactRepository.endpoint", "artifactRepository.insecure", "artifactRepository.region") {
+	if yamlFile.HasKeys("artifactRepository.s3.bucket", "artifactRepository.s3.endpoint", "artifactRepository.s3.insecure", "artifactRepository.s3.region") {
 		//Clear previous env file
 		paramsPath := filepath.Join(localManifestsCopyPath, "vars", "workflow-config-map.env")
 		if _, err := files.DeleteIfExists(paramsPath); err != nil {
@@ -197,10 +201,10 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 			return "", err
 		}
 		var stringToWrite = fmt.Sprintf("%v=%v\n%v=%v\n%v=%v\n%v=%v\n",
-			"artifactRepositoryBucket", flatMap["artifactRepositoryBucket"],
-			"artifactRepositoryEndpoint", flatMap["artifactRepositoryEndpoint"],
-			"artifactRepositoryInsecure", flatMap["artifactRepositoryInsecure"],
-			"artifactRepositoryRegion", flatMap["artifactRepositoryRegion"],
+			"artifactRepositoryBucket", flatMap["artifactRepositoryS3Bucket"],
+			"artifactRepositoryEndpoint", flatMap["artifactRepositoryS3Endpoint"],
+			"artifactRepositoryInsecure", flatMap["artifactRepositoryIS3nsecure"],
+			"artifactRepositoryRegion", flatMap["artifactRepositoryS3Region"],
 		)
 		_, err = paramsFile.WriteString(stringToWrite)
 		if err != nil {
@@ -254,9 +258,9 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 	//Write to secret files
 	//common/onepanel/base/secrets.yaml
 	var secretKeysValues []string
-	if yamlFile.HasKey("artifactRepository.accessKey") &&
-		yamlFile.HasKey("artifactRepository.secretKey") {
-		secretKeysValues = append(secretKeysValues, "artifactRepositoryAccessKey", "artifactRepositorySecretKey")
+	if yamlFile.HasKey("artifactRepository.s3.accessKey") &&
+		yamlFile.HasKey("artifactRepository.s3.secretKey") {
+		secretKeysValues = append(secretKeysValues, "artifactRepositoryS3AccessKey", "artifactRepositoryS3SecretKey")
 		for _, key := range secretKeysValues {
 			//Path to secrets file
 			secretsPath := filepath.Join(localManifestsCopyPath, "common", "onepanel", "base", "secret-onepanel-defaultnamespace.yaml")
@@ -440,4 +444,43 @@ func runKustomizeBuild(path string) (rm resmap.ResMap, err error) {
 	}
 
 	return rm, nil
+}
+
+func generateApplicationNodePoolOptions(nodePoolData []*yaml2.Node) string {
+	applicationNodePoolOptions := []string{"|\n"}
+	var optionChunk []string
+	var prefix string
+	var optionChunkAppend string
+	addSingleQuotes := false
+	for _, poolNode := range nodePoolData {
+		//Find the sequence tag, which refers to options
+		if poolNode.Tag == "!!seq" {
+			optionsNodes := poolNode.Content
+			for _, optionNode := range optionsNodes {
+				for idx, optionDatum := range optionNode.Content {
+					if idx%2 == 1 {
+						continue
+					}
+					prefix = "  " //spaces instead of tabs
+					if strings.Contains(optionDatum.Value, "name") {
+						prefix = "- "
+					}
+					if optionNode.Content[idx+1].Tag == "!!str" {
+						addSingleQuotes = true
+					}
+					if addSingleQuotes {
+						optionChunkAppend = "    " + prefix + optionDatum.Value + ": '" + optionNode.Content[idx+1].Value + "'\n"
+					} else {
+						optionChunkAppend = "    " + prefix + optionDatum.Value + ": " + optionNode.Content[idx+1].Value + "\n"
+					}
+					optionChunk = append(optionChunk, optionChunkAppend)
+					addSingleQuotes = false
+				}
+				optionChunk = append(optionChunk, "")
+			}
+			break
+		}
+	}
+	applicationNodePoolOptions = append(applicationNodePoolOptions, strings.Join(optionChunk, ""))
+	return strings.Join(applicationNodePoolOptions, "")
 }
