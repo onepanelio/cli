@@ -264,16 +264,16 @@ func applyKubernetesFile(filePath string) (res string, errMessage string, err er
 
 func getDeployedWebURL(yamlFile *util.DynamicYaml) (string, error) {
 	httpScheme := "http://"
-	host := yamlFile.GetValue("application.host").Value
-	hostExtra := ""
+	fqdn := yamlFile.GetValue("application.fqdn").Value
+	fqdnExtra := ""
 
 	if yamlFile.HasKey("application.local") {
 		applicationUIPort := yamlFile.GetValue("application.local.uiHTTPPort").Value
-		hostExtra = fmt.Sprintf(":%v", applicationUIPort)
+		fqdnExtra = fmt.Sprintf(":%v", applicationUIPort)
 	} else {
 		applicationUIPath := yamlFile.GetValue("application.cloud.uiPath").Value
 
-		hostExtra = fmt.Sprintf("%v", applicationUIPath)
+		fqdnExtra = fmt.Sprintf("%v", applicationUIPath)
 
 		insecure, err := strconv.ParseBool(yamlFile.GetValue("application.cloud.insecure").Value)
 		if err != nil {
@@ -285,7 +285,7 @@ func getDeployedWebURL(yamlFile *util.DynamicYaml) (string, error) {
 		}
 	}
 
-	return fmt.Sprintf("%v%v%v", httpScheme, host, hostExtra), nil
+	return fmt.Sprintf("%v%v%v", httpScheme, fqdn, fqdnExtra), nil
 }
 
 func getWildCardDNS(url string) string {
@@ -296,6 +296,6 @@ func getWildCardDNS(url string) string {
 	return fmt.Sprintf("*.%v", url)
 }
 
-func isIpv4(host string) bool {
-	return net.ParseIP(strings.Trim(host, "'")) != nil
+func isIpv4(fqdn string) bool {
+	return net.ParseIP(strings.Trim(fqdn, "'")) != nil
 }
