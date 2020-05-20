@@ -3,13 +3,14 @@ package cmd
 import (
 	"encoding/base64"
 	"fmt"
-	yaml2 "gopkg.in/yaml.v3"
 	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	yaml2 "gopkg.in/yaml.v3"
 
 	"sigs.k8s.io/kustomize/api/filesys"
 	"sigs.k8s.io/kustomize/api/krusty"
@@ -304,11 +305,6 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 			return "", manifestFileOpenErr
 		}
 		manifestFileContentStr := string(manifestFileContent)
-		configMapCheck := "kind: ConfigMap"
-		configMapFile := false
-		if strings.Contains(manifestFileContentStr, configMapCheck) {
-			configMapFile = true
-		}
 		useStr := ""
 		rawStr := ""
 		for key := range flatMap {
@@ -332,11 +328,6 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 			}
 			oldString := "$(" + key + ")"
 			if strings.Contains(manifestFileContentStr, key) {
-				if configMapFile && useStr == "false" {
-					if !strings.Contains(manifestFileContentStr, "config: |") {
-						useStr = "\"false\""
-					}
-				}
 				manifestFileContentStr = strings.Replace(manifestFileContentStr, oldString, useStr, -1)
 			}
 			oldRawString := "$raw(" + key + ")"
@@ -354,8 +345,6 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 		if writeFileErr != nil {
 			return "", writeFileErr
 		}
-		//reset for next file
-		configMapFile = false
 	}
 
 	//Update the values in those files
