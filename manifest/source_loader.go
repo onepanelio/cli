@@ -2,10 +2,12 @@ package manifest
 
 import (
 	"fmt"
-	"github.com/onepanelio/cli/files"
-	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"os"
+
+	"github.com/onepanelio/cli/config"
+	"github.com/onepanelio/cli/files"
+	"gopkg.in/yaml.v2"
 )
 
 type SourceConfig struct {
@@ -34,12 +36,12 @@ func CreateGithubSourceConfigFile(path string) error {
 		return err
 	}
 
-	latest := "latest"
+	tag := config.VersionTag
 
 	sourceConfig := SourceConfig{
 		ManifestSourceConfig: ManifestSourceConfig{
 			Github: &GithubSourceConfig{
-				Tag:           &latest,
+				Tag:           &tag,
 				OverrideCache: nil,
 			},
 		},
