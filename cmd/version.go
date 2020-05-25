@@ -14,7 +14,7 @@ var versionCmd = &cobra.Command{
 	Example: "version",
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Printf("CLI version: %v\n", config.CLIVersion)
-		fmt.Printf("Manifest version: %v\n", config.ManifesRepositoryTag)
+		fmt.Printf("Manifest version: %v\n", config.ManifestsRepositoryTag)
 		fmt.Printf("API version: %v\n", config.CoreImageTag)
 		fmt.Printf("Web UI version: %v\n", config.CoreUIImageTag)
 	},
