@@ -36,7 +36,7 @@ func CreateGithubSourceConfigFile(path string) error {
 		return err
 	}
 
-	tag := config.VersionTag
+	tag := config.ManifestsRepositoryTag
 
 	sourceConfig := SourceConfig{
 		ManifestSourceConfig: ManifestSourceConfig{

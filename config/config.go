@@ -9,6 +9,13 @@ import (
 	"strings"
 )
 
+var (
+	CLIVersion             string
+	ManifestsRepositoryTag string
+	CoreImageTag           string
+	CoreUIImageTag         string
+)
+
 type SimpleOverlayedComponent struct {
 	parts []*string
 }
