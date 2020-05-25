@@ -152,9 +152,9 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 		yamlFile.PutWithSeparator("onepanelApiUrl", apiPath, ".")
 	}
 
-	coreImageTag := "latest"
+	coreImageTag := opConfig.CoreImageTag
 	coreImagePullPolicy := "IfNotPresent"
-	coreUiImageTag := "latest"
+	coreUiImageTag := opConfig.CoreUIImageTag
 	coreUiImagePullPolicy := "IfNotPresent"
 	if Dev {
 		coreImageTag = "develop"
