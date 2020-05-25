@@ -18,7 +18,10 @@ endif
 		-X github.com/onepanelio/cli/config.CoreUIImageTag=$(core-ui-version)"
 
 build-linux-amd64:
-	env GOOS=linux GOARCH=amd64 go build -o opctl-linux-amd64 main.go
+	env GOOS=linux GOARCH=amd64 go build \
+			-o opctl-linux-amd64 \
+			-ldflags $(ldflags) \
+			main.go
 
 build-macos-amd64:
 	env GOOS=darwin GOARCH=amd64 go build \
@@ -27,6 +30,9 @@ build-macos-amd64:
 			main.go
 
 build-windows-amd64:
-	env GOOS=windows GOARCH=amd64 go build -o opctl-windows-amd64.exe main.go
+	env GOOS=windows GOARCH=amd64 go build \
+			-o opctl-windows-amd64.exe \
+			-ldflags $(ldflags) \
+			main.go
 
 all: build-linux-amd64 build-macos-amd64 build-windows-amd64

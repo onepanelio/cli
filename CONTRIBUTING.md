@@ -4,7 +4,7 @@
 You can build CLI binaries as follows:
 
 ```
-make all cli-version=0.8.0 \
+make all cli-version=v0.8.0 \
     manifests-version=v0.8.0 \
     core-version=v0.8.0 \
     core-ui-version=v0.8.0
