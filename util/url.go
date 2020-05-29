@@ -28,7 +28,7 @@ func GetDeployedWebURL(yamlFile *DynamicYaml) (string, error) {
 
 		fqdnExtra = fmt.Sprintf("%v", applicationUIPath)
 
-		insecure, err := strconv.ParseBool(yamlFile.GetValue("application.cloud.insecure").Value)
+		insecure, err := strconv.ParseBool(yamlFile.GetValue("application.insecure").Value)
 		if err != nil {
 			log.Fatal("insecure is not a bool")
 		}
