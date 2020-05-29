@@ -234,12 +234,10 @@ var initCmd = &cobra.Command{
 			return
 		}
 
-		if mergedParams.HasKey("application.cloud") {
-			if EnableHTTPS {
-				mergedParams.Put("application.insecure", false)
-			} else {
-				mergedParams.Put("application.insecure", true)
-			}
+		if EnableHTTPS {
+			mergedParams.Put("application.insecure", false)
+		} else {
+			mergedParams.Put("application.insecure", true)
 		}
 
 		paramsFile, err := os.OpenFile(ParametersFilePath, os.O_RDWR, 0)
