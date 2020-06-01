@@ -1,21 +1,21 @@
-ifndef cli-version
+ifndef version
 	$(error CLI version is undefined)
 endif
-ifndef manifests-version
-	$(error manifests version is undefined)
+ifndef manifests-version-tag
+	$(error manifests version tag is undefined)
 endif
-ifndef core-version
-	$(error core version is undefined)
+ifndef core-version-tag
+	$(error core version tag is undefined)
 endif
-ifndef core-ui-version
-	$(error core-ui version is undefined)
+ifndef core-ui-version-tag
+	$(error core-ui version tag is undefined)
 endif
 
 	ldflags := "\
-		-X github.com/onepanelio/cli/config.CLIVersion=$(cli-version)\
-		-X github.com/onepanelio/cli/config.ManifestsRepositoryTag=$(manifests-version)\
-		-X github.com/onepanelio/cli/config.CoreImageTag=$(core-version)\
-		-X github.com/onepanelio/cli/config.CoreUIImageTag=$(core-ui-version)"
+		-X github.com/onepanelio/cli/config.CLIVersion=$(version)\
+		-X github.com/onepanelio/cli/config.ManifestsRepositoryTag=$(manifests-version-tag)\
+		-X github.com/onepanelio/cli/config.CoreImageTag=$(core-version-tag)\
+		-X github.com/onepanelio/cli/config.CoreUIImageTag=$(core-ui-version-tag)"
 
 build-linux-amd64:
 	env GOOS=linux GOARCH=amd64 go build \
