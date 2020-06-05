@@ -127,11 +127,16 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 		yamlFile.Put("providerType", "local")
 		yamlFile.Put("onepanelApiUrl", applicationApiUrl)
 	} else {
-		applicationApiPath := yamlFile.GetValue("application.cloud.apiPath").Value
-		applicationApiGrpcPort, _ := strconv.Atoi(yamlFile.GetValue("application.cloud.apiGRPCPort").Value)
-		applicationUiPath := yamlFile.GetValue("application.cloud.uiPath").Value
+		cloudSettings, err := util.LoadDynamicYamlFromFile(config.Spec.ManifestsRepo + string(os.PathSeparator) + "vars" + string(os.PathSeparator) + "onepanel-config-map-hidden.env")
+		if err != nil {
+			return "", err
+		}
 
-		insecure, _ := strconv.ParseBool(yamlFile.GetValue("application.cloud.insecure").Value)
+		applicationApiPath := cloudSettings.GetValue("applicationCloudApiPath").Value
+		applicationApiGrpcPort, _ := strconv.Atoi(cloudSettings.GetValue("applicationCloudApiGRPCPort").Value)
+		applicationUiPath := cloudSettings.GetValue("applicationCloudUiPath").Value
+
+		insecure, _ := strconv.ParseBool(yamlFile.GetValue("application.insecure").Value)
 		httpScheme := "http://"
 		wsScheme := "ws://"
 		if !insecure {
@@ -157,9 +162,9 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 	coreUiImageTag := opConfig.CoreUIImageTag
 	coreUiImagePullPolicy := "IfNotPresent"
 	if Dev {
-		coreImageTag = "develop"
+		coreImageTag = "dev"
 		coreImagePullPolicy = "Always"
-		coreUiImageTag = "develop"
+		coreUiImageTag = "dev"
 		coreUiImagePullPolicy = "Always"
 	}
 	yamlFile.PutWithSeparator("applicationCoreImageTag", coreImageTag, ".")

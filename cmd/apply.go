@@ -202,7 +202,7 @@ var applyCmd = &cobra.Command{
 				} else {
 					if attempts >= maxAttempts {
 						stopChecking = true
-						fmt.Println("\nDeployment is still in progress. Check again with `opctl status` in a few minutes.")
+						fmt.Println("\nDeployment is still in progress. Check again with `opctl app status` in a few minutes.")
 					} else {
 						time.Sleep(20 * time.Second)
 						fmt.Println("Waiting for deployment to complete...")

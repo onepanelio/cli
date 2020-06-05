@@ -11,9 +11,8 @@ func DeploymentStatus(yamlFile *DynamicYaml) (ready bool, err error) {
 	namespacesToCheck := make(map[string]bool)
 	namespacesToCheck["application-system"] = true
 	namespacesToCheck["onepanel"] = true
-	if yamlFile.HasKey("application.cloud") {
-		namespacesToCheck["istio-system"] = true
-	}
+	namespacesToCheck["istio-system"] = true
+
 	if yamlFile.HasKey("certManager") {
 		namespacesToCheck["cert-manager"] = true
 	}
