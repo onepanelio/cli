@@ -187,12 +187,7 @@ var initCmd = &cobra.Command{
 				bld.AddOverlayContender(p)
 			}
 		}
-
-		if providerProperties[Provider].IsCloud {
-			bld.AddOverlayContender("cloud")
-		} else {
-			bld.AddOverlayContender("local")
-		}
+		
 
 		if EnableHTTPS {
 			bld.AddOverlayContender("https")
