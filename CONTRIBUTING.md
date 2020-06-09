@@ -17,3 +17,10 @@ make all version=1.0.0 \
 `core-version-tag` is the release tag from [core](https://github.com/onepanelio/core/releases)
 
 `core-ui-version-tag` is the release tag from [core-ui](https://github.com/onepanelio/core-ui/releases)
+
+## Code Guidelines
+
+Please use filepath.Join(...) when writing paths. This ensures paths are OS independent.
+```go
+    filepath.Join("common/application/base")
+```
