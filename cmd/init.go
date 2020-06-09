@@ -152,13 +152,8 @@ var initCmd = &cobra.Command{
 			log.Printf("[error] LoadManifest %v", err.Error())
 		}
 
-		skipList := make([]string, 0)
-		if !providerProperties[Provider].IsCloud {
-			skipList = append(skipList, "common"+string(os.PathSeparator)+"istio")
-		}
-
 		bld := manifest.CreateBuilder(loadedManifest)
-		if err := bld.AddCommonComponents(skipList...); err != nil {
+		if err := bld.AddCommonComponents(); err != nil {
 			log.Printf("[error] AddCommonComponents %v", err.Error())
 			return
 		}
@@ -191,11 +186,7 @@ var initCmd = &cobra.Command{
 			}
 		}
 
-		if providerProperties[Provider].IsCloud {
-			bld.AddOverlayContender("cloud")
-		} else {
-			bld.AddOverlayContender("local")
-		}
+		bld.AddOverlayContender("cloud")
 
 		if EnableHTTPS {
 			bld.AddOverlayContender("https")
@@ -227,11 +218,6 @@ var initCmd = &cobra.Command{
 
 		for _, newYaml := range bld.GetYamls() {
 			mergedParams.Merge(newYaml)
-		}
-
-		if err := filterMergedParams(Provider, mergedParams); err != nil {
-			log.Printf("Error filtering params: %v", err.Error())
-			return
 		}
 
 		if EnableHTTPS {
@@ -302,10 +288,6 @@ func init() {
 	initCmd.MarkFlagRequired("provider")
 }
 
-func ValidateProvider(prov string) error {
-	return validateProvider(prov)
-}
-
 func validateProvider(prov string) error {
 	_, ok := providerProperties[prov]
 	if !ok {
@@ -346,17 +328,4 @@ func addDNSProviderToManifestBuilder(dns string, builder *manifest.Builder) erro
 
 	overlay := strings.Join([]string{"cert-manager", "overlays", dns}, string(os.PathSeparator))
 	return builder.AddOverlay(overlay)
-}
-
-func filterMergedParams(provider string, mergedParams *util.DynamicYaml) error {
-	keyToDelete := "application.local"
-	if !providerProperties[provider].IsCloud {
-		keyToDelete = "application.cloud"
-	}
-
-	if err := mergedParams.DeleteByString(keyToDelete, "."); err != nil {
-		return err
-	}
-
-	return nil
 }

@@ -20,18 +20,13 @@ func GetDeployedWebURL(yamlFile *DynamicYaml) (string, error) {
 	fqdn := yamlFile.GetValue("application.fqdn").Value
 	fqdnExtra := ""
 
-	if yamlFile.HasKey("application.local") {
-		applicationUIPort := yamlFile.GetValue("application.local.uiHTTPPort").Value
-		fqdnExtra = fmt.Sprintf(":%v", applicationUIPort)
-	} else {
-		insecure, err := strconv.ParseBool(yamlFile.GetValue("application.insecure").Value)
-		if err != nil {
-			log.Fatal("insecure is not a bool")
-		}
+	insecure, err := strconv.ParseBool(yamlFile.GetValue("application.insecure").Value)
+	if err != nil {
+		log.Fatal("insecure is not a bool")
+	}
 
-		if !insecure {
-			httpScheme = "https://"
-		}
+	if !insecure {
+		httpScheme = "https://"
 	}
 
 	return fmt.Sprintf("%v%v%v", httpScheme, fqdn, fqdnExtra), nil

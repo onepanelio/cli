@@ -111,51 +111,34 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 	}
 
 	fqdn := yamlFile.GetValue("application.fqdn").Value
-	if yamlFile.HasKey("application.local") {
-		applicationApiHttpPort, _ := strconv.Atoi(yamlFile.GetValue("application.local.apiHTTPPort").Value)
-		applicationApiGrpcPort, _ := strconv.Atoi(yamlFile.GetValue("application.local.apiGRPCPort").Value)
-		applicationUiPort, _ := strconv.Atoi(yamlFile.GetValue("application.local.uiHTTPPort").Value)
-		applicationApiUrl := fmt.Sprintf("http://%v:%v", fqdn, applicationApiHttpPort)
-		applicationApiUrlUI := formatUrlForUi(applicationApiUrl)
-		uiApiWsPath := formatUrlForUi(fmt.Sprintf("ws://%v:%v", fqdn, applicationApiHttpPort))
-
-		yamlFile.Put("applicationApiUrl", applicationApiUrlUI)
-		yamlFile.Put("applicationApiWsUrl", uiApiWsPath)
-		yamlFile.Put("applicationApiHttpPort", applicationApiHttpPort)
-		yamlFile.Put("applicationApiGrpcPort", applicationApiGrpcPort)
-		yamlFile.Put("applicationUIPort", applicationUiPort)
-		yamlFile.Put("providerType", "local")
-		yamlFile.Put("onepanelApiUrl", applicationApiUrl)
-	} else {
-		cloudSettings, err := util.LoadDynamicYamlFromFile(config.Spec.ManifestsRepo + string(os.PathSeparator) + "vars" + string(os.PathSeparator) + "onepanel-config-map-hidden.env")
-		if err != nil {
-			return "", err
-		}
-
-		applicationApiPath := cloudSettings.GetValue("applicationCloudApiPath").Value
-		applicationApiGrpcPort, _ := strconv.Atoi(cloudSettings.GetValue("applicationCloudApiGRPCPort").Value)
-		applicationUiPath := cloudSettings.GetValue("applicationCloudUiPath").Value
-
-		insecure, _ := strconv.ParseBool(yamlFile.GetValue("application.insecure").Value)
-		httpScheme := "http://"
-		wsScheme := "ws://"
-		if !insecure {
-			httpScheme = "https://"
-			wsScheme = "wss://"
-		}
-
-		apiPath := httpScheme + fqdn + applicationApiPath
-		uiApiPath := formatUrlForUi(apiPath)
-		uiApiWsPath := formatUrlForUi(wsScheme + fqdn + applicationApiPath)
-
-		yamlFile.PutWithSeparator("applicationApiUrl", uiApiPath, ".")
-		yamlFile.PutWithSeparator("applicationApiWsUrl", uiApiWsPath, ".")
-		yamlFile.PutWithSeparator("applicationApiPath", applicationApiPath, ".")
-		yamlFile.PutWithSeparator("applicationUiPath", applicationUiPath, ".")
-		yamlFile.PutWithSeparator("applicationApiGrpcPort", applicationApiGrpcPort, ".")
-		yamlFile.PutWithSeparator("providerType", "cloud", ".")
-		yamlFile.PutWithSeparator("onepanelApiUrl", apiPath, ".")
+	cloudSettings, err := util.LoadDynamicYamlFromFile(config.Spec.ManifestsRepo + string(os.PathSeparator) + "vars" + string(os.PathSeparator) + "onepanel-config-map-hidden.env")
+	if err != nil {
+		return "", err
 	}
+
+	applicationApiPath := cloudSettings.GetValue("applicationCloudApiPath").Value
+	applicationApiGrpcPort, _ := strconv.Atoi(cloudSettings.GetValue("applicationCloudApiGRPCPort").Value)
+	applicationUiPath := cloudSettings.GetValue("applicationCloudUiPath").Value
+
+	insecure, _ := strconv.ParseBool(yamlFile.GetValue("application.insecure").Value)
+	httpScheme := "http://"
+	wsScheme := "ws://"
+	if !insecure {
+		httpScheme = "https://"
+		wsScheme = "wss://"
+	}
+
+	apiPath := httpScheme + fqdn + applicationApiPath
+	uiApiPath := formatUrlForUi(apiPath)
+	uiApiWsPath := formatUrlForUi(wsScheme + fqdn + applicationApiPath)
+
+	yamlFile.PutWithSeparator("applicationApiUrl", uiApiPath, ".")
+	yamlFile.PutWithSeparator("applicationApiWsUrl", uiApiWsPath, ".")
+	yamlFile.PutWithSeparator("applicationApiPath", applicationApiPath, ".")
+	yamlFile.PutWithSeparator("applicationUiPath", applicationUiPath, ".")
+	yamlFile.PutWithSeparator("applicationApiGrpcPort", applicationApiGrpcPort, ".")
+	yamlFile.PutWithSeparator("providerType", "cloud", ".")
+	yamlFile.PutWithSeparator("onepanelApiUrl", apiPath, ".")
 
 	coreImageTag := opConfig.CoreImageTag
 	coreImagePullPolicy := "IfNotPresent"
