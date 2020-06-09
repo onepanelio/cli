@@ -153,9 +153,6 @@ var initCmd = &cobra.Command{
 		}
 
 		skipList := make([]string, 0)
-		if !providerProperties[Provider].IsCloud {
-			skipList = append(skipList, "common"+string(os.PathSeparator)+"istio")
-		}
 
 		bld := manifest.CreateBuilder(loadedManifest)
 		if err := bld.AddCommonComponents(skipList...); err != nil {
