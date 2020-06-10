@@ -161,14 +161,17 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 	applicationNodePoolOptionsConfigMapStr := generateApplicationNodePoolOptions(yamlFile.GetValue("application.nodePool").Content)
 	yamlFile.PutWithSeparator("applicationNodePoolOptions", applicationNodePoolOptionsConfigMapStr, ".")
 
-	metalLbAddressesConfigMapStr := generateMetalLbAddresses(yamlFile.GetValue("metalLb.addresses").Content)
-	yamlFile.PutWithSeparator("metalLbAddresses", metalLbAddressesConfigMapStr, ".")
+	provider := yamlFile.GetValue("application.provider").Value
+	if provider == "minikube" || provider == "microk8s" {
+		metalLbAddressesConfigMapStr := generateMetalLbAddresses(yamlFile.GetValue("metalLb.addresses").Content)
+		yamlFile.PutWithSeparator("metalLbAddresses", metalLbAddressesConfigMapStr, ".")
 
-	metalLbSecretKey, err := bcrypt.GenerateFromPassword([]byte(rand.String(128)), bcrypt.DefaultCost)
-	if err != nil {
-		return "", err
+		metalLbSecretKey, err := bcrypt.GenerateFromPassword([]byte(rand.String(128)), bcrypt.DefaultCost)
+		if err != nil {
+			return "", err
+		}
+		yamlFile.PutWithSeparator("metalLbSecretKey", base64.StdEncoding.EncodeToString(metalLbSecretKey), ".")
 	}
-	yamlFile.PutWithSeparator("metalLbSecretKey", base64.StdEncoding.EncodeToString(metalLbSecretKey), ".")
 
 	flatMap := yamlFile.FlattenToKeyValue(util.LowerCamelCaseFlatMapKeyFormatter)
 
