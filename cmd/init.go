@@ -320,6 +320,13 @@ func addCloudProviderToManifestBuilder(provider string, builder *manifest.Builde
 			return err
 		}
 	}
+
+	if (provider == "minikube" || provider == "microk8s") && EnableMetalLb {
+		if err := builder.AddComponent("metallb"); err != nil {
+			return err
+		}
+	}
+
 	if err := builder.AddComponent("storage"); err != nil {
 		return err
 	}
