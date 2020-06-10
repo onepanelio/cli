@@ -3,7 +3,9 @@ package cmd
 import (
 	"encoding/base64"
 	"fmt"
+	"golang.org/x/crypto/bcrypt"
 	"io/ioutil"
+	"k8s.io/apimachinery/pkg/util/rand"
 	"log"
 	"os"
 	"path/filepath"
@@ -158,6 +160,12 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 
 	applicationNodePoolOptionsConfigMapStr := generateApplicationNodePoolOptions(yamlFile.GetValue("application.nodePool").Content)
 	yamlFile.PutWithSeparator("applicationNodePoolOptions", applicationNodePoolOptionsConfigMapStr, ".")
+
+	metalLbSecretKey, err := bcrypt.GenerateFromPassword([]byte(rand.String(128)), bcrypt.DefaultCost)
+	if err != nil {
+		return "", err
+	}
+	yamlFile.PutWithSeparator("metalLbSecretKey", base64.StdEncoding.EncodeToString(metalLbSecretKey), ".")
 
 	flatMap := yamlFile.FlattenToKeyValue(util.LowerCamelCaseFlatMapKeyFormatter)
 
