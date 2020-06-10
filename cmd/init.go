@@ -232,6 +232,8 @@ var initCmd = &cobra.Command{
 			mergedParams.Put("application.insecure", true)
 		}
 
+		mergedParams.Put("application.provider", Provider)
+
 		paramsFile, err := os.OpenFile(ParametersFilePath, os.O_RDWR, 0)
 		if err != nil {
 			log.Printf("Error opening parameters file: %v", err.Error())
