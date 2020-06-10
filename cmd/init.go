@@ -28,6 +28,7 @@ var (
 	EnableEFKLogging      bool
 	EnableHTTPS           bool
 	EnableCertManager     bool
+	EnableMetalLb         bool
 	GPUDevicePlugins      []string
 )
 
@@ -75,6 +76,11 @@ var initCmd = &cobra.Command{
 
 		if err := validateProvider(Provider); err != nil {
 			fmt.Println(err.Error())
+			return
+		}
+
+		if !providerProperties[Provider].IsCloud && EnableMetalLb == false {
+			log.Printf("enable-metallb is required when provider is non-cloud.")
 			return
 		}
 
@@ -283,6 +289,7 @@ func init() {
 	initCmd.Flags().BoolVarP(&EnableEFKLogging, "enable-efk-logging", "", false, "Enable Elasticsearch, Fluentd and Kibana (EFK) logging")
 	initCmd.Flags().BoolVarP(&EnableHTTPS, "enable-https", "", false, "Enable HTTPS scheme and redirect all requests to https://")
 	initCmd.Flags().BoolVarP(&EnableCertManager, "enable-cert-manager", "", false, "Automatically create/renew TLS certs using Let's Encrypt")
+	initCmd.Flags().BoolVarP(&EnableMetalLb, "enable-metallb", "", false, "Automatically create a LoadBalancer for non-cloud deployments.")
 	initCmd.Flags().StringSliceVarP(&GPUDevicePlugins, "gpu-device-plugins", "", nil, "Install NVIDIA and/or AMD gpu device plugins. Valid values can be comma separated and are: amd, nvidia")
 
 	initCmd.MarkFlagRequired("provider")
