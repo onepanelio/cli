@@ -161,6 +161,9 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 	applicationNodePoolOptionsConfigMapStr := generateApplicationNodePoolOptions(yamlFile.GetValue("application.nodePool").Content)
 	yamlFile.PutWithSeparator("applicationNodePoolOptions", applicationNodePoolOptionsConfigMapStr, ".")
 
+	metalLbAddressesConfigMapStr := generateMetalLbAddresses(yamlFile.GetValue("metalLb.addresses").Content)
+	yamlFile.PutWithSeparator("metalLbAddresses", metalLbAddressesConfigMapStr, ".")
+
 	metalLbSecretKey, err := bcrypt.GenerateFromPassword([]byte(rand.String(128)), bcrypt.DefaultCost)
 	if err != nil {
 		return "", err
@@ -467,5 +470,22 @@ func generateApplicationNodePoolOptions(nodePoolData []*yaml2.Node) string {
 		}
 	}
 	applicationNodePoolOptions = append(applicationNodePoolOptions, strings.Join(optionChunk, ""))
+	return strings.Join(applicationNodePoolOptions, "")
+}
+
+func generateMetalLbAddresses(nodePoolData []*yaml2.Node) string {
+	applicationNodePoolOptions := []string{""}
+	var appendStr string
+	for idx, poolNode := range nodePoolData {
+		if poolNode.Tag == "!!str" {
+			if idx > 0 {
+				//yaml spacing
+				appendStr = "      "
+			}
+			appendStr += "- " + poolNode.Value + "\n"
+			applicationNodePoolOptions = append(applicationNodePoolOptions, appendStr)
+			appendStr = ""
+		}
+	}
 	return strings.Join(applicationNodePoolOptions, "")
 }
