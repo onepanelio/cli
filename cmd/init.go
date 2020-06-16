@@ -79,11 +79,6 @@ var initCmd = &cobra.Command{
 			return
 		}
 
-		if !providerProperties[Provider].IsCloud && EnableMetalLb == false {
-			log.Printf("enable-metallb is required when provider is non-cloud.")
-			return
-		}
-
 		if err := validateDNS(DNS); err != nil {
 			fmt.Println(err.Error())
 			return
