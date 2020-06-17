@@ -13,6 +13,7 @@ type Source interface {
 	MoveToDirectory(destinationPath string) error
 	// Get the resulting manifest path. Should only be called after MoveToDirectory
 	GetManifestPath() (string, error)
+	GetTag() string
 }
 
 type GithubSource struct {
@@ -31,6 +32,10 @@ func CreateGithubSource(tag string, overrideCache bool) (*GithubSource, error) {
 	}
 
 	return source, nil
+}
+
+func (g *GithubSource) GetTag() string {
+	return g.tag
 }
 
 func (g *GithubSource) getTagDownloadUrl() (string, error) {
@@ -143,6 +148,10 @@ func CreateDirectorySource(sourceDirectory string, overrideCache bool) (*Directo
 	}
 
 	return source, nil
+}
+
+func (d *DirectorySource) GetTag() string {
+	return ""
 }
 
 func (d *DirectorySource) getManifestPath(directoryPath string) string {
