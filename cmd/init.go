@@ -64,12 +64,12 @@ var initCmd = &cobra.Command{
 		}
 
 		if EnableCertManager && DNS == "" {
-			log.Printf("dns-provider flag is required when enable-cert-manager is set")
+			log.Printf("cert-manager-dns-provider flag is required when enable-cert-manager is set")
 			return
 		}
 
 		if !EnableCertManager && DNS != "" {
-			log.Printf("enable-cert-manager flag is required when dns-provider is set")
+			log.Printf("enable-cert-manager flag is required when cert-manager-dns-provider is set")
 			return
 		}
 
@@ -168,7 +168,7 @@ var initCmd = &cobra.Command{
 			return
 		}
 
-		if err := addDNSProviderToManifestBuilder(DNS, bld); err != nil {
+		if err := addCertManagerDNSProviderToManifestBuilder(DNS, bld); err != nil {
 			log.Printf("[error] Adding Dns Provider: %v", err.Error())
 			return
 		}
@@ -291,7 +291,7 @@ func init() {
 	rootCmd.AddCommand(initCmd)
 
 	initCmd.Flags().StringVarP(&Provider, "provider", "p", "", "Cloud provider. Valid values are: aks, gke, eks")
-	initCmd.Flags().StringVarP(&DNS, "dns-provider", "d", "", "Provider for DNS. Valid values are: azuredns, clouddns (google), cloudflare, route53")
+	initCmd.Flags().StringVarP(&DNS, "cert-manager-dns-provider", "d", "", "Provider for DNS. Valid values are: azuredns, clouddns (google), cloudflare, route53")
 	initCmd.Flags().StringVarP(&ConfigurationFilePath, "config", "c", "config.yaml", "File path of the resulting config file")
 	initCmd.Flags().StringVarP(&ParametersFilePath, "params", "e", "params.yaml", "File path of the resulting parameters file")
 	initCmd.Flags().BoolVarP(&EnableEFKLogging, "enable-efk-logging", "", false, "Enable Elasticsearch, Fluentd and Kibana (EFK) logging")
@@ -337,7 +337,7 @@ func addCloudProviderToManifestBuilder(provider string, builder *manifest.Builde
 	return nil
 }
 
-func addDNSProviderToManifestBuilder(dns string, builder *manifest.Builder) error {
+func addCertManagerDNSProviderToManifestBuilder(dns string, builder *manifest.Builder) error {
 	if dns == "" {
 		return nil
 	}
