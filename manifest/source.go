@@ -10,8 +10,8 @@ import (
 )
 
 const (
-	SOURCE_GITHUB    = "github"
-	SOURCE_DIRECTORY = "directory"
+	SourceGithub    = "github"
+	SourceDirectory = "directory"
 )
 
 type Source interface {
@@ -41,7 +41,7 @@ func CreateGithubSource(tag string, overrideCache bool) (*GithubSource, error) {
 }
 
 func (g *GithubSource) GetSourceType() string {
-	return SOURCE_GITHUB
+	return SourceGithub
 }
 
 func (g *GithubSource) GetTag() string {
@@ -161,7 +161,7 @@ func CreateDirectorySource(sourceDirectory string, overrideCache bool) (*Directo
 }
 
 func (d *DirectorySource) GetSourceType() string {
-	return SOURCE_DIRECTORY
+	return SourceDirectory
 }
 
 func (d *DirectorySource) GetTag() string {
