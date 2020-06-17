@@ -10,9 +10,15 @@ import (
 )
 
 const (
-	//cli_config.yaml value, indicates manifests should be retrieved from github.
+	// SourceGithub refers to cli_config.yaml,
+	// manifestSource:
+	//  github:
+	// This indicates manifests should be retrieved from github.
 	SourceGithub = "github"
-	//cli_config.yaml value, indicates manifests should be retrieved from some local directory.
+	// SourceDirectory refers to cli_config.yaml value,
+	// manifestSource:
+	//  directory:
+	// This indicates manifests should be retrieved from some local directory.
 	SourceDirectory = "directory"
 )
 
