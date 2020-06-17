@@ -10,7 +10,9 @@ import (
 )
 
 const (
-	SourceGithub    = "github"
+	//cli_config.yaml value, indicates manifests should be retrieved from github.
+	SourceGithub = "github"
+	//cli_config.yaml value, indicates manifests should be retrieved from some local directory.
 	SourceDirectory = "directory"
 )
 
@@ -40,10 +42,12 @@ func CreateGithubSource(tag string, overrideCache bool) (*GithubSource, error) {
 	return source, nil
 }
 
+// GetSourceType returns the string name of GithubSource.
 func (g *GithubSource) GetSourceType() string {
 	return SourceGithub
 }
 
+// GetTag returns the ManifestsRepositoryTag set in the CLI via build flag.
 func (g *GithubSource) GetTag() string {
 	return g.tag
 }
@@ -160,10 +164,13 @@ func CreateDirectorySource(sourceDirectory string, overrideCache bool) (*Directo
 	return source, nil
 }
 
+// GetSourceType returns the string name of DirectorySource.
 func (d *DirectorySource) GetSourceType() string {
 	return SourceDirectory
 }
 
+// GetTag returns the ManifestsRepositoryTag set in the CLI via build flag.
+// In this case, an empty string because DirectorySource doesn't have tags.
 func (d *DirectorySource) GetTag() string {
 	return ""
 }
