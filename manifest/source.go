@@ -9,11 +9,17 @@ import (
 	"strings"
 )
 
+const (
+	SOURCE_GITHUB    = "github"
+	SOURCE_DIRECTORY = "directory"
+)
+
 type Source interface {
 	MoveToDirectory(destinationPath string) error
 	// Get the resulting manifest path. Should only be called after MoveToDirectory
 	GetManifestPath() (string, error)
 	GetTag() string
+	GetSourceType() string
 }
 
 type GithubSource struct {
@@ -32,6 +38,10 @@ func CreateGithubSource(tag string, overrideCache bool) (*GithubSource, error) {
 	}
 
 	return source, nil
+}
+
+func (g *GithubSource) GetSourceType() string {
+	return SOURCE_GITHUB
 }
 
 func (g *GithubSource) GetTag() string {
@@ -148,6 +158,10 @@ func CreateDirectorySource(sourceDirectory string, overrideCache bool) (*Directo
 	}
 
 	return source, nil
+}
+
+func (d *DirectorySource) GetSourceType() string {
+	return SOURCE_DIRECTORY
 }
 
 func (d *DirectorySource) GetTag() string {
