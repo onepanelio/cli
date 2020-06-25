@@ -217,11 +217,6 @@ var applyCmd = &cobra.Command{
 				return
 			}
 
-			// No need to get cluster IP if local deployment
-			if yamlFile.HasKey("application.local") {
-				fmt.Printf("Your application is running at %v\n\n", url)
-				return
-			}
 			util.GetClusterIp(url)
 		}
 	},

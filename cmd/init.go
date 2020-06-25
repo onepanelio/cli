@@ -28,6 +28,7 @@ var (
 	EnableEFKLogging      bool
 	EnableHTTPS           bool
 	EnableCertManager     bool
+	EnableMetalLb         bool
 	GPUDevicePlugins      []string
 )
 
@@ -152,13 +153,8 @@ var initCmd = &cobra.Command{
 			log.Printf("[error] LoadManifest %v", err.Error())
 		}
 
-		skipList := make([]string, 0)
-		if !providerProperties[Provider].IsCloud {
-			skipList = append(skipList, "common"+string(os.PathSeparator)+"istio")
-		}
-
 		bld := manifest.CreateBuilder(loadedManifest)
-		if err := bld.AddCommonComponents(skipList...); err != nil {
+		if err := bld.AddCommonComponents(); err != nil {
 			log.Printf("[error] AddCommonComponents %v", err.Error())
 			return
 		}
@@ -191,11 +187,7 @@ var initCmd = &cobra.Command{
 			}
 		}
 
-		if providerProperties[Provider].IsCloud {
-			bld.AddOverlayContender("cloud")
-		} else {
-			bld.AddOverlayContender("local")
-		}
+		bld.AddOverlayContender("cloud")
 
 		if EnableHTTPS {
 			bld.AddOverlayContender("https")
@@ -229,16 +221,8 @@ var initCmd = &cobra.Command{
 			mergedParams.Merge(newYaml)
 		}
 
-		if err := filterMergedParams(Provider, mergedParams); err != nil {
-			log.Printf("Error filtering params: %v", err.Error())
-			return
-		}
-
-		if EnableHTTPS {
-			mergedParams.Put("application.insecure", false)
-		} else {
-			mergedParams.Put("application.insecure", true)
-		}
+		mergedParams.Put("application.insecure", !EnableHTTPS)
+		mergedParams.Put("application.provider", Provider)
 
 		paramsFile, err := os.OpenFile(ParametersFilePath, os.O_RDWR, 0)
 		if err != nil {
@@ -297,13 +281,10 @@ func init() {
 	initCmd.Flags().BoolVarP(&EnableEFKLogging, "enable-efk-logging", "", false, "Enable Elasticsearch, Fluentd and Kibana (EFK) logging")
 	initCmd.Flags().BoolVarP(&EnableHTTPS, "enable-https", "", false, "Enable HTTPS scheme and redirect all requests to https://")
 	initCmd.Flags().BoolVarP(&EnableCertManager, "enable-cert-manager", "", false, "Automatically create/renew TLS certs using Let's Encrypt")
+	initCmd.Flags().BoolVarP(&EnableMetalLb, "enable-metallb", "", false, "Automatically create a LoadBalancer for non-cloud deployments.")
 	initCmd.Flags().StringSliceVarP(&GPUDevicePlugins, "gpu-device-plugins", "", nil, "Install NVIDIA and/or AMD gpu device plugins. Valid values can be comma separated and are: amd, nvidia")
 
 	initCmd.MarkFlagRequired("provider")
-}
-
-func ValidateProvider(prov string) error {
-	return validateProvider(prov)
 }
 
 func validateProvider(prov string) error {
@@ -331,6 +312,13 @@ func addCloudProviderToManifestBuilder(provider string, builder *manifest.Builde
 			return err
 		}
 	}
+
+	if (provider == "minikube" || provider == "microk8s") && EnableMetalLb {
+		if err := builder.AddComponent("metallb"); err != nil {
+			return err
+		}
+	}
+
 	if err := builder.AddComponent("storage"); err != nil {
 		return err
 	}
@@ -346,17 +334,4 @@ func addDNSProviderToManifestBuilder(dns string, builder *manifest.Builder) erro
 
 	overlay := strings.Join([]string{"cert-manager", "overlays", dns}, string(os.PathSeparator))
 	return builder.AddOverlay(overlay)
-}
-
-func filterMergedParams(provider string, mergedParams *util.DynamicYaml) error {
-	keyToDelete := "application.local"
-	if !providerProperties[provider].IsCloud {
-		keyToDelete = "application.cloud"
-	}
-
-	if err := mergedParams.DeleteByString(keyToDelete, "."); err != nil {
-		return err
-	}
-
-	return nil
 }
