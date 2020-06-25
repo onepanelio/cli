@@ -114,6 +114,27 @@ var initCmd = &cobra.Command{
 			return
 		}
 
+		// When updating cli versions, the cli_config.yaml may already exist.
+		// Check if we need to generate a new cli_config.yaml, to match the cli version.
+		tag := config.ManifestsRepositoryTag
+		if source.GetSourceType() == manifest.SourceGithub {
+			if source.GetTag() != "" {
+				if tag != source.GetTag() {
+					if err := manifest.CreateGithubSourceConfigFile(configFile); err != nil {
+						log.Printf("[error] creating default source config: %v", err.Error())
+						return
+					}
+					source, err = manifest.LoadManifestSourceFromFileConfig(configFile)
+					if err != nil {
+						log.Printf("[error] loading manifest source: %v", err.Error())
+						return
+					}
+				}
+			}
+		} else {
+			fmt.Printf("cli_config.yaml is using %v as source, ignoring CLI tag: %v", manifest.SourceDirectory, config.CLIVersion)
+		}
+
 		if err := source.MoveToDirectory(manifestsFilePath); err != nil {
 			log.Printf("[error] %v", err.Error())
 			return

@@ -9,10 +9,25 @@ import (
 	"strings"
 )
 
+const (
+	// SourceGithub refers to cli_config.yaml,
+	// manifestSource:
+	//  github:
+	// This indicates manifests should be retrieved from github.
+	SourceGithub = "github"
+	// SourceDirectory refers to cli_config.yaml value,
+	// manifestSource:
+	//  directory:
+	// This indicates manifests should be retrieved from some local directory.
+	SourceDirectory = "directory"
+)
+
 type Source interface {
 	MoveToDirectory(destinationPath string) error
 	// Get the resulting manifest path. Should only be called after MoveToDirectory
 	GetManifestPath() (string, error)
+	GetTag() string
+	GetSourceType() string
 }
 
 type GithubSource struct {
@@ -31,6 +46,16 @@ func CreateGithubSource(tag string, overrideCache bool) (*GithubSource, error) {
 	}
 
 	return source, nil
+}
+
+// GetSourceType returns the string name of GithubSource.
+func (g *GithubSource) GetSourceType() string {
+	return SourceGithub
+}
+
+// GetTag returns the ManifestsRepositoryTag set in the CLI via build flag.
+func (g *GithubSource) GetTag() string {
+	return g.tag
 }
 
 func (g *GithubSource) getTagDownloadUrl() (string, error) {
@@ -143,6 +168,17 @@ func CreateDirectorySource(sourceDirectory string, overrideCache bool) (*Directo
 	}
 
 	return source, nil
+}
+
+// GetSourceType returns the string name of DirectorySource.
+func (d *DirectorySource) GetSourceType() string {
+	return SourceDirectory
+}
+
+// GetTag returns the ManifestsRepositoryTag set in the CLI via build flag.
+// In this case, an empty string because DirectorySource doesn't have tags.
+func (d *DirectorySource) GetTag() string {
+	return ""
 }
 
 func (d *DirectorySource) getManifestPath(directoryPath string) string {
