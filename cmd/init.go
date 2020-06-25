@@ -221,12 +221,7 @@ var initCmd = &cobra.Command{
 			mergedParams.Merge(newYaml)
 		}
 
-		if EnableHTTPS {
-			mergedParams.Put("application.insecure", false)
-		} else {
-			mergedParams.Put("application.insecure", true)
-		}
-
+		mergedParams.Put("application.insecure", !EnableHTTPS)
 		mergedParams.Put("application.provider", Provider)
 
 		paramsFile, err := os.OpenFile(ParametersFilePath, os.O_RDWR, 0)
