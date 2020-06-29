@@ -20,16 +20,17 @@ const (
 )
 
 var (
-	ConfigurationFilePath string
-	ParametersFilePath    string
-	Provider              string
-	DNS                   string
-	Dev                   bool
-	EnableEFKLogging      bool
-	EnableHTTPS           bool
-	EnableCertManager     bool
-	EnableMetalLb         bool
-	GPUDevicePlugins      []string
+	ConfigurationFilePath      string
+	ParametersFilePath         string
+	Provider                   string
+	DNS                        string
+	ArtifactRepositoryProvider string
+	Dev                        bool
+	EnableEFKLogging           bool
+	EnableHTTPS                bool
+	EnableCertManager          bool
+	EnableMetalLb              bool
+	GPUDevicePlugins           []string
 )
 
 type ProviderProperties struct {
@@ -297,6 +298,7 @@ func init() {
 
 	initCmd.Flags().StringVarP(&Provider, "provider", "p", "", "Cloud provider. Valid values are: aks, gke, eks")
 	initCmd.Flags().StringVarP(&DNS, "dns-provider", "d", "", "Provider for DNS. Valid values are: azuredns, clouddns (google), cloudflare, route53")
+	initCmd.Flags().StringVarP(&ArtifactRepositoryProvider, "artifact-repository-provider", "", "", "Artifact Storage Provider for argo. Valid values are: s3, gcs")
 	initCmd.Flags().StringVarP(&ConfigurationFilePath, "config", "c", "config.yaml", "File path of the resulting config file")
 	initCmd.Flags().StringVarP(&ParametersFilePath, "params", "e", "params.yaml", "File path of the resulting parameters file")
 	initCmd.Flags().BoolVarP(&EnableEFKLogging, "enable-efk-logging", "", false, "Enable Elasticsearch, Fluentd and Kibana (EFK) logging")
