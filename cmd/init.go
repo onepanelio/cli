@@ -255,6 +255,7 @@ var initCmd = &cobra.Command{
 
 		mergedParams.Put("application.insecure", !EnableHTTPS)
 		mergedParams.Put("application.provider", Provider)
+		mergedParams.Put("artifactRepositoryProvider.provider", ArtifactRepositoryProvider)
 
 		paramsFile, err := os.OpenFile(ParametersFilePath, os.O_RDWR, 0)
 		if err != nil {
