@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	opConfig "github.com/onepanelio/cli/config"
 	"github.com/spf13/cobra"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/azure"
@@ -168,10 +169,41 @@ func GetClusterIp(url string) {
 		}
 	}
 
-	dnsRecordMessage := "an A"
-	if !IsIpv4(stdout) {
-		dnsRecordMessage = "a CNAME"
+	configFilePath := "config.yaml"
+
+	config, err := opConfig.FromFile(configFilePath)
+	if err != nil {
+		fmt.Printf("Unable to read configuration file: %v", err.Error())
+		return
 	}
-	fmt.Printf("\nIn your DNS, add %v record for %v and point it to %v\n", dnsRecordMessage, GetWildCardDNS(url), stdout)
+
+	yamlFile, err := LoadDynamicYamlFromFile(config.Spec.Params)
+	if err != nil {
+		fmt.Printf("Unable to load yaml file: %v", err.Error())
+		return
+	}
+
+	var dnsRecordMessage string
+	if yamlFile.HasKey("application.provider") {
+		provider := yamlFile.GetValue("application.provider").Value
+		if provider == "minikube" || provider == "microk8s" {
+			fqdn := yamlFile.GetValue("application.fqdn").Value
+			fmt.Printf("\nIn your /etc/hosts file, add %v and point it to %v\n", stdout, fqdn)
+		} else {
+			dnsRecordMessage = "an A"
+			if !IsIpv4(stdout) {
+				dnsRecordMessage = "a CNAME"
+			}
+			fmt.Printf("\nIn your DNS, add %v record for %v and point it to %v\n", dnsRecordMessage, GetWildCardDNS(url), stdout)
+		}
+	}
+	//If yaml key is missing due to older params.yaml file, use this default.
+	if dnsRecordMessage == "" {
+		dnsRecordMessage = "an A"
+		if !IsIpv4(stdout) {
+			dnsRecordMessage = "a CNAME"
+		}
+		fmt.Printf("\nIn your DNS, add %v record for %v and point it to %v\n", dnsRecordMessage, GetWildCardDNS(url), stdout)
+	}
 	fmt.Printf("Once complete, your application will be running at %v\n\n", url)
 }
