@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -16,7 +17,9 @@ import (
 )
 
 const (
-	manifestsFilePath = ".onepanel/manifests"
+	manifestsFilePath             = ".onepanel/manifests"
+	artifactRepositoryProviderS3  = "s3"
+	artifactRepositoryProviderGcs = "gcs"
 )
 
 var (
@@ -76,6 +79,13 @@ var initCmd = &cobra.Command{
 		}
 
 		if err := validateProvider(Provider); err != nil {
+			fmt.Println(err.Error())
+			return
+		}
+
+		if ArtifactRepositoryProvider == "" {
+			ArtifactRepositoryProvider = artifactRepositoryProviderS3
+		} else if err := validateArtifactRepositoryProvider(ArtifactRepositoryProvider); err != nil {
 			fmt.Println(err.Error())
 			return
 		}
@@ -317,6 +327,18 @@ func validateProvider(prov string) error {
 	}
 
 	return nil
+}
+
+func validateArtifactRepositoryProvider(arRepoProv string) error {
+	if arRepoProv == "" {
+		return errors.New("artifact repository provider cannot be empty")
+	}
+
+	if arRepoProv == artifactRepositoryProviderS3 ||
+		arRepoProv == artifactRepositoryProviderGcs {
+		return nil
+	}
+	return errors.New("unrecognized artifact repository provider value")
 }
 
 func validateDNS(dns string) error {
