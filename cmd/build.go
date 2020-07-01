@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"golang.org/x/crypto/bcrypt"
 	"io/ioutil"
@@ -173,6 +174,39 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 		yamlFile.PutWithSeparator("metalLbSecretKey", base64.StdEncoding.EncodeToString(metalLbSecretKey), ".")
 	}
 
+	artifactRepoS3Node, _ := yamlFile.Get("artifactRepository.s3")
+	if artifactRepoS3Node != nil {
+		_, keyFormat := yamlFile.Get("artifactRepository.s3.keyFormat")
+		_, bucket := yamlFile.Get("artifactRepository.s3.bucket")
+		_, endpoint := yamlFile.Get("artifactRepository.s3.endpoint")
+		_, insecure := yamlFile.Get("artifactRepository.s3.insecure")
+		_, region := yamlFile.Get("artifactRepository.s3.region")
+		_, accessKey := yamlFile.Get("artifactRepository.s3.accessKey")
+		_, secretKey := yamlFile.Get("artifactRepository.s3.secretKey")
+		artifactRepoS3NodeVal := fmt.Sprintf(""+
+			"s3:"+
+			"\n      keyFormat: %v"+
+			"\n      bucket: %v"+
+			"\n      endpoint: %v"+
+			"\n      insecure: %v"+
+			"\n      region: %v"+
+			"\n      accessKeySecret:"+
+			"\n        name: $(artifactRepositoryS3AccessKeySecretName)"+
+			"\n        key: %v"+
+			"\n      secretKeySecret:"+
+			"\n        name: $(artifactRepositoryS3SecretKeySecretName)"+
+			"\n        key: %v", keyFormat.Value, bucket.Value, endpoint.Value,
+			insecure.Value, region.Value, accessKey.Value, secretKey.Value)
+		yamlFile.Put("artifactRepositoryProvider", artifactRepoS3NodeVal)
+	}
+	artifactRepoGCSNode, _ := yamlFile.Get("artifactRepository.gcs")
+	if artifactRepoGCSNode != nil {
+		yamlFile.Put("artifactRepositoryProvider", "gcs")
+	}
+
+	if artifactRepoS3Node == nil && artifactRepoGCSNode == nil {
+		return "", errors.New("unsupported artifactRepository configuration")
+	}
 	flatMap := yamlFile.FlattenToKeyValue(util.LowerCamelCaseFlatMapKeyFormatter)
 
 	//Read workflow-config-map-hidden for the rest of the values
