@@ -256,6 +256,8 @@ var initCmd = &cobra.Command{
 		mergedParams.Put("application.insecure", !EnableHTTPS)
 		mergedParams.Put("application.provider", Provider)
 
+		removeUneededArtifactRepositoryProviders(mergedParams)
+
 		paramsFile, err := os.OpenFile(ParametersFilePath, os.O_RDWR, 0)
 		if err != nil {
 			log.Printf("Error opening parameters file: %v", err.Error())
@@ -379,4 +381,23 @@ func addDNSProviderToManifestBuilder(dns string, builder *manifest.Builder) erro
 
 	overlay := strings.Join([]string{"cert-manager", "overlays", dns}, string(os.PathSeparator))
 	return builder.AddOverlay(overlay)
+}
+
+func removeUneededArtifactRepositoryProviders(mergedParams *util.DynamicYaml) {
+	artifactRepoProviders := []string{artifactRepositoryProviderS3, artifactRepositoryProviderGcs}
+	var nodeKeyStr string
+	for _, artRepoProv := range artifactRepoProviders {
+		if ArtifactRepositoryProvider == artRepoProv {
+			continue
+		}
+		nodeKeyStr = "artifactRepository." + artRepoProv
+		nodeKey, _ := mergedParams.Get(nodeKeyStr)
+		if nodeKey != nil {
+			err := mergedParams.Delete(nodeKeyStr)
+			if err != nil {
+				log.Printf("error during init, artifact repository provider. %v", err.Error())
+				return
+			}
+		}
+	}
 }
