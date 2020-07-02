@@ -205,18 +205,13 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 		_, bucket := yamlFile.Get("artifactRepository.gcs.bucket")
 		_, endpoint := yamlFile.Get("artifactRepository.gcs.endpoint")
 		_, insecure := yamlFile.Get("artifactRepository.gcs.insecure")
-		_, secretName := yamlFile.Get("artifactRepository.gcs.serviceAccountKeySecret.name")
-		_, secretKeyToUse := yamlFile.Get("artifactRepository.gcs.serviceAccountKeySecret.key")
 		artifactRepoGCSNodeVal := fmt.Sprintf(""+
 			"gcs:"+
 			"\n      keyFormat: %v"+
 			"\n      bucket: %v"+
 			"\n      endpoint: %v"+
-			"\n      insecure: %v"+
-			"\n      serviceAccountKeySecret:"+
-			"\n        name: %v"+
-			"\n        key: %v", keyFormat.Value, bucket.Value, endpoint.Value,
-			insecure.Value, secretName.Value, secretKeyToUse.Value)
+			"\n      insecure: %v", keyFormat.Value, bucket.Value, endpoint.Value,
+			insecure.Value)
 		yamlFile.Put("artifactRepositoryProvider", artifactRepoGCSNodeVal)
 	}
 
