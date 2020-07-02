@@ -311,12 +311,18 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 		log.Fatal("Missing required values in params.yaml, applicationDefaultNamespace")
 	}
 	//Write to secret files
-	//common/onepanel/base/secrets.yaml
 	var secretKeysValues []string
-	if yamlFile.HasKey("artifactRepository.s3.accessKey") &&
-		yamlFile.HasKey("artifactRepository.s3.secretKey") {
-		secretKeysValues = append(secretKeysValues, "artifactRepositoryS3AccessKey", "artifactRepositoryS3SecretKey")
-		for _, key := range secretKeysValues {
+	if yamlFile.HasKey("artifactRepository.s3") {
+		if yamlFile.HasKey("artifactRepository.s3.accessKey") &&
+			yamlFile.HasKey("artifactRepository.s3.secretKey") {
+			secretKeysValues = append(secretKeysValues, "artifactRepositoryS3AccessKey", "artifactRepositoryS3SecretKey")
+
+			artifactRepoS3SecretPlaceholder := "$(artifactRepositoryProviderSecret)"
+			artifactRepoS3Secret := fmt.Sprintf(
+				"artifactRepositoryS3AccessKey: %v"+
+					"\n  artifactRepositoryS3SecretKey: %v",
+				flatMap["artifactRepositoryS3AccessKey"], flatMap["artifactRepositoryS3SecretKey"])
+
 			//Path to secrets file
 			secretsPath := filepath.Join(localManifestsCopyPath, "common", "onepanel", "base", "secret-onepanel-defaultnamespace.yaml")
 			//Read the file, replace the specific value, write the file back
@@ -325,25 +331,21 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 				return "", secretFileOpenErr
 			}
 			secretFileContentStr := string(secretFileContent)
-			value := flatMap[key]
-			oldString := "$(" + key + ")"
-			if strings.Contains(secretFileContentStr, key) {
-				valueStr, ok := value.(string)
-				if !ok {
-					valueBool, _ := value.(bool)
-					valueStr = strconv.FormatBool(valueBool)
-				}
-				secretFileContentStr = strings.Replace(secretFileContentStr, oldString, valueStr, 1)
+			if strings.Contains(secretFileContentStr, artifactRepoS3SecretPlaceholder) {
+				secretFileContentStr = strings.Replace(secretFileContentStr, artifactRepoS3SecretPlaceholder, artifactRepoS3Secret, 1)
 				writeFileErr := ioutil.WriteFile(secretsPath, []byte(secretFileContentStr), 0644)
 				if writeFileErr != nil {
 					return "", writeFileErr
 				}
 			} else {
-				fmt.Printf("Key: %v not present in %v, not used.\n", key, secretsPath)
+				fmt.Printf("Key: %v not present in %v, not used.\n", artifactRepoS3SecretPlaceholder, secretsPath)
+
 			}
+		} else {
+			log.Fatal("Missing required values in params.yaml, artifactRepository. Check accessKey, or secretKey.")
 		}
-	} else {
-		log.Fatal("Missing required values in params.yaml, artifactRepository. Check accessKey, or secretKey.")
+	}
+	if yamlFile.HasKey("artifactRepository.gcs") {
 	}
 
 	//To properly replace $(applicationDefaultNamespace), we need to update it in quite a few files.
