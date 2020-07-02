@@ -243,28 +243,30 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 
 	//Write to env files
 	//workflow-config-map.env
-	if yamlFile.HasKeys("artifactRepository.s3.bucket", "artifactRepository.s3.endpoint", "artifactRepository.s3.insecure", "artifactRepository.s3.region") {
-		//Clear previous env file
-		paramsPath := filepath.Join(localManifestsCopyPath, "vars", "workflow-config-map.env")
-		if _, err := files.DeleteIfExists(paramsPath); err != nil {
-			return "", err
+	if yamlFile.HasKey("artifactRepository.s3") {
+		if yamlFile.HasKeys("artifactRepository.s3.bucket", "artifactRepository.s3.endpoint", "artifactRepository.s3.insecure", "artifactRepository.s3.region") {
+			//Clear previous env file
+			paramsPath := filepath.Join(localManifestsCopyPath, "vars", "workflow-config-map.env")
+			if _, err := files.DeleteIfExists(paramsPath); err != nil {
+				return "", err
+			}
+			paramsFile, err := os.Create(paramsPath)
+			if err != nil {
+				return "", err
+			}
+			var stringToWrite = fmt.Sprintf("%v=%v\n%v=%v\n%v=%v\n%v=%v\n",
+				"artifactRepositoryBucket", flatMap["artifactRepositoryS3Bucket"],
+				"artifactRepositoryEndpoint", flatMap["artifactRepositoryS3Endpoint"],
+				"artifactRepositoryInsecure", flatMap["artifactRepositoryIS3nsecure"],
+				"artifactRepositoryRegion", flatMap["artifactRepositoryS3Region"],
+			)
+			_, err = paramsFile.WriteString(stringToWrite)
+			if err != nil {
+				return "", err
+			}
+		} else {
+			log.Fatal("Missing required values in params.yaml, artifactRepository. Check bucket, endpoint, or insecure.")
 		}
-		paramsFile, err := os.Create(paramsPath)
-		if err != nil {
-			return "", err
-		}
-		var stringToWrite = fmt.Sprintf("%v=%v\n%v=%v\n%v=%v\n%v=%v\n",
-			"artifactRepositoryBucket", flatMap["artifactRepositoryS3Bucket"],
-			"artifactRepositoryEndpoint", flatMap["artifactRepositoryS3Endpoint"],
-			"artifactRepositoryInsecure", flatMap["artifactRepositoryIS3nsecure"],
-			"artifactRepositoryRegion", flatMap["artifactRepositoryS3Region"],
-		)
-		_, err = paramsFile.WriteString(stringToWrite)
-		if err != nil {
-			return "", err
-		}
-	} else {
-		log.Fatal("Missing required values in params.yaml, artifactRepository. Check bucket, endpoint, or insecure.")
 	}
 	//logging-config-map.env, optional component
 	if yamlFile.HasKey("logging.image") &&
