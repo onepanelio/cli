@@ -307,34 +307,20 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 	}
 	//Write to secret files
 	var secretKeysValues []string
+	artifactRepoSecretPlaceholder := "$(artifactRepositoryProviderSecret)"
 	if yamlFile.HasKey("artifactRepository.s3") {
 		if yamlFile.HasKey("artifactRepository.s3.accessKey") &&
 			yamlFile.HasKey("artifactRepository.s3.secretKey") {
 			secretKeysValues = append(secretKeysValues, "artifactRepositoryS3AccessKey", "artifactRepositoryS3SecretKey")
 
-			artifactRepoS3SecretPlaceholder := "$(artifactRepositoryProviderSecret)"
 			artifactRepoS3Secret := fmt.Sprintf(
 				"artifactRepositoryS3AccessKey: %v"+
 					"\n  artifactRepositoryS3SecretKey: %v",
 				flatMap["artifactRepositoryS3AccessKey"], flatMap["artifactRepositoryS3SecretKey"])
 
-			//Path to secrets file
-			secretsPath := filepath.Join(localManifestsCopyPath, "common", "onepanel", "base", "secret-onepanel-defaultnamespace.yaml")
-			//Read the file, replace the specific value, write the file back
-			secretFileContent, secretFileOpenErr := ioutil.ReadFile(secretsPath)
-			if secretFileOpenErr != nil {
-				return "", secretFileOpenErr
-			}
-			secretFileContentStr := string(secretFileContent)
-			if strings.Contains(secretFileContentStr, artifactRepoS3SecretPlaceholder) {
-				secretFileContentStr = strings.Replace(secretFileContentStr, artifactRepoS3SecretPlaceholder, artifactRepoS3Secret, 1)
-				writeFileErr := ioutil.WriteFile(secretsPath, []byte(secretFileContentStr), 0644)
-				if writeFileErr != nil {
-					return "", writeFileErr
-				}
-			} else {
-				fmt.Printf("Key: %v not present in %v, not used.\n", artifactRepoS3SecretPlaceholder, secretsPath)
-
+			err = replacePlaceholderForSecretManiFile(localManifestsCopyPath, artifactRepoSecretPlaceholder, artifactRepoS3Secret)
+			if err != nil {
+				return "", err
 			}
 		} else {
 			log.Fatal("Missing required values in params.yaml, artifactRepository. Check accessKey, or secretKey.")
@@ -406,6 +392,27 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 	kustYaml, err := rm.AsYaml()
 
 	return string(kustYaml), nil
+}
+
+func replacePlaceholderForSecretManiFile(localManifestsCopyPath string, artifactRepoSecretPlaceholder string, artifactRepoSecretVal string) error {
+	//Path to secrets file
+	secretsPath := filepath.Join(localManifestsCopyPath, "common", "onepanel", "base", "secret-onepanel-defaultnamespace.yaml")
+	//Read the file, replace the specific value, write the file back
+	secretFileContent, secretFileOpenErr := ioutil.ReadFile(secretsPath)
+	if secretFileOpenErr != nil {
+		return secretFileOpenErr
+	}
+	secretFileContentStr := string(secretFileContent)
+	if strings.Contains(secretFileContentStr, artifactRepoSecretPlaceholder) {
+		secretFileContentStr = strings.Replace(secretFileContentStr, artifactRepoSecretPlaceholder, artifactRepoSecretVal, 1)
+		writeFileErr := ioutil.WriteFile(secretsPath, []byte(secretFileContentStr), 0644)
+		if writeFileErr != nil {
+			return writeFileErr
+		}
+	} else {
+		fmt.Printf("Key: %v not present in %v, not used.\n", artifactRepoSecretPlaceholder, secretsPath)
+	}
+	return nil
 }
 
 func BuilderToTemplate(builder *manifest.Builder) template.Kustomize {
