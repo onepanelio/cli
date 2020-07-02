@@ -327,6 +327,19 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 		}
 	}
 	if yamlFile.HasKey("artifactRepository.gcs") {
+		if yamlFile.HasKey("artifactRepository.gcs.serviceAccountKey") {
+			_, val := yamlFile.Get("artifactRepository.gcs.serviceAccountKey")
+			if val.Value == "" {
+				log.Fatal("artifactRepository.gcs.serviceAccountKey cannot be empty.")
+			}
+			artifactRepoS3Secret := "serviceAccountKeySecret: '" + val.Value + "'"
+			err = replacePlaceholderForSecretManiFile(localManifestsCopyPath, artifactRepoSecretPlaceholder, artifactRepoS3Secret)
+			if err != nil {
+				return "", err
+			}
+		} else {
+			log.Fatal("Missing required values in params.yaml, artifactRepository. artifactRepository.gcs.serviceAccountKey.")
+		}
 	}
 
 	//To properly replace $(applicationDefaultNamespace), we need to update it in quite a few files.
