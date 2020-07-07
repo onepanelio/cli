@@ -158,7 +158,7 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 	yamlFile.PutWithSeparator("applicationCoreuiImageTag", coreUiImageTag, ".")
 	yamlFile.PutWithSeparator("applicationCoreuiImagePullPolicy", coreUiImagePullPolicy, ".")
 
-	applicationNodePoolOptionsConfigMapStr := generateApplicationNodePoolOptions(yamlFile.GetValue("application.nodePool").Content)
+	applicationNodePoolOptionsConfigMapStr := generateApplicationNodePoolOptions(yamlFile.GetValue("application.nodePool"))
 	yamlFile.PutWithSeparator("applicationNodePoolOptions", applicationNodePoolOptionsConfigMapStr, ".")
 
 	provider := yamlFile.GetValue("application.provider").Value
@@ -437,43 +437,28 @@ func runKustomizeBuild(path string) (rm resmap.ResMap, err error) {
 	return rm, nil
 }
 
-func generateApplicationNodePoolOptions(nodePoolData []*yaml2.Node) string {
-	applicationNodePoolOptions := []string{"|\n"}
-	var optionChunk []string
-	var prefix string
-	var optionChunkAppend string
-	addSingleQuotes := false
-	for _, poolNode := range nodePoolData {
-		//Find the sequence tag, which refers to options
-		if poolNode.Tag == "!!seq" {
-			optionsNodes := poolNode.Content
-			for _, optionNode := range optionsNodes {
-				for idx, optionDatum := range optionNode.Content {
-					if idx%2 == 1 {
-						continue
-					}
-					prefix = "  " //spaces instead of tabs
-					if strings.Contains(optionDatum.Value, "name") {
-						prefix = "- "
-					}
-					if optionNode.Content[idx+1].Tag == "!!str" {
-						addSingleQuotes = true
-					}
-					if addSingleQuotes {
-						optionChunkAppend = "    " + prefix + optionDatum.Value + ": '" + optionNode.Content[idx+1].Value + "'\n"
-					} else {
-						optionChunkAppend = "    " + prefix + optionDatum.Value + ": " + optionNode.Content[idx+1].Value + "\n"
-					}
-					optionChunk = append(optionChunk, optionChunkAppend)
-					addSingleQuotes = false
-				}
-				optionChunk = append(optionChunk, "")
-			}
-			break
-		}
+func generateApplicationNodePoolOptions(nodePoolData *yaml2.Node) string {
+	nodePool := struct {
+		Options []map[string]interface{}
+	}{}
+	err := nodePoolData.Decode(&nodePool)
+	if err != nil {
+		log.Println(err)
+		return ""
 	}
-	applicationNodePoolOptions = append(applicationNodePoolOptions, strings.Join(optionChunk, ""))
-	return strings.Join(applicationNodePoolOptions, "")
+
+	nodePoolOptions, err := yaml2.Marshal(nodePool.Options)
+	if err != nil {
+		log.Println(err)
+		return ""
+	}
+
+	nodePoolOptionsStr := "|\n"
+	for _, line := range strings.Split(string(nodePoolOptions), "\n") {
+		nodePoolOptionsStr += fmt.Sprintf("    %v\n", line)
+	}
+
+	return nodePoolOptionsStr
 }
 
 func generateMetalLbAddresses(nodePoolData []*yaml2.Node) string {
