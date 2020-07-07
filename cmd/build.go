@@ -196,18 +196,19 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 	}
 	artifactRepoGCSNode, _ := yamlFile.Get("artifactRepository.gcs")
 	if artifactRepoGCSNode != nil {
-		_, keyFormat := yamlFile.Get("artifactRepository.gcs.keyFormat")
-		_, bucket := yamlFile.Get("artifactRepository.gcs.bucket")
-		_, endpoint := yamlFile.Get("artifactRepository.gcs.endpoint")
-		_, insecure := yamlFile.Get("artifactRepository.gcs.insecure")
-		artifactRepoGCSNodeVal := fmt.Sprintf(""+
-			"gcs:"+
-			"\n      keyFormat: %v"+
-			"\n      bucket: %v"+
-			"\n      endpoint: %v"+
-			"\n      insecure: %v", keyFormat.Value, bucket.Value, endpoint.Value,
-			insecure.Value)
-		yamlFile.Put("artifactRepositoryProvider", artifactRepoGCSNodeVal)
+		_, artifactRepoGCSParentNodeVal := yamlFile.Get("artifactRepository")
+		artifactRepositoryConfig := v1.ArtifactRepositoryConfig{}
+
+		err = artifactRepoGCSParentNodeVal.Decode(&artifactRepositoryConfig)
+		if err != nil {
+			return "", err
+		}
+		err, yamlStr := artifactRepositoryConfig.GCS.MarshalToYaml()
+		if err != nil {
+			return "", err
+		}
+
+		yamlFile.Put("artifactRepositoryProvider", yamlStr)
 	}
 
 	if artifactRepoS3Node == nil && artifactRepoGCSNode == nil {
