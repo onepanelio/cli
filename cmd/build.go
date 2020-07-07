@@ -43,6 +43,7 @@ var generateCmd = &cobra.Command{
 		config, err := opConfig.FromFile(configFilePath)
 		if err != nil {
 			fmt.Printf("Unable to read configuration file: %v", err.Error())
+			fmt.Println() // This gives us a newline as we get an extra "exiting" message
 			return
 		}
 
@@ -113,7 +114,7 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 	}
 
 	fqdn := yamlFile.GetValue("application.fqdn").Value
-	cloudSettings, err := util.LoadDynamicYamlFromFile(config.Spec.ManifestsRepo + string(os.PathSeparator) + "vars" + string(os.PathSeparator) + "onepanel-config-map-hidden.env")
+	cloudSettings, err := util.LoadDynamicYamlFromFile(filepath.Join(config.Spec.ManifestsRepo, "vars", "onepanel-config-map-hidden.env"))
 	if err != nil {
 		return "", err
 	}
@@ -206,7 +207,7 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 		var stringToWrite = fmt.Sprintf("%v=%v\n%v=%v\n%v=%v\n%v=%v\n",
 			"artifactRepositoryBucket", flatMap["artifactRepositoryS3Bucket"],
 			"artifactRepositoryEndpoint", flatMap["artifactRepositoryS3Endpoint"],
-			"artifactRepositoryInsecure", flatMap["artifactRepositoryIS3nsecure"],
+			"artifactRepositoryInsecure", flatMap["artifactRepositoryIS3Insecure"],
 			"artifactRepositoryRegion", flatMap["artifactRepositoryS3Region"],
 		)
 		_, err = paramsFile.WriteString(stringToWrite)
@@ -217,8 +218,7 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 		log.Fatal("Missing required values in params.yaml, artifactRepository. Check bucket, endpoint, or insecure.")
 	}
 	//logging-config-map.env, optional component
-	if yamlFile.HasKey("logging.image") &&
-		yamlFile.HasKey("logging.volumeStorage") {
+	if yamlFile.HasKeys("logging.image", "logging.volumeStorage") {
 		//Clear previous env file
 		paramsPath := filepath.Join(localManifestsCopyPath, "vars", "logging-config-map.env")
 		if _, err := files.DeleteIfExists(paramsPath); err != nil {
@@ -261,8 +261,7 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 	//Write to secret files
 	//common/onepanel/base/secrets.yaml
 	var secretKeysValues []string
-	if yamlFile.HasKey("artifactRepository.s3.accessKey") &&
-		yamlFile.HasKey("artifactRepository.s3.secretKey") {
+	if yamlFile.HasKeys("artifactRepository.s3.accessKey", "artifactRepository.s3.secretKey") {
 		secretKeysValues = append(secretKeysValues, "artifactRepositoryS3AccessKey", "artifactRepositoryS3SecretKey")
 		for _, key := range secretKeysValues {
 			//Path to secrets file
