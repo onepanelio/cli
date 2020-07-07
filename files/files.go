@@ -24,6 +24,24 @@ func Exists(path string) (bool, error) {
 	return true, err
 }
 
+// CreateIfNotExist will create the file at the specific path if it does not exist.
+func CreateIfNotExist(path string) error {
+	exists, err := Exists(path)
+	if err != nil {
+		return fmt.Errorf("unable to check if %v file exists: %v", path, err.Error())
+	}
+
+	if exists {
+		return nil
+	}
+
+	if _, err := os.Create(path); err != nil {
+		return fmt.Errorf("unable to create %v file: %v", path, err.Error())
+	}
+
+	return nil
+}
+
 // CopyFile copies the contents of the file named src to the file named
 // by dst. The file will be created if it does not already exist. If the
 // destination file exists, all it's contents will be replaced by the contents

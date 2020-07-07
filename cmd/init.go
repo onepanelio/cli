@@ -30,6 +30,7 @@ var (
 	EnableCertManager     bool
 	EnableMetalLb         bool
 	GPUDevicePlugins      []string
+	Components            []string
 )
 
 type ProviderProperties struct {
@@ -57,40 +58,12 @@ var providerProperties = map[string]ProviderProperties{
 // initCmd represents the init command
 var initCmd = &cobra.Command{
 	Use:   "init",
-	Short: "Gets latests manifests and generates params.yaml file.",
+	Short: "Gets latest manifests and generates params.yaml file.",
 	Run: func(cmd *cobra.Command, args []string) {
-		if EnableCertManager && !EnableHTTPS {
-			log.Printf("enable-https flag is required when enable-cert-manager is set")
-			return
-		}
 
-		if EnableCertManager && DNS == "" {
-			log.Printf("dns-provider flag is required when enable-cert-manager is set")
+		if err := validateInput(); err != nil {
+			log.Printf(err.Error())
 			return
-		}
-
-		if !EnableCertManager && DNS != "" {
-			log.Printf("enable-cert-manager flag is required when dns-provider is set")
-			return
-		}
-
-		if err := validateProvider(Provider); err != nil {
-			fmt.Println(err.Error())
-			return
-		}
-
-		if err := validateDNS(DNS); err != nil {
-			fmt.Println(err.Error())
-			return
-		}
-
-		if GPUDevicePlugins != nil {
-			for _, p := range GPUDevicePlugins {
-				if p != "amd" && p != "nvidia" {
-					log.Printf("%v is not a valid --gpu-device-plugins value", p)
-					return
-				}
-			}
 		}
 
 		log.Printf("Initializing...")
@@ -146,17 +119,8 @@ var initCmd = &cobra.Command{
 			return
 		}
 
-		exists, err = files.Exists(ParametersFilePath)
-		if err != nil {
-			log.Printf("unable to check if %v file exists: %v", ParametersFilePath, err.Error())
-			return
-		}
-
-		if !exists {
-			if _, err := os.Create(ParametersFilePath); err != nil {
-				log.Printf("unable to create %v file: %v", ParametersFilePath, err.Error())
-				return
-			}
+		if err := files.CreateIfNotExist(ParametersFilePath); err != nil {
+			log.Println(err.Error())
 		}
 
 		setup := config.Config{
@@ -203,15 +167,19 @@ var initCmd = &cobra.Command{
 				return
 			}
 
-			for _, p := range GPUDevicePlugins {
-				bld.AddOverlayContender(p)
-			}
+			bld.AddOverlayContender(GPUDevicePlugins...)
 		}
 
 		bld.AddOverlayContender("cloud")
 
 		if EnableHTTPS {
 			bld.AddOverlayContender("https")
+		}
+
+		if Components != nil {
+			if err := bld.AddComponent(Components...); err != nil {
+				log.Printf("[error] Adding Components: %v", err.Error())
+			}
 		}
 
 		if err := bld.Build(); err != nil {
@@ -238,23 +206,21 @@ var initCmd = &cobra.Command{
 			return
 		}
 
-		for _, newYaml := range bld.GetYamls() {
-			mergedParams.Merge(newYaml)
-		}
+		mergedParams.Merge(bld.GetYamls()...)
 
 		mergedParams.Put("application.insecure", !EnableHTTPS)
 		mergedParams.Put("application.provider", Provider)
-
-		paramsFile, err := os.OpenFile(ParametersFilePath, os.O_RDWR, 0)
-		if err != nil {
-			log.Printf("Error opening parameters file: %v", err.Error())
-			return
-		}
 
 		mergedParams.Sort()
 		paramsString, err := mergedParams.String()
 		if err != nil {
 			log.Printf("[error] unable to write params to a string")
+			return
+		}
+
+		paramsFile, err := os.OpenFile(ParametersFilePath, os.O_RDWR, 0)
+		if err != nil {
+			log.Printf("Error opening parameters file: %v", err.Error())
 			return
 		}
 
@@ -304,8 +270,41 @@ func init() {
 	initCmd.Flags().BoolVarP(&EnableCertManager, "enable-cert-manager", "", false, "Automatically create/renew TLS certs using Let's Encrypt")
 	initCmd.Flags().BoolVarP(&EnableMetalLb, "enable-metallb", "", false, "Automatically create a LoadBalancer for non-cloud deployments.")
 	initCmd.Flags().StringSliceVarP(&GPUDevicePlugins, "gpu-device-plugins", "", nil, "Install NVIDIA and/or AMD gpu device plugins. Valid values can be comma separated and are: amd, nvidia")
+	initCmd.Flags().StringSliceVarP(&Components, "components", "", nil, "Install additional components. Valid values can be comma separated and are: modeldb")
 
 	initCmd.MarkFlagRequired("provider")
+}
+
+func validateInput() error {
+	if EnableCertManager && !EnableHTTPS {
+		return fmt.Errorf("enable-https flag is required when enable-cert-manager is set")
+	}
+
+	if EnableCertManager && DNS == "" {
+		return fmt.Errorf("dns-provider flag is required when enable-cert-manager is set")
+	}
+
+	if !EnableCertManager && DNS != "" {
+		return fmt.Errorf("enable-cert-manager flag is required when dns-provider is set")
+	}
+
+	if err := validateProvider(Provider); err != nil {
+		return err
+	}
+
+	if err := validateDNS(DNS); err != nil {
+		return err
+	}
+
+	if err := validateGPUPlugins(GPUDevicePlugins); err != nil {
+		return err
+	}
+
+	if err := validateComponents(Components); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func validateProvider(prov string) error {
@@ -320,6 +319,34 @@ func validateProvider(prov string) error {
 func validateDNS(dns string) error {
 	if dns != "route53" && dns != "" && dns != "clouddns" && dns != "azuredns" && dns != "cloudflare" {
 		return fmt.Errorf("unsupported dns %v", dns)
+	}
+
+	return nil
+}
+
+func validateGPUPlugins(gpuPlugins []string) error {
+	if gpuPlugins == nil {
+		return nil
+	}
+
+	for _, p := range GPUDevicePlugins {
+		if p != "amd" && p != "nvidia" {
+			return fmt.Errorf("%v is not a valid --gpu-device-plugins value", p)
+		}
+	}
+
+	return nil
+}
+
+func validateComponents(components []string) error {
+	if components == nil {
+		return nil
+	}
+
+	for _, c := range components {
+		if c != "modeldb" {
+			return fmt.Errorf("%v is not a valid --component value", c)
+		}
 	}
 
 	return nil

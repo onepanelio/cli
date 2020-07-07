@@ -541,7 +541,7 @@ func (d *DynamicYaml) FlattenRequiredDefault() {
 	}
 }
 
-func (d *DynamicYaml) Merge(y *DynamicYaml) {
+func (d *DynamicYaml) merge_single(y *DynamicYaml) {
 	if len(y.node.Content) == 0 || len(y.node.Content[0].Content) == 0 {
 		return
 	}
@@ -581,6 +581,12 @@ func (d *DynamicYaml) Merge(y *DynamicYaml) {
 			destination.Content = append(destination.Content, keyNode)
 			destination.Content = append(destination.Content, valueNode)
 		}
+	}
+}
+
+func (d *DynamicYaml) Merge(items ...*DynamicYaml) {
+	for _, item := range items {
+		d.merge_single(item)
 	}
 }
 
