@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -34,7 +35,7 @@ var applyCmd = &cobra.Command{
 			return
 		}
 
-		overlayComponentFirst := "common/application/base"
+		overlayComponentFirst := filepath.Join("common/application/base")
 		baseOverlayComponent := config.GetOverlayComponent(overlayComponentFirst)
 		applicationBaseKustomizeTemplate := TemplateFromSimpleOverlayedComponents(baseOverlayComponent)
 		applicationResult, err := GenerateKustomizeResult(*config, applicationBaseKustomizeTemplate)
@@ -43,7 +44,7 @@ var applyCmd = &cobra.Command{
 			return
 		}
 
-		applicationKubernetesYamlFilePath := ".onepanel/application.kubernetes.yaml"
+		applicationKubernetesYamlFilePath := filepath.Join(".onepanel/application.kubernetes.yaml")
 
 		existsApp, err := files.Exists(applicationKubernetesYamlFilePath)
 		if err != nil {
@@ -129,7 +130,7 @@ var applyCmd = &cobra.Command{
 			return
 		}
 
-		finalKubernetesYamlFilePath := ".onepanel/kubernetes.yaml"
+		finalKubernetesYamlFilePath := filepath.Join(".onepanel/kubernetes.yaml")
 
 		exists, err := files.Exists(finalKubernetesYamlFilePath)
 		if err != nil {

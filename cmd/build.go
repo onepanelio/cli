@@ -69,7 +69,7 @@ func init() {
 // and running the kustomize command
 func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.Kustomize) (string, error) {
 	manifestPath := config.Spec.ManifestsRepo
-	localManifestsCopyPath := ".onepanel/manifests/cache"
+	localManifestsCopyPath := filepath.Join(".onepanel/manifests/cache")
 
 	exists, err := files.Exists(localManifestsCopyPath)
 	if err != nil {
@@ -364,7 +364,7 @@ func BuilderToTemplate(builder *manifest.Builder) template.Kustomize {
 		ApiVersion:     "kustomize.config.k8s.io/v1beta1",
 		Kind:           "Kustomization",
 		Resources:      make([]string, 0),
-		Configurations: []string{"configs/varreference.yaml"},
+		Configurations: []string{filepath.Join("configs/varreference.yaml")},
 	}
 
 	for _, overlayComponent := range builder.GetOverlayComponents() {
@@ -386,7 +386,7 @@ func TemplateFromSimpleOverlayedComponents(comps []*opConfig.SimpleOverlayedComp
 		ApiVersion:     "kustomize.config.k8s.io/v1beta1",
 		Kind:           "Kustomization",
 		Resources:      make([]string, 0),
-		Configurations: []string{"configs/varreference.yaml"},
+		Configurations: []string{filepath.Join("configs/varreference.yaml")},
 	}
 
 	for _, overlayComponent := range comps {

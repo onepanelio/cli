@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/onepanelio/cli/config"
@@ -94,7 +95,7 @@ var initCmd = &cobra.Command{
 		}
 
 		log.Printf("Initializing...")
-		configFile := ".onepanel/cli_config.yaml"
+		configFile := filepath.Join(".onepanel/cli_config.yaml")
 		exists, err := files.Exists(configFile)
 		if err != nil {
 			log.Printf("[error] checking for config file %v", configFile)
@@ -135,7 +136,7 @@ var initCmd = &cobra.Command{
 			fmt.Printf("cli_config.yaml is using %v as source, ignoring CLI tag: %v", manifest.SourceDirectory, config.CLIVersion)
 		}
 
-		if err := source.MoveToDirectory(manifestsFilePath); err != nil {
+		if err := source.MoveToDirectory(filepath.Join(manifestsFilePath)); err != nil {
 			log.Printf("[error] %v", err.Error())
 			return
 		}
