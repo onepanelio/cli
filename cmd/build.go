@@ -175,16 +175,15 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 		yamlFile.PutWithSeparator("metalLbSecretKey", base64.StdEncoding.EncodeToString(metalLbSecretKey), ".")
 	}
 
-	artifactRepoS3Node, artifactRepoS3NodeVal := yamlFile.Get("artifactRepository")
+	artifactRepoS3Node, _ := yamlFile.Get("artifactRepository.s3")
 	if artifactRepoS3Node != nil {
+		_, artifactRepoS3ParentNodeVal := yamlFile.Get("artifactRepository")
 		artifactRepositoryConfig := v1.ArtifactRepositoryConfig{}
 
-		err = artifactRepoS3NodeVal.Decode(&artifactRepositoryConfig)
+		err = artifactRepoS3ParentNodeVal.Decode(&artifactRepositoryConfig)
 		if err != nil {
 			return "", err
 		}
-		print(artifactRepoS3NodeVal.Value)
-
 		artifactRepositoryConfig.S3.AccessKeySecret.Key = artifactRepositoryConfig.S3.AccessKey
 		artifactRepositoryConfig.S3.AccessKeySecret.Name = "$(artifactRepositoryS3AccessKeySecretName)"
 		artifactRepositoryConfig.S3.SecretKeySecret.Key = artifactRepositoryConfig.S3.Secretkey
