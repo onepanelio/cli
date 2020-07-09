@@ -441,8 +441,7 @@ func generateApplicationNodePoolOptions(nodePoolData *yaml2.Node) string {
 	nodePool := struct {
 		Options []map[string]interface{}
 	}{}
-	err := nodePoolData.Decode(&nodePool)
-	if err != nil {
+	if err := nodePoolData.Decode(&nodePool); err != nil {
 		log.Println(err)
 		return ""
 	}
