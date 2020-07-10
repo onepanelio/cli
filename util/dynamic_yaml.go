@@ -74,7 +74,10 @@ func LoadDynamicYamlFromFile(filePath string) (*DynamicYaml, error) {
 }
 
 func LoadDynamicYamlFromString(input string) (*DynamicYaml, error) {
-	data := &yaml.Node{}
+	data := &yaml.Node{
+		Kind:  yaml.DocumentNode,
+		Style: 0,
+	}
 	if err := yaml.Unmarshal([]byte(input), data); err != nil {
 		return nil, err
 	}
