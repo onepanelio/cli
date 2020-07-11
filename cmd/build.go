@@ -328,7 +328,7 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 			if val.Value == "" {
 				log.Fatal("artifactRepository.gcs.serviceAccountKey cannot be empty.")
 			}
-			artifactRepoS3Secret := "serviceAccountKeySecret: '" + val.Value + "'"
+			artifactRepoS3Secret := "serviceAccountKey: '" + val.Value + "'"
 			err = replacePlaceholderForSecretManiFile(localManifestsCopyPath, artifactRepoSecretPlaceholder, artifactRepoS3Secret)
 			if err != nil {
 				return "", err
