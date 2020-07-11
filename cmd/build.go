@@ -203,12 +203,12 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 		if err != nil {
 			return "", err
 		}
-		err, yamlStr := artifactRepositoryConfig.GCS.MarshalToYaml()
+		err, yamlConfigMap := artifactRepositoryConfig.GCS.MarshalToYaml()
 		if err != nil {
 			return "", err
 		}
 
-		yamlFile.Put("artifactRepositoryProvider", yamlStr)
+		yamlFile.Put("artifactRepositoryProvider", yamlConfigMap)
 	}
 
 	if artifactRepoS3Node == nil && artifactRepoGCSNode == nil {
