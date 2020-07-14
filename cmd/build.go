@@ -175,15 +175,13 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 		yamlFile.PutWithSeparator("metalLbSecretKey", base64.StdEncoding.EncodeToString(metalLbSecretKey), ".")
 	}
 
-	artifactRepoS3Node, _ := yamlFile.Get("artifactRepository.s3")
-	if artifactRepoS3Node != nil {
-		_, artifactRepoS3ParentNodeVal := yamlFile.Get("artifactRepository")
-		artifactRepositoryConfig := v1.ArtifactRepositoryConfig{}
-
-		err = artifactRepoS3ParentNodeVal.Decode(&artifactRepositoryConfig)
-		if err != nil {
-			return "", err
-		}
+	_, artifactRepositoryNode := yamlFile.Get("artifactRepository")
+	artifactRepositoryConfig := v1.ArtifactRepositoryConfig{}
+	err = artifactRepositoryNode.Decode(&artifactRepositoryConfig)
+	if err != nil {
+		return "", err
+	}
+	if artifactRepositoryConfig.S3 != nil {
 		artifactRepositoryConfig.S3.AccessKeySecret.Key = "artifactRepositoryS3AccessKey"
 		artifactRepositoryConfig.S3.AccessKeySecret.Name = "$(artifactRepositoryS3AccessKeySecretName)"
 		artifactRepositoryConfig.S3.SecretKeySecret.Key = "artifactRepositoryS3SecretKey"
@@ -193,25 +191,14 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 			return "", err
 		}
 		yamlFile.Put("artifactRepositoryProvider", yamlStr)
-	}
-	artifactRepoGCSNode, _ := yamlFile.Get("artifactRepository.gcs")
-	if artifactRepoGCSNode != nil {
-		_, artifactRepoGCSParentNodeVal := yamlFile.Get("artifactRepository")
-		artifactRepositoryConfig := v1.ArtifactRepositoryConfig{}
-
-		err = artifactRepoGCSParentNodeVal.Decode(&artifactRepositoryConfig)
-		if err != nil {
-			return "", err
-		}
+	} else if artifactRepositoryConfig.GCS != nil {
 		err, yamlConfigMap := artifactRepositoryConfig.GCS.MarshalToYaml()
 		if err != nil {
 			return "", err
 		}
 
 		yamlFile.Put("artifactRepositoryProvider", yamlConfigMap)
-	}
-
-	if artifactRepoS3Node == nil && artifactRepoGCSNode == nil {
+	} else {
 		return "", errors.New("unsupported artifactRepository configuration")
 	}
 	flatMap := yamlFile.FlattenToKeyValue(util.LowerCamelCaseFlatMapKeyFormatter)
