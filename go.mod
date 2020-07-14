@@ -12,6 +12,7 @@ require (
 	github.com/spf13/cobra v0.0.5
 	github.com/spf13/viper v1.5.0
 	golang.org/x/crypto v0.0.0-20200128174031-69ecbb4d6d5d
+	github.com/stretchr/testify v1.4.0
 	gopkg.in/yaml.v2 v2.2.8
 	gopkg.in/yaml.v3 v3.0.0-20200615113413-eeeca48fe776
 	k8s.io/apimachinery v0.17.3

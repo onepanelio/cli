@@ -189,8 +189,16 @@ func GetClusterIp(url string) {
 		if provider == "minikube" || provider == "microk8s" {
 			fqdn := yamlFile.GetValue("application.fqdn").Value
 			fmt.Printf("\nIn your /etc/hosts file, add %v and point it to %v\n", stdout, fqdn)
+		} else {
+			dnsRecordMessage = "an A"
+			if !IsIpv4(stdout) {
+				dnsRecordMessage = "a CNAME"
+			}
+			fmt.Printf("\nIn your DNS, add %v record for %v and point it to %v\n", dnsRecordMessage, GetWildCardDNS(url), stdout)
 		}
-	} else {
+	}
+	//If yaml key is missing due to older params.yaml file, use this default.
+	if dnsRecordMessage == "" {
 		dnsRecordMessage = "an A"
 		if !IsIpv4(stdout) {
 			dnsRecordMessage = "a CNAME"
