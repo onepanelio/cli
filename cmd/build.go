@@ -184,9 +184,9 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 		if err != nil {
 			return "", err
 		}
-		artifactRepositoryConfig.S3.AccessKeySecret.Key = artifactRepositoryConfig.S3.AccessKey
+		artifactRepositoryConfig.S3.AccessKeySecret.Key = "artifactRepositoryS3AccessKey"
 		artifactRepositoryConfig.S3.AccessKeySecret.Name = "$(artifactRepositoryS3AccessKeySecretName)"
-		artifactRepositoryConfig.S3.SecretKeySecret.Key = artifactRepositoryConfig.S3.Secretkey
+		artifactRepositoryConfig.S3.SecretKeySecret.Key = "artifactRepositoryS3SecretKey"
 		artifactRepositoryConfig.S3.SecretKeySecret.Name = "$(artifactRepositoryS3SecretKeySecretName)"
 		err, yamlStr := artifactRepositoryConfig.S3.MarshalToYaml()
 		if err != nil {
