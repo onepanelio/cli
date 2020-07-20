@@ -43,6 +43,19 @@ func CapitalizeUnderscoreFlatMapKeyFormatter(path, newPart string) string {
 	return path + "_" + strings.ToUpper(newPart)
 }
 
+// LowerCamelCaseStringFormat takes a string, splits it by the separator and joins the pieces
+// using LowerCamelCaseFlatMapKeyFormatter
+func LowerCamelCaseStringFormat(value, separator string) string {
+	result := ""
+
+	parts := strings.Split(value, separator)
+	for _, part := range parts {
+		result = LowerCamelCaseFlatMapKeyFormatter(result, part)
+	}
+
+	return result
+}
+
 type NodePair struct {
 	Key   *yaml.Node
 	Value *yaml.Node
@@ -509,6 +522,9 @@ func (d *DynamicYaml) FlattenToKeyValue(keyFormatter FlatMapKeyFormatter) map[st
 	return flatResult
 }
 
+// FlattenRequiredDefault goes through the data and finds values with a default
+// it then assigns the default value to the key in the data so when it is serialized it has that set.
+// this also removes the subdata, so if you have s3.bucket.default, and s3.bucket.test, only s3.bucket will be present after.
 func (d *DynamicYaml) FlattenRequiredDefault() {
 	flatMap := d.Flatten(AppendDotFlatMapKeyFormatter)
 
@@ -536,6 +552,34 @@ func (d *DynamicYaml) FlattenRequiredDefault() {
 		valueNode.Kind = partialNode.Kind
 		valueNode.Tag = partialNode.Tag
 	}
+}
+
+// HideHidden goes through the vars in the yaml and removes any where hide is set to true
+func (d *DynamicYaml) HideHidden() error {
+	flatMap := d.Flatten(AppendDotFlatMapKeyFormatter)
+
+	for key := range flatMap {
+		lastIndex := strings.LastIndex(key, ".")
+		if lastIndex < 0 {
+			continue
+		}
+		postfixDefault := ".hide"
+		if key[lastIndex:] != postfixDefault {
+			continue
+		}
+		defaultIndex := strings.LastIndex(key, postfixDefault)
+		if defaultIndex < 0 {
+			continue
+		}
+
+		partialKey := key[0:defaultIndex]
+
+		if err := d.Delete(partialKey); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (d *DynamicYaml) merge_single(y *DynamicYaml) {

@@ -177,6 +177,10 @@ func (b *Builder) GetYamls() []*util.DynamicYaml {
 		}
 
 		temp.FlattenRequiredDefault()
+		if err := temp.HideHidden(); err != nil {
+			log.Printf("[error] %v", err.Error())
+			continue
+		}
 
 		varsArray = append(varsArray, temp)
 	}

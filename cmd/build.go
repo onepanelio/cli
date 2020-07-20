@@ -175,6 +175,9 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 	}
 
 	flatMap := yamlFile.FlattenToKeyValue(util.LowerCamelCaseFlatMapKeyFormatter)
+	if err := mapLinkedVars(flatMap, localManifestsCopyPath); err != nil {
+		return "", err
+	}
 
 	//Read workflow-config-map-hidden for the rest of the values
 	workflowEnvHiddenPath := filepath.Join(localManifestsCopyPath, "vars", "workflow-config-map-hidden.env")
@@ -490,4 +493,31 @@ func generateMetalLbAddresses(nodePoolData []*yaml2.Node) string {
 		}
 	}
 	return strings.Join(applicationNodePoolOptions, "")
+}
+
+// mapLinkedVars goes through the `default-vars.yaml` files which map variables from already existing variables
+// and set those variable values. If the value is already in the mapping, it is not mapped to the default.
+func mapLinkedVars(mapping map[string]interface{}, manifestPath string) error {
+	modelDBMapping, err := util.LoadDynamicYamlFromFile(filepath.Join(manifestPath, "modeldb", "base", "default-vars.yaml"))
+	if err != nil {
+		return err
+	}
+
+	flatMappedVars := modelDBMapping.Flatten(util.LowerCamelCaseFlatMapKeyFormatter)
+	for key, valueNode := range flatMappedVars {
+		// Skip if key already exists
+		if _, ok := mapping[key]; ok {
+			continue
+		}
+
+		valueKey := util.LowerCamelCaseStringFormat(valueNode.Value.Value, ".")
+		value, ok := mapping[valueKey]
+		if !ok {
+			return fmt.Errorf("unknown key %v", valueKey)
+		}
+
+		mapping[key] = value
+	}
+
+	return nil
 }
