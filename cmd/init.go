@@ -300,11 +300,9 @@ func validateInput() error {
 		return err
 	}
 
-	if err := validateComponents(Components); err != nil {
-		return err
-	}
+	err := validateComponents(Components)
 
-	return nil
+	return err
 }
 
 func validateProvider(prov string) error {
