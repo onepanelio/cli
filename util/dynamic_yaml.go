@@ -585,7 +585,7 @@ func (d *DynamicYaml) HideHidden() error {
 	return nil
 }
 
-func (d *DynamicYaml) merge_single(y *DynamicYaml) {
+func (d *DynamicYaml) mergeSingle(y *DynamicYaml) {
 	if len(y.node.Content) == 0 || len(y.node.Content[0].Content) == 0 {
 		return
 	}
@@ -628,9 +628,10 @@ func (d *DynamicYaml) merge_single(y *DynamicYaml) {
 	}
 }
 
+// Merge will merge two DynamicYaml's together. If keys already exist, the source is kept.
 func (d *DynamicYaml) Merge(items ...*DynamicYaml) {
 	for _, item := range items {
-		d.merge_single(item)
+		d.mergeSingle(item)
 	}
 }
 

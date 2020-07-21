@@ -75,6 +75,7 @@ func (b *Builder) addComponentSingle(componentPath string) error {
 	return nil
 }
 
+// AddComponent adds manifest components to the final result.
 func (b *Builder) AddComponent(componentPaths ...string) error {
 	for _, componentPath := range componentPaths {
 		if err := b.addComponentSingle(componentPath); err != nil {
@@ -138,6 +139,7 @@ func (b *Builder) GetOverlayComponents() []*OverlayedComponent {
 	return result
 }
 
+// AddOverlayContender adds potential overlays to the components being considered
 func (b *Builder) AddOverlayContender(contenders ...string) {
 	for _, contender := range contenders {
 		b.overlayContenders = append(b.overlayContenders, contender)
