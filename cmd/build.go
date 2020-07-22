@@ -235,7 +235,7 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 			var stringToWrite = fmt.Sprintf("%v=%v\n%v=%v\n%v=%v\n%v=%v\n",
 				"artifactRepositoryBucket", flatMap["artifactRepositoryS3Bucket"],
 				"artifactRepositoryEndpoint", flatMap["artifactRepositoryS3Endpoint"],
-				"artifactRepositoryInsecure", flatMap["artifactRepositoryIS3nsecure"],
+				"artifactRepositoryInsecure", flatMap["artifactRepositoryS3Insecure"],
 				"artifactRepositoryRegion", flatMap["artifactRepositoryS3Region"],
 			)
 			_, err = paramsFile.WriteString(stringToWrite)
