@@ -216,12 +216,23 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 		if len(keyValArr) != 2 {
 			continue
 		}
-		flatMap[keyValArr[0]] = keyValArr[1]
+		k := keyValArr[0]
+		/**
+		Do not include the extra S3 parameters if they are not set in the params.yaml
+		*/
+		if artifactRepositoryConfig.S3 == nil {
+			if strings.Contains(k, "S3") {
+				continue
+			}
+		}
+		v := keyValArr[1]
+		flatMap[k] = v
 	}
 
 	//Write to env files
 	//workflow-config-map.env
-	if yamlFile.HasKey("artifactRepository.s3") {
+	//Set extra values for S3 specific configuration.
+	if artifactRepositoryConfig.S3 != nil && artifactRepositoryConfig.GCS == nil {
 		if yamlFile.HasKeys("artifactRepository.s3.bucket", "artifactRepository.s3.endpoint", "artifactRepository.s3.insecure", "artifactRepository.s3.region") {
 			//Clear previous env file
 			paramsPath := filepath.Join(localManifestsCopyPath, "vars", "workflow-config-map.env")
