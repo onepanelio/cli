@@ -176,7 +176,7 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 	}
 
 	_, artifactRepositoryNode := yamlFile.Get("artifactRepository")
-	artifactRepositoryConfig := v1.ArtifactRepositoryConfig{}
+	artifactRepositoryConfig := v1.ArtifactRepositoryProvider{}
 	err = artifactRepositoryNode.Decode(&artifactRepositoryConfig)
 	if err != nil {
 		return "", err
