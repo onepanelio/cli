@@ -186,13 +186,13 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 		artifactRepositoryConfig.S3.AccessKeySecret.Name = "$(artifactRepositoryS3AccessKeySecretName)"
 		artifactRepositoryConfig.S3.SecretKeySecret.Key = "artifactRepositoryS3SecretKey"
 		artifactRepositoryConfig.S3.SecretKeySecret.Name = "$(artifactRepositoryS3SecretKeySecretName)"
-		err, yamlStr := artifactRepositoryConfig.S3.MarshalToYaml()
+		yamlStr, err := artifactRepositoryConfig.S3.MarshalToYaml()
 		if err != nil {
 			return "", err
 		}
 		yamlFile.Put("artifactRepositoryProvider", yamlStr)
 	} else if artifactRepositoryConfig.GCS != nil {
-		err, yamlConfigMap := artifactRepositoryConfig.GCS.MarshalToYaml()
+		yamlConfigMap, err := artifactRepositoryConfig.GCS.MarshalToYaml()
 		if err != nil {
 			return "", err
 		}
