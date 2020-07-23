@@ -2,7 +2,9 @@ package cmd
 
 import (
 	"encoding/base64"
+	"errors"
 	"fmt"
+	v1 "github.com/onepanelio/core/pkg"
 	"golang.org/x/crypto/bcrypt"
 	"io/ioutil"
 	"k8s.io/apimachinery/pkg/util/rand"
@@ -173,6 +175,32 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 		yamlFile.PutWithSeparator("metalLbSecretKey", base64.StdEncoding.EncodeToString(metalLbSecretKey), ".")
 	}
 
+	_, artifactRepositoryNode := yamlFile.Get("artifactRepository")
+	artifactRepositoryConfig := v1.ArtifactRepositoryProvider{}
+	err = artifactRepositoryNode.Decode(&artifactRepositoryConfig)
+	if err != nil {
+		return "", err
+	}
+	if artifactRepositoryConfig.S3 != nil {
+		artifactRepositoryConfig.S3.AccessKeySecret.Key = "artifactRepositoryS3AccessKey"
+		artifactRepositoryConfig.S3.AccessKeySecret.Name = "$(artifactRepositoryS3AccessKeySecretName)"
+		artifactRepositoryConfig.S3.SecretKeySecret.Key = "artifactRepositoryS3SecretKey"
+		artifactRepositoryConfig.S3.SecretKeySecret.Name = "$(artifactRepositoryS3SecretKeySecretName)"
+		yamlStr, err := artifactRepositoryConfig.S3.MarshalToYaml()
+		if err != nil {
+			return "", err
+		}
+		yamlFile.Put("artifactRepositoryProvider", yamlStr)
+	} else if artifactRepositoryConfig.GCS != nil {
+		yamlConfigMap, err := artifactRepositoryConfig.GCS.MarshalToYaml()
+		if err != nil {
+			return "", err
+		}
+
+		yamlFile.Put("artifactRepositoryProvider", yamlConfigMap)
+	} else {
+		return "", errors.New("unsupported artifactRepository configuration")
+	}
 	flatMap := yamlFile.FlattenToKeyValue(util.LowerCamelCaseFlatMapKeyFormatter)
 
 	//Read workflow-config-map-hidden for the rest of the values
@@ -188,33 +216,46 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 		if len(keyValArr) != 2 {
 			continue
 		}
-		flatMap[keyValArr[0]] = keyValArr[1]
+		k := keyValArr[0]
+		/**
+		Do not include the extra S3 parameters if they are not set in the params.yaml
+		*/
+		if artifactRepositoryConfig.S3 == nil {
+			if strings.Contains(k, "S3") {
+				continue
+			}
+		}
+		v := keyValArr[1]
+		flatMap[k] = v
 	}
 
 	//Write to env files
 	//workflow-config-map.env
-	if yamlFile.HasKeys("artifactRepository.s3.bucket", "artifactRepository.s3.endpoint", "artifactRepository.s3.insecure", "artifactRepository.s3.region") {
-		//Clear previous env file
-		paramsPath := filepath.Join(localManifestsCopyPath, "vars", "workflow-config-map.env")
-		if _, err := files.DeleteIfExists(paramsPath); err != nil {
-			return "", err
+	//Set extra values for S3 specific configuration.
+	if artifactRepositoryConfig.S3 != nil && artifactRepositoryConfig.GCS == nil {
+		if yamlFile.HasKeys("artifactRepository.s3.bucket", "artifactRepository.s3.endpoint", "artifactRepository.s3.insecure", "artifactRepository.s3.region") {
+			//Clear previous env file
+			paramsPath := filepath.Join(localManifestsCopyPath, "vars", "workflow-config-map.env")
+			if _, err := files.DeleteIfExists(paramsPath); err != nil {
+				return "", err
+			}
+			paramsFile, err := os.Create(paramsPath)
+			if err != nil {
+				return "", err
+			}
+			var stringToWrite = fmt.Sprintf("%v=%v\n%v=%v\n%v=%v\n%v=%v\n",
+				"artifactRepositoryBucket", flatMap["artifactRepositoryS3Bucket"],
+				"artifactRepositoryEndpoint", flatMap["artifactRepositoryS3Endpoint"],
+				"artifactRepositoryInsecure", flatMap["artifactRepositoryS3Insecure"],
+				"artifactRepositoryRegion", flatMap["artifactRepositoryS3Region"],
+			)
+			_, err = paramsFile.WriteString(stringToWrite)
+			if err != nil {
+				return "", err
+			}
+		} else {
+			log.Fatal("Missing required values in params.yaml, artifactRepository. Check bucket, endpoint, or insecure.")
 		}
-		paramsFile, err := os.Create(paramsPath)
-		if err != nil {
-			return "", err
-		}
-		var stringToWrite = fmt.Sprintf("%v=%v\n%v=%v\n%v=%v\n%v=%v\n",
-			"artifactRepositoryBucket", flatMap["artifactRepositoryS3Bucket"],
-			"artifactRepositoryEndpoint", flatMap["artifactRepositoryS3Endpoint"],
-			"artifactRepositoryInsecure", flatMap["artifactRepositoryIS3nsecure"],
-			"artifactRepositoryRegion", flatMap["artifactRepositoryS3Region"],
-		)
-		_, err = paramsFile.WriteString(stringToWrite)
-		if err != nil {
-			return "", err
-		}
-	} else {
-		log.Fatal("Missing required values in params.yaml, artifactRepository. Check bucket, endpoint, or insecure.")
 	}
 	//logging-config-map.env, optional component
 	if yamlFile.HasKey("logging.image") &&
@@ -259,39 +300,40 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 		log.Fatal("Missing required values in params.yaml, applicationDefaultNamespace")
 	}
 	//Write to secret files
-	//common/onepanel/base/secrets.yaml
 	var secretKeysValues []string
-	if yamlFile.HasKey("artifactRepository.s3.accessKey") &&
-		yamlFile.HasKey("artifactRepository.s3.secretKey") {
-		secretKeysValues = append(secretKeysValues, "artifactRepositoryS3AccessKey", "artifactRepositoryS3SecretKey")
-		for _, key := range secretKeysValues {
-			//Path to secrets file
-			secretsPath := filepath.Join(localManifestsCopyPath, "common", "onepanel", "base", "secret-onepanel-defaultnamespace.yaml")
-			//Read the file, replace the specific value, write the file back
-			secretFileContent, secretFileOpenErr := ioutil.ReadFile(secretsPath)
-			if secretFileOpenErr != nil {
-				return "", secretFileOpenErr
+	artifactRepoSecretPlaceholder := "$(artifactRepositoryProviderSecret)"
+	if yamlFile.HasKey("artifactRepository.s3") {
+		if yamlFile.HasKey("artifactRepository.s3.accessKey") &&
+			yamlFile.HasKey("artifactRepository.s3.secretKey") {
+			secretKeysValues = append(secretKeysValues, "artifactRepositoryS3AccessKey", "artifactRepositoryS3SecretKey")
+
+			artifactRepoS3Secret := fmt.Sprintf(
+				"artifactRepositoryS3AccessKey: %v"+
+					"\n  artifactRepositoryS3SecretKey: %v",
+				flatMap["artifactRepositoryS3AccessKey"], flatMap["artifactRepositoryS3SecretKey"])
+
+			err = replacePlaceholderForSecretManiFile(localManifestsCopyPath, artifactRepoSecretPlaceholder, artifactRepoS3Secret)
+			if err != nil {
+				return "", err
 			}
-			secretFileContentStr := string(secretFileContent)
-			value := flatMap[key]
-			oldString := "$(" + key + ")"
-			if strings.Contains(secretFileContentStr, key) {
-				valueStr, ok := value.(string)
-				if !ok {
-					valueBool, _ := value.(bool)
-					valueStr = strconv.FormatBool(valueBool)
-				}
-				secretFileContentStr = strings.Replace(secretFileContentStr, oldString, valueStr, 1)
-				writeFileErr := ioutil.WriteFile(secretsPath, []byte(secretFileContentStr), 0644)
-				if writeFileErr != nil {
-					return "", writeFileErr
-				}
-			} else {
-				fmt.Printf("Key: %v not present in %v, not used.\n", key, secretsPath)
-			}
+		} else {
+			log.Fatal("Missing required values in params.yaml, artifactRepository. Check accessKey, or secretKey.")
 		}
-	} else {
-		log.Fatal("Missing required values in params.yaml, artifactRepository. Check accessKey, or secretKey.")
+	}
+	if yamlFile.HasKey("artifactRepository.gcs") {
+		if yamlFile.HasKey("artifactRepository.gcs.serviceAccountKey") {
+			_, val := yamlFile.Get("artifactRepository.gcs.serviceAccountKey")
+			if val.Value == "" {
+				log.Fatal("artifactRepository.gcs.serviceAccountKey cannot be empty.")
+			}
+			artifactRepoS3Secret := "serviceAccountKey: '" + val.Value + "'"
+			err = replacePlaceholderForSecretManiFile(localManifestsCopyPath, artifactRepoSecretPlaceholder, artifactRepoS3Secret)
+			if err != nil {
+				return "", err
+			}
+		} else {
+			log.Fatal("Missing required values in params.yaml, artifactRepository. artifactRepository.gcs.serviceAccountKey.")
+		}
 	}
 
 	//To properly replace $(applicationDefaultNamespace), we need to update it in quite a few files.
@@ -357,6 +399,27 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 	kustYaml, err := rm.AsYaml()
 
 	return string(kustYaml), nil
+}
+
+func replacePlaceholderForSecretManiFile(localManifestsCopyPath string, artifactRepoSecretPlaceholder string, artifactRepoSecretVal string) error {
+	//Path to secrets file
+	secretsPath := filepath.Join(localManifestsCopyPath, "common", "onepanel", "base", "secret-onepanel-defaultnamespace.yaml")
+	//Read the file, replace the specific value, write the file back
+	secretFileContent, secretFileOpenErr := ioutil.ReadFile(secretsPath)
+	if secretFileOpenErr != nil {
+		return secretFileOpenErr
+	}
+	secretFileContentStr := string(secretFileContent)
+	if strings.Contains(secretFileContentStr, artifactRepoSecretPlaceholder) {
+		secretFileContentStr = strings.Replace(secretFileContentStr, artifactRepoSecretPlaceholder, artifactRepoSecretVal, 1)
+		writeFileErr := ioutil.WriteFile(secretsPath, []byte(secretFileContentStr), 0644)
+		if writeFileErr != nil {
+			return writeFileErr
+		}
+	} else {
+		fmt.Printf("Key: %v not present in %v, not used.\n", artifactRepoSecretPlaceholder, secretsPath)
+	}
+	return nil
 }
 
 func BuilderToTemplate(builder *manifest.Builder) template.Kustomize {

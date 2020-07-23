@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -16,20 +17,23 @@ import (
 )
 
 const (
-	manifestsFilePath = ".onepanel/manifests"
+	manifestsFilePath             = ".onepanel/manifests"
+	artifactRepositoryProviderS3  = "s3"
+	artifactRepositoryProviderGcs = "gcs"
 )
 
 var (
-	ConfigurationFilePath string
-	ParametersFilePath    string
-	Provider              string
-	DNS                   string
-	Dev                   bool
-	EnableEFKLogging      bool
-	EnableHTTPS           bool
-	EnableCertManager     bool
-	EnableMetalLb         bool
-	GPUDevicePlugins      []string
+	ConfigurationFilePath      string
+	ParametersFilePath         string
+	Provider                   string
+	DNS                        string
+	ArtifactRepositoryProvider string
+	Dev                        bool
+	EnableEFKLogging           bool
+	EnableHTTPS                bool
+	EnableCertManager          bool
+	EnableMetalLb              bool
+	GPUDevicePlugins           []string
 )
 
 type ProviderProperties struct {
@@ -75,6 +79,13 @@ var initCmd = &cobra.Command{
 		}
 
 		if err := validateProvider(Provider); err != nil {
+			fmt.Println(err.Error())
+			return
+		}
+
+		if ArtifactRepositoryProvider == "" {
+			ArtifactRepositoryProvider = artifactRepositoryProviderS3
+		} else if err := validateArtifactRepositoryProvider(ArtifactRepositoryProvider); err != nil {
 			fmt.Println(err.Error())
 			return
 		}
@@ -245,6 +256,8 @@ var initCmd = &cobra.Command{
 		mergedParams.Put("application.insecure", !EnableHTTPS)
 		mergedParams.Put("application.provider", Provider)
 
+		removeUneededArtifactRepositoryProviders(mergedParams)
+
 		paramsFile, err := os.OpenFile(ParametersFilePath, os.O_RDWR, 0)
 		if err != nil {
 			log.Printf("Error opening parameters file: %v", err.Error())
@@ -297,6 +310,7 @@ func init() {
 
 	initCmd.Flags().StringVarP(&Provider, "provider", "p", "", "Cloud provider. Valid values are: aks, gke, eks")
 	initCmd.Flags().StringVarP(&DNS, "dns-provider", "d", "", "Provider for DNS. Valid values are: azuredns, clouddns (google), cloudflare, route53")
+	initCmd.Flags().StringVarP(&ArtifactRepositoryProvider, "artifact-repository-provider", "", "", "Artifact Storage Provider for argo. Valid values are: s3, gcs")
 	initCmd.Flags().StringVarP(&ConfigurationFilePath, "config", "c", "config.yaml", "File path of the resulting config file")
 	initCmd.Flags().StringVarP(&ParametersFilePath, "params", "e", "params.yaml", "File path of the resulting parameters file")
 	initCmd.Flags().BoolVarP(&EnableEFKLogging, "enable-efk-logging", "", false, "Enable Elasticsearch, Fluentd and Kibana (EFK) logging")
@@ -315,6 +329,18 @@ func validateProvider(prov string) error {
 	}
 
 	return nil
+}
+
+func validateArtifactRepositoryProvider(arRepoProv string) error {
+	if arRepoProv == "" {
+		return errors.New("artifact repository provider cannot be empty")
+	}
+
+	if arRepoProv == artifactRepositoryProviderS3 ||
+		arRepoProv == artifactRepositoryProviderGcs {
+		return nil
+	}
+	return errors.New("unrecognized artifact repository provider value")
 }
 
 func validateDNS(dns string) error {
@@ -355,4 +381,23 @@ func addDNSProviderToManifestBuilder(dns string, builder *manifest.Builder) erro
 
 	overlay := strings.Join([]string{"cert-manager", "overlays", dns}, string(os.PathSeparator))
 	return builder.AddOverlay(overlay)
+}
+
+func removeUneededArtifactRepositoryProviders(mergedParams *util.DynamicYaml) {
+	artifactRepoProviders := []string{artifactRepositoryProviderS3, artifactRepositoryProviderGcs}
+	var nodeKeyStr string
+	for _, artRepoProv := range artifactRepoProviders {
+		if ArtifactRepositoryProvider == artRepoProv {
+			continue
+		}
+		nodeKeyStr = "artifactRepository." + artRepoProv
+		nodeKey, _ := mergedParams.Get(nodeKeyStr)
+		if nodeKey != nil {
+			err := mergedParams.Delete(nodeKeyStr)
+			if err != nil {
+				log.Printf("error during init, artifact repository provider. %v", err.Error())
+				return
+			}
+		}
+	}
 }
