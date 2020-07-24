@@ -229,6 +229,29 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 		flatMap[k] = v
 	}
 
+	//Replace artifactRepository placeholders for S3
+	if artifactRepositoryConfig.S3 != nil {
+		artifactRepositoryS3AccessKeySecretName, ok := flatMap["artifactRepositoryS3AccessKeySecretName"].(string)
+		if !ok {
+			if err != nil {
+				return "", err
+			}
+		}
+		artifactRepositoryS3SecretKeySecretName, ok := flatMap["artifactRepositoryS3SecretKeySecretName"].(string)
+		if !ok {
+			if err != nil {
+				return "", err
+			}
+		}
+		artifactRepositoryConfig.S3.AccessKeySecret.Name = artifactRepositoryS3AccessKeySecretName
+		artifactRepositoryConfig.S3.SecretKeySecret.Name = artifactRepositoryS3SecretKeySecretName
+		yamlStr, err := artifactRepositoryConfig.S3.MarshalToYaml()
+		if err != nil {
+			return "", err
+		}
+		flatMap["artifactRepositoryProvider"] = yamlStr
+	}
+
 	//Write to env files
 	//workflow-config-map.env
 	//Set extra values for S3 specific configuration.
