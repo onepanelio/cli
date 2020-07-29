@@ -30,7 +30,7 @@ var (
 	EnableCertManager     bool
 	EnableMetalLb         bool
 	GPUDevicePlugins      []string
-	Components            []string
+	Services              []string
 )
 
 type ProviderProperties struct {
@@ -176,8 +176,8 @@ var initCmd = &cobra.Command{
 			bld.AddOverlayContender("https")
 		}
 
-		if Components != nil {
-			if err := bld.AddComponent(Components...); err != nil {
+		if Services != nil {
+			if err := bld.AddComponent(Services...); err != nil {
 				log.Printf("[error] Adding Components: %v", err.Error())
 			}
 		}
@@ -270,7 +270,7 @@ func init() {
 	initCmd.Flags().BoolVarP(&EnableCertManager, "enable-cert-manager", "", false, "Automatically create/renew TLS certs using Let's Encrypt")
 	initCmd.Flags().BoolVarP(&EnableMetalLb, "enable-metallb", "", false, "Automatically create a LoadBalancer for non-cloud deployments.")
 	initCmd.Flags().StringSliceVarP(&GPUDevicePlugins, "gpu-device-plugins", "", nil, "Install NVIDIA and/or AMD gpu device plugins. Valid values can be comma separated and are: amd, nvidia")
-	initCmd.Flags().StringSliceVarP(&Components, "components", "", nil, "Install additional components. Valid values can be comma separated and are: modeldb")
+	initCmd.Flags().StringSliceVarP(&Services, "services", "", nil, "Install additional services. Valid values can be comma separated and are: modeldb")
 
 	initCmd.MarkFlagRequired("provider")
 }
@@ -300,7 +300,7 @@ func validateInput() error {
 		return err
 	}
 
-	err := validateComponents(Components)
+	err := validateServices(Services)
 
 	return err
 }
@@ -336,12 +336,12 @@ func validateGPUPlugins(gpuPlugins []string) error {
 	return nil
 }
 
-func validateComponents(components []string) error {
-	if components == nil {
+func validateServices(services []string) error {
+	if services == nil {
 		return nil
 	}
 
-	for _, c := range components {
+	for _, c := range services {
 		if c != "modeldb" {
 			return fmt.Errorf("%v is not a valid --component value", c)
 		}
