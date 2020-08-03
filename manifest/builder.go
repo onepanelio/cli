@@ -5,7 +5,7 @@ import (
 	"github.com/onepanelio/cli/files"
 	"github.com/onepanelio/cli/util"
 	"log"
-	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -54,7 +54,7 @@ func CreateBuilder(manifest *Manifest) *Builder {
 	return b
 }
 
-func (b *Builder) AddComponent(componentPath string) error {
+func (b *Builder) addComponentSingle(componentPath string) error {
 	component := b.manifest.GetComponent(componentPath)
 
 	if component == nil {
@@ -71,6 +71,17 @@ func (b *Builder) AddComponent(componentPath string) error {
 	}
 
 	b.overlayedComponents[componentPath] = overlayedComponent
+
+	return nil
+}
+
+// AddComponent adds manifest components to the final result.
+func (b *Builder) AddComponent(componentPaths ...string) error {
+	for _, componentPath := range componentPaths {
+		if err := b.addComponentSingle(componentPath); err != nil {
+			return err
+		}
+	}
 
 	return nil
 }
@@ -128,8 +139,11 @@ func (b *Builder) GetOverlayComponents() []*OverlayedComponent {
 	return result
 }
 
-func (b *Builder) AddOverlayContender(contender string) {
-	b.overlayContenders = append(b.overlayContenders, contender)
+// AddOverlayContender adds potential overlays to the components being considered
+func (b *Builder) AddOverlayContender(contenders ...string) {
+	for _, contender := range contenders {
+		b.overlayContenders = append(b.overlayContenders, contender)
+	}
 }
 
 func (b *Builder) Build() error {
@@ -165,6 +179,10 @@ func (b *Builder) GetYamls() []*util.DynamicYaml {
 		}
 
 		temp.FlattenRequiredDefault()
+		if err := temp.HideHidden(); err != nil {
+			log.Printf("[error] %v", err.Error())
+			continue
+		}
 
 		varsArray = append(varsArray, temp)
 	}
@@ -188,7 +206,7 @@ func (b *Builder) GetVarsFilePaths() []string {
 	existingFilePaths := make([]string, 0)
 
 	for _, path := range vars {
-		fullPath := b.manifest.path + string(os.PathSeparator) + path
+		fullPath := filepath.Join(b.manifest.path, path)
 		exists, err := files.Exists(fullPath)
 		if err != nil {
 			log.Printf("[error] files.Exists(%v) %v", path, err.Error())
