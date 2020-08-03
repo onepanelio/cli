@@ -45,6 +45,7 @@ var generateCmd = &cobra.Command{
 		config, err := opConfig.FromFile(configFilePath)
 		if err != nil {
 			fmt.Printf("Unable to read configuration file: %v", err.Error())
+			fmt.Println() // This gives us a newline as we get an extra "exiting" message
 			return
 		}
 
@@ -115,7 +116,7 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 	}
 
 	fqdn := yamlFile.GetValue("application.fqdn").Value
-	cloudSettings, err := util.LoadDynamicYamlFromFile(config.Spec.ManifestsRepo + string(os.PathSeparator) + "vars" + string(os.PathSeparator) + "onepanel-config-map-hidden.env")
+	cloudSettings, err := util.LoadDynamicYamlFromFile(filepath.Join(config.Spec.ManifestsRepo, "vars", "onepanel-config-map-hidden.env"))
 	if err != nil {
 		return "", err
 	}
@@ -202,6 +203,9 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 		return "", errors.New("unsupported artifactRepository configuration")
 	}
 	flatMap := yamlFile.FlattenToKeyValue(util.LowerCamelCaseFlatMapKeyFormatter)
+	if err := mapLinkedVars(flatMap, localManifestsCopyPath); err != nil {
+		return "", err
+	}
 
 	//Read workflow-config-map-hidden for the rest of the values
 	workflowEnvHiddenPath := filepath.Join(localManifestsCopyPath, "vars", "workflow-config-map-hidden.env")
@@ -281,8 +285,7 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 		}
 	}
 	//logging-config-map.env, optional component
-	if yamlFile.HasKey("logging.image") &&
-		yamlFile.HasKey("logging.volumeStorage") {
+	if yamlFile.HasKeys("logging.image", "logging.volumeStorage") {
 		//Clear previous env file
 		paramsPath := filepath.Join(localManifestsCopyPath, "vars", "logging-config-map.env")
 		if _, err := files.DeleteIfExists(paramsPath); err != nil {
@@ -326,8 +329,7 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 	var secretKeysValues []string
 	artifactRepoSecretPlaceholder := "$(artifactRepositoryProviderSecret)"
 	if yamlFile.HasKey("artifactRepository.s3") {
-		if yamlFile.HasKey("artifactRepository.s3.accessKey") &&
-			yamlFile.HasKey("artifactRepository.s3.secretKey") {
+		if yamlFile.HasKeys("artifactRepository.s3.accessKey", "artifactRepository.s3.secretKey") {
 			secretKeysValues = append(secretKeysValues, "artifactRepositoryS3AccessKey", "artifactRepositoryS3SecretKey")
 
 			artifactRepoS3Secret := fmt.Sprintf(
@@ -561,4 +563,31 @@ func generateMetalLbAddresses(nodePoolData []*yaml2.Node) string {
 		}
 	}
 	return strings.Join(applicationNodePoolOptions, "")
+}
+
+// mapLinkedVars goes through the `default-vars.yaml` files which map variables from already existing variables
+// and set those variable values. If the value is already in the mapping, it is not mapped to the default.
+func mapLinkedVars(mapping map[string]interface{}, manifestPath string) error {
+	modelDBMapping, err := util.LoadDynamicYamlFromFile(filepath.Join(manifestPath, "modeldb", "base", "default-vars.yaml"))
+	if err != nil {
+		return err
+	}
+
+	flatMappedVars := modelDBMapping.Flatten(util.LowerCamelCaseFlatMapKeyFormatter)
+	for key, valueNode := range flatMappedVars {
+		// Skip if key already exists
+		if _, ok := mapping[key]; ok {
+			continue
+		}
+
+		valueKey := util.LowerCamelCaseStringFormat(valueNode.Value.Value, ".")
+		value, ok := mapping[valueKey]
+		if !ok {
+			return fmt.Errorf("unknown key %v", valueKey)
+		}
+
+		mapping[key] = value
+	}
+
+	return nil
 }
