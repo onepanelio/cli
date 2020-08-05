@@ -419,4 +419,11 @@ func removeUneededArtifactRepositoryProviders(mergedParams *util.DynamicYaml) {
 			}
 		}
 	}
+
+	parentValue := mergedParams.GetValue("artifactRepository")
+	if len(parentValue.Content) == 0 {
+		if err := mergedParams.Delete("artifactRepository"); err != nil {
+			log.Printf("error during init, artifact repository provider. %v", err)
+		}
+	}
 }
