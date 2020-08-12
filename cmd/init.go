@@ -225,7 +225,7 @@ var initCmd = &cobra.Command{
 			return
 		}
 
-		paramsFile, err := os.OpenFile(ParametersFilePath, os.O_RDWR, 0)
+		paramsFile, err := os.OpenFile(ParametersFilePath, os.O_RDWR|os.O_TRUNC, 0)
 		if err != nil {
 			log.Printf("Error opening parameters file: %v", err.Error())
 			return
