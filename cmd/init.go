@@ -280,7 +280,9 @@ func init() {
 	initCmd.Flags().StringSliceVarP(&GPUDevicePlugins, "gpu-device-plugins", "", nil, "Install NVIDIA and/or AMD gpu device plugins. Valid values can be comma separated and are: amd, nvidia")
 	initCmd.Flags().StringSliceVarP(&Services, "services", "", nil, "Install additional services. Valid values can be comma separated and are: modeldb")
 
-	initCmd.MarkFlagRequired("provider")
+	if err := initCmd.MarkFlagRequired("provider"); err != nil {
+		log.Printf("[error] %v", err)
+	}
 }
 
 func validateInput() error {
@@ -308,9 +310,19 @@ func validateInput() error {
 		return err
 	}
 
-	err := validateServices(Services)
+	if err := validateServices(Services); err != nil {
+		return err
+	}
 
-	return err
+	for _, c := range Services {
+		if c == "modeldb" {
+			if ArtifactRepositoryProvider == artifactRepositoryProviderGcs {
+				return fmt.Errorf("modeldb is currently not supported with GCS")
+			}
+		}
+	}
+
+	return nil
 }
 
 func validateProvider(prov string) error {
