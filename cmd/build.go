@@ -203,7 +203,7 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 		return "", errors.New("unsupported artifactRepository configuration")
 	}
 	flatMap := yamlFile.FlattenToKeyValue(util.LowerCamelCaseFlatMapKeyFormatter)
-	if err := mapLinkedVars(flatMap, localManifestsCopyPath); err != nil {
+	if err := mapLinkedVars(flatMap, localManifestsCopyPath, &config); err != nil {
 		return "", err
 	}
 
@@ -567,7 +567,19 @@ func generateMetalLbAddresses(nodePoolData []*yaml2.Node) string {
 
 // mapLinkedVars goes through the `default-vars.yaml` files which map variables from already existing variables
 // and set those variable values. If the value is already in the mapping, it is not mapped to the default.
-func mapLinkedVars(mapping map[string]interface{}, manifestPath string) error {
+func mapLinkedVars(mapping map[string]interface{}, manifestPath string, config *opConfig.Config) error {
+	linkVars := false
+	for _, component := range config.Spec.Components {
+		if strings.Contains(component, "modeldb") {
+			linkVars = true
+			break
+		}
+	}
+
+	if !linkVars {
+		return nil
+	}
+
 	modelDBMapping, err := util.LoadDynamicYamlFromFile(filepath.Join(manifestPath, "modeldb", "base", "default-vars.yaml"))
 	if err != nil {
 		return err
