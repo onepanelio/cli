@@ -67,7 +67,7 @@ var initCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 
 		if err := validateInput(); err != nil {
-			log.Printf(err.Error())
+			log.Println(err.Error())
 			return
 		}
 
@@ -310,6 +310,10 @@ func validateInput() error {
 		return err
 	}
 
+	if err := validateArtifactRepositoryProvider(ArtifactRepositoryProvider); err != nil {
+		return err
+	}
+
 	if err := validateServices(Services); err != nil {
 		return err
 	}
@@ -336,14 +340,14 @@ func validateProvider(prov string) error {
 
 func validateArtifactRepositoryProvider(arRepoProv string) error {
 	if arRepoProv == "" {
-		return errors.New("artifact repository provider cannot be empty")
+		return errors.New("artifact-repository-provider is required. Valid values are: s3, gcs")
 	}
 
 	if arRepoProv == artifactRepositoryProviderS3 ||
 		arRepoProv == artifactRepositoryProviderGcs {
 		return nil
 	}
-	return errors.New("unrecognized artifact repository provider value")
+	return fmt.Errorf("'%v' is not a valid --artifact-repository-provider value. Valid values are: s3, gcs", arRepoProv)
 }
 
 func validateDNS(dns string) error {
