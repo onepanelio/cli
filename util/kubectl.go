@@ -13,6 +13,7 @@ import (
 	"k8s.io/kubectl/pkg/cmd/get"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"os"
+	"runtime"
 	"strconv"
 )
 
@@ -188,7 +189,13 @@ func GetClusterIp(url string) {
 		provider := yamlFile.GetValue("application.provider").Value
 		if provider == "minikube" || provider == "microk8s" {
 			fqdn := yamlFile.GetValue("application.fqdn").Value
-			fmt.Printf("\nIn your /etc/hosts file, add %v and point it to %v\n", stdout, fqdn)
+
+			hostsPath := "/etc/hosts"
+			if runtime.GOOS == "windows" {
+				hostsPath = "C:\\Windows\\System32\\Drivers\\etc\\hosts"
+			}
+
+			fmt.Printf("\nIn your %v file, add %v and point it to %v\n", hostsPath, stdout, fqdn)
 		} else {
 			dnsRecordMessage = "an A"
 			if !IsIpv4(stdout) {
