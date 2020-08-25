@@ -1,9 +1,11 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/onepanelio/cli/config"
@@ -16,20 +18,24 @@ import (
 )
 
 const (
-	manifestsFilePath = ".onepanel/manifests"
+	manifestsFilePath             = ".onepanel/manifests"
+	artifactRepositoryProviderS3  = "s3"
+	artifactRepositoryProviderGcs = "gcs"
 )
 
 var (
-	ConfigurationFilePath string
-	ParametersFilePath    string
-	Provider              string
-	DNS                   string
-	Dev                   bool
-	EnableEFKLogging      bool
-	EnableHTTPS           bool
-	EnableCertManager     bool
-	EnableMetalLb         bool
-	GPUDevicePlugins      []string
+	ConfigurationFilePath      string
+	ParametersFilePath         string
+	Provider                   string
+	DNS                        string
+	ArtifactRepositoryProvider string
+	Dev                        bool
+	EnableEFKLogging           bool
+	EnableHTTPS                bool
+	EnableCertManager          bool
+	EnableMetalLb              bool
+	GPUDevicePlugins           []string
+	Services                   []string
 )
 
 type ProviderProperties struct {
@@ -57,44 +63,16 @@ var providerProperties = map[string]ProviderProperties{
 // initCmd represents the init command
 var initCmd = &cobra.Command{
 	Use:   "init",
-	Short: "Gets latests manifests and generates params.yaml file.",
+	Short: "Gets latest manifests and generates params.yaml file.",
 	Run: func(cmd *cobra.Command, args []string) {
-		if EnableCertManager && !EnableHTTPS {
-			log.Printf("enable-https flag is required when enable-cert-manager is set")
-			return
-		}
 
-		if EnableCertManager && DNS == "" {
-			log.Printf("dns-provider flag is required when enable-cert-manager is set")
+		if err := validateInput(); err != nil {
+			log.Println(err.Error())
 			return
-		}
-
-		if !EnableCertManager && DNS != "" {
-			log.Printf("enable-cert-manager flag is required when dns-provider is set")
-			return
-		}
-
-		if err := validateProvider(Provider); err != nil {
-			fmt.Println(err.Error())
-			return
-		}
-
-		if err := validateDNS(DNS); err != nil {
-			fmt.Println(err.Error())
-			return
-		}
-
-		if GPUDevicePlugins != nil {
-			for _, p := range GPUDevicePlugins {
-				if p != "amd" && p != "nvidia" {
-					log.Printf("%v is not a valid --gpu-device-plugins value", p)
-					return
-				}
-			}
 		}
 
 		log.Printf("Initializing...")
-		configFile := ".onepanel/cli_config.yaml"
+		configFile := filepath.Join(".onepanel/cli_config.yaml")
 		exists, err := files.Exists(configFile)
 		if err != nil {
 			log.Printf("[error] checking for config file %v", configFile)
@@ -135,7 +113,7 @@ var initCmd = &cobra.Command{
 			fmt.Printf("cli_config.yaml is using %v as source, ignoring CLI tag: %v", manifest.SourceDirectory, config.CLIVersion)
 		}
 
-		if err := source.MoveToDirectory(manifestsFilePath); err != nil {
+		if err := source.MoveToDirectory(filepath.Join(manifestsFilePath)); err != nil {
 			log.Printf("[error] %v", err.Error())
 			return
 		}
@@ -146,17 +124,8 @@ var initCmd = &cobra.Command{
 			return
 		}
 
-		exists, err = files.Exists(ParametersFilePath)
-		if err != nil {
-			log.Printf("unable to check if %v file exists: %v", ParametersFilePath, err.Error())
-			return
-		}
-
-		if !exists {
-			if _, err := os.Create(ParametersFilePath); err != nil {
-				log.Printf("unable to create %v file: %v", ParametersFilePath, err.Error())
-				return
-			}
+		if err := files.CreateIfNotExist(ParametersFilePath); err != nil {
+			log.Println(err.Error())
 		}
 
 		setup := config.Config{
@@ -203,15 +172,19 @@ var initCmd = &cobra.Command{
 				return
 			}
 
-			for _, p := range GPUDevicePlugins {
-				bld.AddOverlayContender(p)
-			}
+			bld.AddOverlayContender(GPUDevicePlugins...)
 		}
 
 		bld.AddOverlayContender("cloud")
 
 		if EnableHTTPS {
 			bld.AddOverlayContender("https")
+		}
+
+		if Services != nil {
+			if err := bld.AddComponent(Services...); err != nil {
+				log.Printf("[error] Adding Components: %v", err.Error())
+			}
 		}
 
 		if err := bld.Build(); err != nil {
@@ -238,23 +211,23 @@ var initCmd = &cobra.Command{
 			return
 		}
 
-		for _, newYaml := range bld.GetYamls() {
-			mergedParams.Merge(newYaml)
-		}
+		mergedParams.Merge(bld.GetYamls()...)
 
 		mergedParams.Put("application.insecure", !EnableHTTPS)
 		mergedParams.Put("application.provider", Provider)
 
-		paramsFile, err := os.OpenFile(ParametersFilePath, os.O_RDWR, 0)
-		if err != nil {
-			log.Printf("Error opening parameters file: %v", err.Error())
-			return
-		}
+		removeUneededArtifactRepositoryProviders(mergedParams)
 
 		mergedParams.Sort()
 		paramsString, err := mergedParams.String()
 		if err != nil {
 			log.Printf("[error] unable to write params to a string")
+			return
+		}
+
+		paramsFile, err := os.OpenFile(ParametersFilePath, os.O_RDWR|os.O_TRUNC, 0)
+		if err != nil {
+			log.Printf("Error opening parameters file: %v", err.Error())
 			return
 		}
 
@@ -297,6 +270,7 @@ func init() {
 
 	initCmd.Flags().StringVarP(&Provider, "provider", "p", "", "Cloud provider. Valid values are: aks, gke, eks")
 	initCmd.Flags().StringVarP(&DNS, "dns-provider", "d", "", "Provider for DNS. Valid values are: azuredns, clouddns (google), cloudflare, route53")
+	initCmd.Flags().StringVarP(&ArtifactRepositoryProvider, "artifact-repository-provider", "", "", "Artifact Storage Provider for argo. Valid values are: s3, gcs")
 	initCmd.Flags().StringVarP(&ConfigurationFilePath, "config", "c", "config.yaml", "File path of the resulting config file")
 	initCmd.Flags().StringVarP(&ParametersFilePath, "params", "e", "params.yaml", "File path of the resulting parameters file")
 	initCmd.Flags().BoolVarP(&EnableEFKLogging, "enable-efk-logging", "", false, "Enable Elasticsearch, Fluentd and Kibana (EFK) logging")
@@ -304,8 +278,55 @@ func init() {
 	initCmd.Flags().BoolVarP(&EnableCertManager, "enable-cert-manager", "", false, "Automatically create/renew TLS certs using Let's Encrypt")
 	initCmd.Flags().BoolVarP(&EnableMetalLb, "enable-metallb", "", false, "Automatically create a LoadBalancer for non-cloud deployments.")
 	initCmd.Flags().StringSliceVarP(&GPUDevicePlugins, "gpu-device-plugins", "", nil, "Install NVIDIA and/or AMD gpu device plugins. Valid values can be comma separated and are: amd, nvidia")
+	initCmd.Flags().StringSliceVarP(&Services, "services", "", nil, "Install additional services. Valid values can be comma separated and are: modeldb")
 
-	initCmd.MarkFlagRequired("provider")
+	if err := initCmd.MarkFlagRequired("provider"); err != nil {
+		log.Printf("[error] %v", err)
+	}
+}
+
+func validateInput() error {
+	if EnableCertManager && !EnableHTTPS {
+		return fmt.Errorf("enable-https flag is required when enable-cert-manager is set")
+	}
+
+	if EnableCertManager && DNS == "" {
+		return fmt.Errorf("dns-provider flag is required when enable-cert-manager is set")
+	}
+
+	if !EnableCertManager && DNS != "" {
+		return fmt.Errorf("enable-cert-manager flag is required when dns-provider is set")
+	}
+
+	if err := validateProvider(Provider); err != nil {
+		return err
+	}
+
+	if err := validateDNS(DNS); err != nil {
+		return err
+	}
+
+	if err := validateGPUPlugins(GPUDevicePlugins); err != nil {
+		return err
+	}
+
+	if err := validateArtifactRepositoryProvider(ArtifactRepositoryProvider); err != nil {
+		return err
+	}
+
+	if err := validateServices(Services); err != nil {
+		return err
+	}
+
+	for _, c := range Services {
+		if c == "modeldb" {
+			if ArtifactRepositoryProvider == artifactRepositoryProviderGcs {
+				return fmt.Errorf("modeldb is currently not supported with GCS")
+			}
+		}
+	}
+
+	return nil
 }
 
 func validateProvider(prov string) error {
@@ -317,9 +338,49 @@ func validateProvider(prov string) error {
 	return nil
 }
 
+func validateArtifactRepositoryProvider(arRepoProv string) error {
+	if arRepoProv == "" {
+		return errors.New("artifact-repository-provider is required. Valid values are: s3, gcs")
+	}
+
+	if arRepoProv == artifactRepositoryProviderS3 ||
+		arRepoProv == artifactRepositoryProviderGcs {
+		return nil
+	}
+	return fmt.Errorf("'%v' is not a valid --artifact-repository-provider value. Valid values are: s3, gcs", arRepoProv)
+}
+
 func validateDNS(dns string) error {
 	if dns != "route53" && dns != "" && dns != "clouddns" && dns != "azuredns" && dns != "cloudflare" {
 		return fmt.Errorf("unsupported dns %v", dns)
+	}
+
+	return nil
+}
+
+func validateGPUPlugins(gpuPlugins []string) error {
+	if gpuPlugins == nil {
+		return nil
+	}
+
+	for _, p := range GPUDevicePlugins {
+		if p != "amd" && p != "nvidia" {
+			return fmt.Errorf("%v is not a valid --gpu-device-plugins value", p)
+		}
+	}
+
+	return nil
+}
+
+func validateServices(services []string) error {
+	if services == nil {
+		return nil
+	}
+
+	for _, c := range services {
+		if c != "modeldb" {
+			return fmt.Errorf("%v is not a valid --component value", c)
+		}
 	}
 
 	return nil
@@ -355,4 +416,30 @@ func addDNSProviderToManifestBuilder(dns string, builder *manifest.Builder) erro
 
 	overlay := strings.Join([]string{"cert-manager", "overlays", dns}, string(os.PathSeparator))
 	return builder.AddOverlay(overlay)
+}
+
+func removeUneededArtifactRepositoryProviders(mergedParams *util.DynamicYaml) {
+	artifactRepoProviders := []string{artifactRepositoryProviderS3, artifactRepositoryProviderGcs}
+	var nodeKeyStr string
+	for _, artRepoProv := range artifactRepoProviders {
+		if ArtifactRepositoryProvider == artRepoProv {
+			continue
+		}
+		nodeKeyStr = "artifactRepository." + artRepoProv
+		nodeKey, _ := mergedParams.Get(nodeKeyStr)
+		if nodeKey != nil {
+			err := mergedParams.Delete(nodeKeyStr)
+			if err != nil {
+				log.Printf("error during init, artifact repository provider. %v", err.Error())
+				return
+			}
+		}
+	}
+
+	parentValue := mergedParams.GetValue("artifactRepository")
+	if len(parentValue.Content) == 0 {
+		if err := mergedParams.Delete("artifactRepository"); err != nil {
+			log.Printf("error during init, artifact repository provider. %v", err)
+		}
+	}
 }

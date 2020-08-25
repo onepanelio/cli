@@ -40,7 +40,8 @@ var statusCmd = &cobra.Command{
 		if ready {
 			fmt.Println("Your deployment is ready.")
 		} else {
-			fmt.Println("Not all required pods are running. Your deployment is not ready.")
+			fmt.Println("Your deployment is NOT ready; not all Pods are running. To view all Pods:")
+			fmt.Println("$ kubectl get pods -A")
 		}
 
 		// Get cluster deployment URL

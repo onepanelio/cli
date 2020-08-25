@@ -206,7 +206,7 @@ func (b *Builder) Template() Kustomize {
 		ApiVersion:     "kustomize.config.k8s.io/v1beta1",
 		Kind:           "Kustomization",
 		Resources:      make([]string, 0),
-		Configurations: []string{"configs/varreference.yaml"},
+		Configurations: []string{filepath.Join("configs/varreference.yaml")},
 	}
 
 	sources := b.flattenSources()
