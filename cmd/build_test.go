@@ -15,12 +15,7 @@ const (
       - name: 'CPU: 4, RAM: 16GB'
         value: Standard_D4s_v3
       - name: 'GPU: 1xK80, CPU: 6, RAM: 56GB'
-        value: Standard_NC6
-        resources:
-          limits:
-            nvidia.com/gpu: 1
-            cpu: 5000m
-            memory: 50000Mi`
+        value: Standard_NC6`
 )
 
 func Test_generateApplicationNodePoolOptions(t *testing.T) {
@@ -31,11 +26,6 @@ func Test_generateApplicationNodePoolOptions(t *testing.T) {
     - name: 'CPU: 4, RAM: 16GB'
       value: Standard_D4s_v3
     - name: 'GPU: 1xK80, CPU: 6, RAM: 56GB'
-      resources:
-          limits:
-              cpu: 5000m
-              memory: 50000Mi
-              nvidia.com/gpu: 1
       value: Standard_NC6
     
 `
