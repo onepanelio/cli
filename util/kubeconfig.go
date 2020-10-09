@@ -63,40 +63,17 @@ func GetBearerToken(in *restclient.Config, explicitKubeConfigPath string) (strin
 		token := req.Header.Get("Authorization")
 		return strings.TrimPrefix(token, "Bearer "), nil
 	}
-	if in.AuthProvider != nil {
-		if in.AuthProvider.Name == "gcp" {
-			token := in.AuthProvider.Config["access-token"]
-			if token == "" {
-				flags := make(map[string]interface{})
-				var extraArgs []string
-				_, stderr, err := KubectlGet("node", "", "", extraArgs, flags)
-				if stderr != "" {
-					return "", errors.New(stderr)
-				}
-				if err != nil {
-					return "", err
-				}
-				refreshedConfig := NewConfig()
-				getTokenAgain, getErr := GetBearerToken(refreshedConfig, "")
-				return getTokenAgain, getErr
-			}
-			token, err := RefreshTokenIfExpired(in, explicitKubeConfigPath, token)
-			if err != nil {
-				return "", err
-			}
-			return strings.TrimPrefix(token, "Bearer "), nil
-		}
-	}
 
 	kubeClient, err := kubernetes.NewForConfig(in)
 	if err != nil {
 		return "", errors.Errorf("Could not get kubeClient")
 	}
-	secrets, err := kubeClient.CoreV1().Secrets("kube-system").List(v1.ListOptions{})
+	ns := "onepanel"
+	secrets, err := kubeClient.CoreV1().Secrets(ns).List(v1.ListOptions{})
 	if err != nil {
-		return "", errors.Errorf("Could not get kube-system secrets.")
+		return "", errors.Errorf("Could not get %s secrets.",ns)
 	}
-	re := regexp.MustCompile(`^default-token-`)
+	re := regexp.MustCompile(`^admin-token-`)
 	for _, secret := range secrets.Items {
 		if re.Find([]byte(secret.ObjectMeta.Name)) != nil {
 			return string(secret.Data["token"]), nil
