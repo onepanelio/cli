@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"crypto/md5"
+	"encoding/hex"
 	"fmt"
 
 	"github.com/onepanelio/cli/util"
@@ -27,7 +29,11 @@ var tokenCmd = &cobra.Command{
 		if err != nil {
 			fmt.Println("Error encountered: ", err.Error())
 		}
-		fmt.Println(token)
+
+		currentTokenBytes := md5.Sum([]byte(token))
+		currentTokenString := hex.EncodeToString(currentTokenBytes[:])
+
+		fmt.Println(currentTokenString)
 	},
 }
 

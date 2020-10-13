@@ -29,14 +29,10 @@ func NewConfig() (config *Config) {
 }
 
 func GetBearerToken(in *restclient.Config, explicitKubeConfigPath string) (string, error) {
-
-	if len(in.BearerToken) > 0 {
-		return in.BearerToken, nil
-	}
-
 	if in == nil {
 		return "", errors.Errorf("RestClient can't be nil")
 	}
+
 	if in.ExecProvider != nil {
 		tc, err := in.TransportConfig()
 		if err != nil {
@@ -71,7 +67,7 @@ func GetBearerToken(in *restclient.Config, explicitKubeConfigPath string) (strin
 	ns := "onepanel"
 	secrets, err := kubeClient.CoreV1().Secrets(ns).List(v1.ListOptions{})
 	if err != nil {
-		return "", errors.Errorf("Could not get %s secrets.",ns)
+		return "", errors.Errorf("Could not get %s secrets.", ns)
 	}
 	re := regexp.MustCompile(`^admin-token-`)
 	for _, secret := range secrets.Items {
