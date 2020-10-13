@@ -3,6 +3,7 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -136,6 +137,7 @@ var initCmd = &cobra.Command{
 				ManifestsRepo: manifestsRepoPath,
 				Params:        ParametersFilePath,
 			},
+			HMACKey: util.GenerateHMACKey(),
 		}
 
 		loadedManifest, err := manifest.LoadManifest(manifestsRepoPath)
@@ -234,6 +236,29 @@ var initCmd = &cobra.Command{
 		if _, err := paramsFile.WriteString(paramsString); err != nil {
 			log.Printf("Error writing merged parameters: %v", err.Error())
 			return
+		}
+
+		exists, err = files.Exists(ConfigurationFilePath)
+		if err != nil {
+			log.Printf("unable to check if config file exists: %v", err.Error())
+			return
+		}
+
+		if exists {
+			configData, err := ioutil.ReadFile(ConfigurationFilePath)
+			if err != nil {
+				log.Printf("unable to read config file: %v", err.Error())
+				return
+			}
+			existingData := &config.Config{}
+			if err := yaml.Unmarshal(configData, existingData); err != nil {
+				log.Printf("unable to unmarshal existing data: %v", err.Error())
+				return
+			}
+
+			if existingData.HMACKey != "" {
+				setup.HMACKey = existingData.HMACKey
+			}
 		}
 
 		file, err := os.Create(ConfigurationFilePath)

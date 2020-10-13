@@ -167,8 +167,7 @@ var applyCmd = &cobra.Command{
 				break
 			}
 
-			fmt.Printf(".")
-			fmt.Printf(".")
+			fmt.Printf("..")
 
 			time.Sleep(time.Second * 3)
 		}
