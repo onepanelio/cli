@@ -115,6 +115,8 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 		return "", err
 	}
 
+	yamlFile.Put("application.hmac", config.HMACKey)
+
 	fqdn := yamlFile.GetValue("application.fqdn").Value
 	cloudSettings, err := util.LoadDynamicYamlFromFile(filepath.Join(config.Spec.ManifestsRepo, "vars", "onepanel-config-map-hidden.env"))
 	if err != nil {
