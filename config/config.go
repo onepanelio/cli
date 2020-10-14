@@ -50,14 +50,13 @@ type Config struct {
 	ApiVersion string     `yaml:"apiVersion"`
 	Kind       string     `yaml:"kind"`
 	Spec       ConfigSpec `yaml:"spec"`
-	HMACKey    string     `yaml:"hmac" json:"hmac"`
 }
 
 type ConfigSpec struct {
 	ManifestsRepo string   `yaml:"manifestsRepo"`
 	Params        string   `yaml:"params"`
 	Components    []string `yaml:"components"`
-	Overlays      []string `yaml:"overlays" `
+	Overlays      []string `yaml:"overlays"`
 }
 
 func FromFile(path string) (config *Config, err error) {
