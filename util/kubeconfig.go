@@ -28,20 +28,20 @@ func NewConfig() (config *Config) {
 	return
 }
 
-func GetBearerToken(in *restclient.Config, explicitKubeConfigPath string) (string, error) {
+func GetBearerToken(in *restclient.Config, explicitKubeConfigPath string, serviceAccountName string) (token string, username string, err error) {
 	if in == nil {
-		return "", errors.Errorf("RestClient can't be nil")
+		return "", serviceAccountName, errors.Errorf("RestClient can't be nil")
 	}
 
 	if in.ExecProvider != nil {
 		tc, err := in.TransportConfig()
 		if err != nil {
-			return "", err
+			return "", serviceAccountName, err
 		}
 
 		auth, err := exec.GetAuthenticator(in.ExecProvider)
 		if err != nil {
-			return "", err
+			return "", serviceAccountName, err
 		}
 
 		//This function will return error because of TLS Cert missing,
@@ -50,32 +50,33 @@ func GetBearerToken(in *restclient.Config, explicitKubeConfigPath string) (strin
 
 		rt, err := transport.New(tc)
 		if err != nil {
-			return "", err
+			return "", serviceAccountName, err
 		}
 		req := http.Request{Header: map[string][]string{}}
 
 		_, _ = rt.RoundTrip(&req)
 
 		token := req.Header.Get("Authorization")
-		return strings.TrimPrefix(token, "Bearer "), nil
+		return strings.TrimPrefix(token, "Bearer "), serviceAccountName, nil
 	}
 
 	kubeClient, err := kubernetes.NewForConfig(in)
 	if err != nil {
-		return "", errors.Errorf("Could not get kubeClient")
+		return "", serviceAccountName, errors.Errorf("Could not get kubeClient")
 	}
 	ns := "onepanel"
 	secrets, err := kubeClient.CoreV1().Secrets(ns).List(v1.ListOptions{})
 	if err != nil {
-		return "", errors.Errorf("Could not get %s secrets.", ns)
+		return "", serviceAccountName, errors.Errorf("Could not get %s secrets.", ns)
 	}
-	re := regexp.MustCompile(`^admin-token-`)
+	search := `^` + serviceAccountName + `-token-`
+	re := regexp.MustCompile(search)
 	for _, secret := range secrets.Items {
 		if re.Find([]byte(secret.ObjectMeta.Name)) != nil {
-			return string(secret.Data["token"]), nil
+			return string(secret.Data["token"]), serviceAccountName, nil
 		}
 	}
-	return "", errors.Errorf("could not find a token")
+	return "", serviceAccountName, errors.Errorf("could not find a token")
 }
 
 func RefreshTokenIfExpired(restConfig *restclient.Config, explicitPath, curentToken string) (string, error) {
