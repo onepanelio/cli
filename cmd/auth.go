@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	// This is the "username" we show to the user. We look up this value in k8s
+	// ServiceAccountName is the "username" we show to the user. We look up this value in k8s
 	ServiceAccountName string
 )
 
