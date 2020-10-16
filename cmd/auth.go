@@ -9,6 +9,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var (
+	// ServiceAccountName is the "username" we show to the user. We look up this value in k8s
+	ServiceAccountName string
+)
+
 var authCmd = &cobra.Command{
 	Use:     "auth",
 	Short:   "Get authentication information.",
@@ -25,19 +30,26 @@ var tokenCmd = &cobra.Command{
 	Example: "auth token",
 	Run: func(cmd *cobra.Command, args []string) {
 		config := util.NewConfig()
-		token, err := util.GetBearerToken(config, "")
+		if ServiceAccountName == "" {
+			ServiceAccountName = "admin"
+		}
+		token, username, err := util.GetBearerToken(config, "", ServiceAccountName)
 		if err != nil {
-			fmt.Println("Error encountered: ", err.Error())
+			fmt.Printf("Error encountered for user %s: %s\n", username, err.Error())
 		}
 
-		currentTokenBytes := md5.Sum([]byte(token))
-		currentTokenString := hex.EncodeToString(currentTokenBytes[:])
+		if token != "" {
+			currentTokenBytes := md5.Sum([]byte(token))
+			currentTokenString := hex.EncodeToString(currentTokenBytes[:])
 
-		fmt.Println(currentTokenString)
+			fmt.Println(username)
+			fmt.Println(currentTokenString)
+		}
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(authCmd)
 	authCmd.AddCommand(tokenCmd)
+	tokenCmd.Flags().StringVarP(&ServiceAccountName, "username", "u", "", "Username you want the token for. Defaults to 'admin'")
 }
