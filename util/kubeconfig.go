@@ -7,10 +7,8 @@ import (
 	"net/http"
 	"os"
 	"regexp"
-	"strings"
 	"time"
 
-	"k8s.io/client-go/plugin/pkg/client/auth/exec"
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/transport"
@@ -31,33 +29,6 @@ func NewConfig() (config *Config) {
 func GetBearerToken(in *restclient.Config, explicitKubeConfigPath string, serviceAccountName string) (token string, username string, err error) {
 	if in == nil {
 		return "", serviceAccountName, errors.Errorf("RestClient can't be nil")
-	}
-
-	if in.ExecProvider != nil {
-		tc, err := in.TransportConfig()
-		if err != nil {
-			return "", serviceAccountName, err
-		}
-
-		auth, err := exec.GetAuthenticator(in.ExecProvider)
-		if err != nil {
-			return "", serviceAccountName, err
-		}
-
-		//This function will return error because of TLS Cert missing,
-		// This code is not making actual request. We can ignore it.
-		_ = auth.UpdateTransportConfig(tc)
-
-		rt, err := transport.New(tc)
-		if err != nil {
-			return "", serviceAccountName, err
-		}
-		req := http.Request{Header: map[string][]string{}}
-
-		_, _ = rt.RoundTrip(&req)
-
-		token := req.Header.Get("Authorization")
-		return strings.TrimPrefix(token, "Bearer "), serviceAccountName, nil
 	}
 
 	kubeClient, err := kubernetes.NewForConfig(in)
