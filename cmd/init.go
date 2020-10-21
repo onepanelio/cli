@@ -187,6 +187,14 @@ var initCmd = &cobra.Command{
 			}
 		}
 
+		if Provider == "eks" {
+			overlay := strings.Join([]string{"cluster-autoscaler", "overlays", "eks"}, string(os.PathSeparator))
+			if err := bld.AddOverlay(overlay); err != nil {
+				log.Printf("[error] Adding overlay %v:\n", err.Error())
+				return
+			}
+		}
+
 		if err := bld.Build(); err != nil {
 			log.Printf("[error] building components and overlays: %v", err.Error())
 			return
