@@ -630,8 +630,8 @@ func (d *DynamicYaml) mergeSingle(y *DynamicYaml) {
 		valueNode := values.Content[i+1]
 
 		alreadyExists := false
-		var jKey *yaml.Node = nil
-		var jValue *yaml.Node = nil
+		var jKey *yaml.Node
+		var jValue *yaml.Node
 		for j := 0; j < len(destination.Content)-1; j++ {
 			jKey = destination.Content[j]
 			jValue = destination.Content[j+1]
