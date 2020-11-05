@@ -227,6 +227,15 @@ var initCmd = &cobra.Command{
 		removeUneededArtifactRepositoryProviders(mergedParams)
 
 		mergedParams.Sort()
+
+		inputCommand := "# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -\n"
+		inputCommand += "# Generated with Onepanel CLI \n"
+		inputCommand += "# Command: opctl " + strings.Join(os.Args[1:], " ") + "\n"
+		inputCommand += "# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"
+		if err := mergedParams.SetTopComment(inputCommand); err != nil {
+			log.Printf("[error] setting comments: %v", err.Error())
+			return
+		}
 		paramsString, err := mergedParams.String()
 		if err != nil {
 			log.Printf("[error] unable to write params to a string")
@@ -445,7 +454,7 @@ func removeUneededArtifactRepositoryProviders(mergedParams *util.DynamicYaml) {
 	}
 
 	parentValue := mergedParams.GetValue("artifactRepository")
-	if len(parentValue.Content) == 0 {
+	if parentValue != nil && len(parentValue.Content) == 0 {
 		if err := mergedParams.Delete("artifactRepository"); err != nil {
 			log.Printf("error during init, artifact repository provider. %v", err)
 		}
