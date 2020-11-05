@@ -102,6 +102,28 @@ func LoadDynamicYamlFromString(input string) (*DynamicYaml, error) {
 	return dynamicYaml, nil
 }
 
+// SetTopComment sets the topmost comment in the resulting yaml
+func (d *DynamicYaml) SetTopComment(comment string) error {
+	if d == nil {
+		return nil
+	}
+
+	if d.node == nil {
+		return fmt.Errorf("DynamicYaml has not been loaded yet")
+	}
+
+	if len(d.node.Content) == 0 {
+		d.node.HeadComment = comment
+		return nil
+	}
+
+	// If we have nodes, then we need to set it to the top-most node's comment
+	// Otherwise we get a blank line in the resulting yaml
+	d.node.Content[0].HeadComment = comment
+
+	return nil
+}
+
 func (d *DynamicYaml) GetByParts(parts ...string) (key, value *yaml.Node) {
 	if len(d.node.Content) == 0 {
 		return nil, nil
@@ -608,9 +630,10 @@ func (d *DynamicYaml) mergeSingle(y *DynamicYaml) {
 		valueNode := values.Content[i+1]
 
 		alreadyExists := false
+		var jKey *yaml.Node = nil
 		var jValue *yaml.Node = nil
 		for j := 0; j < len(destination.Content)-1; j++ {
-			jKey := destination.Content[j]
+			jKey = destination.Content[j]
 			jValue = destination.Content[j+1]
 
 			if keyNode.Value == jKey.Value {
@@ -620,6 +643,14 @@ func (d *DynamicYaml) mergeSingle(y *DynamicYaml) {
 		}
 
 		if alreadyExists {
+			if jKey != nil {
+				// Always replace the comments with the new comment values
+				// This makes it less generic, but it makes the source YAML comments
+				// always overwrite any custom yaml, which is the expected behavior.
+				jKey.HeadComment = keyNode.HeadComment
+				jKey.LineComment = keyNode.LineComment
+				jKey.FootComment = keyNode.FootComment
+			}
 			mergeNodes(jValue, valueNode)
 		} else {
 			destination.Content = append(destination.Content, keyNode)
