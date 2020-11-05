@@ -285,9 +285,9 @@ var initCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(initCmd)
 
-	initCmd.Flags().StringVarP(&Provider, "provider", "p", "", "Cloud provider. Valid values are: aks, gke, eks")
-	initCmd.Flags().StringVarP(&DNS, "dns-provider", "d", "", "Provider for DNS. Valid values are: azuredns, clouddns (google), cloudflare, route53")
-	initCmd.Flags().StringVarP(&ArtifactRepositoryProvider, "artifact-repository-provider", "", "", "Artifact Storage Provider for argo. Valid values are: s3, gcs")
+	initCmd.Flags().StringVarP(&Provider, "provider", "p", "", "Cloud provider. Valid values: aks, gke, eks")
+	initCmd.Flags().StringVarP(&DNS, "dns-provider", "d", "", "Provider for DNS. Valid values: azuredns, clouddns (google), cloudflare, route53")
+	initCmd.Flags().StringVarP(&ArtifactRepositoryProvider, "artifact-repository-provider", "", "", "Object storage provider for storing artifacts. Valid value: s3")
 	initCmd.Flags().StringVarP(&ConfigurationFilePath, "config", "c", "config.yaml", "File path of the resulting config file")
 	initCmd.Flags().StringVarP(&ParametersFilePath, "params", "e", "params.yaml", "File path of the resulting parameters file")
 	initCmd.Flags().BoolVarP(&EnableEFKLogging, "enable-efk-logging", "", false, "Enable Elasticsearch, Fluentd and Kibana (EFK) logging")
@@ -296,10 +296,6 @@ func init() {
 	initCmd.Flags().BoolVarP(&EnableMetalLb, "enable-metallb", "", false, "Automatically create a LoadBalancer for non-cloud deployments.")
 	initCmd.Flags().StringSliceVarP(&GPUDevicePlugins, "gpu-device-plugins", "", nil, "Install NVIDIA and/or AMD gpu device plugins. Valid values can be comma separated and are: amd, nvidia")
 	initCmd.Flags().StringSliceVarP(&Services, "services", "", nil, "Install additional services. Valid values can be comma separated and are: modeldb")
-
-	if err := initCmd.MarkFlagRequired("provider"); err != nil {
-		log.Printf("[error] %v", err)
-	}
 }
 
 func validateInput() error {
@@ -347,9 +343,13 @@ func validateInput() error {
 }
 
 func validateProvider(prov string) error {
+	if prov == "" {
+		return errors.New("provider flag is required. Valid values: aks, gke, eks")
+	}
+
 	_, ok := providerProperties[prov]
 	if !ok {
-		return fmt.Errorf("Unsupported provider %v", prov)
+		return fmt.Errorf("'%v' is not a valid --provider value. Valid values: aks, gke, eks", prov)
 	}
 
 	return nil
@@ -357,14 +357,14 @@ func validateProvider(prov string) error {
 
 func validateArtifactRepositoryProvider(arRepoProv string) error {
 	if arRepoProv == "" {
-		return errors.New("artifact-repository-provider is required. Valid values are: s3, gcs")
+		return errors.New("artifact-repository-provider flag is required. Valid value: s3")
 	}
 
 	if arRepoProv == artifactRepositoryProviderS3 ||
 		arRepoProv == artifactRepositoryProviderGcs {
 		return nil
 	}
-	return fmt.Errorf("'%v' is not a valid --artifact-repository-provider value. Valid values are: s3, gcs", arRepoProv)
+	return fmt.Errorf("'%v' is not a valid --artifact-repository-provider value. Valid value: s3", arRepoProv)
 }
 
 func validateDNS(dns string) error {
