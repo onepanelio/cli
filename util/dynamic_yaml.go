@@ -112,14 +112,7 @@ func (d *DynamicYaml) SetTopComment(comment string) error {
 		return fmt.Errorf("DynamicYaml has not been loaded yet")
 	}
 
-	if len(d.node.Content) == 0 {
-		d.node.HeadComment = comment
-		return nil
-	}
-
-	// If we have nodes, then we need to set it to the top-most node's comment
-	// Otherwise we get a blank line in the resulting yaml
-	d.node.Content[0].HeadComment = comment
+	d.node.HeadComment = comment
 
 	return nil
 }

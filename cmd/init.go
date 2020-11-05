@@ -229,7 +229,9 @@ var initCmd = &cobra.Command{
 		mergedParams.Sort()
 
 		inputCommand := "# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -\n"
-		inputCommand += "# Init command: opctl " + strings.Join(os.Args[1:], " ")
+		inputCommand += "# Generated with Onepanel CLI \n"
+		inputCommand += "# Command: opctl " + strings.Join(os.Args[1:], " ") + "\n"
+		inputCommand += "# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"
 		if err := mergedParams.SetTopComment(inputCommand); err != nil {
 			log.Printf("[error] setting comments: %v", err.Error())
 			return
