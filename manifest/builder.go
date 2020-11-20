@@ -5,7 +5,6 @@ import (
 	"github.com/onepanelio/cli/files"
 	"github.com/onepanelio/cli/util"
 	"log"
-	"path"
 	"path/filepath"
 	"strings"
 )
@@ -121,7 +120,7 @@ func (b *Builder) AddCommonComponents(skipComponents ...string) error {
 		component := b.manifest.components[key]
 
 		if component.IsCommon() {
-			if strings.Contains(component.Path(), path.Join("common", "argo", "source")) {
+			if strings.Contains(component.Path(), filepath.Join("common", "argo", "source")) {
 				continue
 			}
 			if err := b.AddComponent(component.path); err != nil {
