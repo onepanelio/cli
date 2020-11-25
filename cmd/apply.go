@@ -40,7 +40,7 @@ var applyCmd = &cobra.Command{
 		applicationBaseKustomizeTemplate := TemplateFromSimpleOverlayedComponents(baseOverlayComponent)
 		applicationResult, err := GenerateKustomizeResult(*config, applicationBaseKustomizeTemplate)
 		if err != nil {
-			log.Printf("Error generating result %v", err.Error())
+			fmt.Printf("%s\n", HumanizeKustomizeError(err))
 			return
 		}
 
@@ -126,7 +126,7 @@ var applyCmd = &cobra.Command{
 
 		result, err := GenerateKustomizeResult(*config, kustomizeTemplate)
 		if err != nil {
-			log.Printf("Error generating result %v", err.Error())
+			fmt.Printf("%s\n", HumanizeKustomizeError(err))
 			return
 		}
 

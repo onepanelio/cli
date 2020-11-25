@@ -1,6 +1,8 @@
 package manifest
 
 import (
+	"errors"
+	"github.com/onepanelio/cli/util"
 	"log"
 	"os"
 	"path/filepath"
@@ -95,4 +97,21 @@ func (m *Manifest) GetComponent(path string) *Component {
 
 func (m *Manifest) GetOverlay(path string) *Overlay {
 	return m.overlays[path]
+}
+
+// Validate checks if the manifest is valid. If it is, nil is returned. Otherwise an error is returned.
+func Validate(manifest *util.DynamicYaml) error {
+	defaultNamespace := manifest.GetValue("application.defaultNamespace")
+	if defaultNamespace == nil {
+		return errors.New("application.defaultNamespace.missing")
+	}
+
+	if defaultNamespace.Value == "" {
+		return errors.New("application.defaultNamespace.blank")
+	}
+	if defaultNamespace.Value == "onepanel" {
+		return errors.New("application.defaultNamespace.reserved")
+	}
+
+	return nil
 }
