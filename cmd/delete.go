@@ -45,7 +45,7 @@ var deleteCmd = &cobra.Command{
 			}
 
 			if !exists {
-				fmt.Printf("'%v' file does not exist. Are you in the directory where you run 'opctl init'?\n", filePath)
+				fmt.Printf("'%v' file does not exist. Are you in the directory where you ran 'opctl init'?\n", filePath)
 				return
 			}
 		}
