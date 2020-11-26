@@ -1,6 +1,8 @@
 package manifest
 
 import (
+	"fmt"
+	"github.com/onepanelio/cli/util"
 	"log"
 	"os"
 	"path/filepath"
@@ -11,6 +13,22 @@ type Manifest struct {
 	path       string // where the manifest directory is located
 	components map[string]*Component
 	overlays   map[string]*Overlay
+}
+
+// ParamsError represents an error encountered in the params.yaml file
+type ParamsError struct {
+	Key       string
+	Value     *string
+	ErrorType string
+}
+
+// Error returns an error string indicating what key/value is invalid
+func (p *ParamsError) Error() string {
+	if p.Value == nil {
+		return fmt.Sprintf("%s is invalid", p.Key)
+	}
+
+	return fmt.Sprintf("%s: %s is invalid", p.Key, *p.Value)
 }
 
 func LoadManifest(manifestRoot string) (*Manifest, error) {
@@ -95,4 +113,30 @@ func (m *Manifest) GetComponent(path string) *Component {
 
 func (m *Manifest) GetOverlay(path string) *Overlay {
 	return m.overlays[path]
+}
+
+// Validate checks if the manifest is valid. If it is, nil is returned. Otherwise an error is returned.
+func Validate(manifest *util.DynamicYaml) error {
+	reservedNamespaces := map[string]bool{
+		"onepanel":           true,
+		"application-system": true,
+		"cert-manager":       true,
+		"istio-system":       true,
+		"knative-serving":    true,
+		"kube-public":        true,
+		"kube-system":        true,
+	}
+
+	defaultNamespace := manifest.GetValue("application.defaultNamespace")
+	if defaultNamespace == nil {
+		return &ParamsError{Key: "application.defaultNamespace", ErrorType: "missing"}
+	}
+	if defaultNamespace.Value == "" {
+		return &ParamsError{Key: "application.defaultNamespace", ErrorType: "blank"}
+	}
+	if _, ok := reservedNamespaces[defaultNamespace.Value]; ok {
+		return &ParamsError{Key: "application.defaultNamespace", Value: &defaultNamespace.Value, ErrorType: "reserved"}
+	}
+
+	return nil
 }

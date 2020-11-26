@@ -54,7 +54,7 @@ var generateCmd = &cobra.Command{
 		log.Printf("Building...")
 		result, err := GenerateKustomizeResult(*config, kustomizeTemplate)
 		if err != nil {
-			log.Printf("Error generating result %v", err.Error())
+			fmt.Printf("%s\n", HumanizeKustomizeError(err))
 			return
 		}
 
@@ -71,6 +71,15 @@ func init() {
 // It does this by copying the manifests into a temporary directory, inserting the kustomize template
 // and running the kustomize command
 func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.Kustomize) (string, error) {
+	yamlFile, err := util.LoadDynamicYamlFromFile(config.Spec.Params)
+	if err != nil {
+		return "", err
+	}
+
+	if err := manifest.Validate(yamlFile); err != nil {
+		return "", err
+	}
+
 	manifestPath := config.Spec.ManifestsRepo
 	localManifestsCopyPath := filepath.Join(".onepanel/manifests/cache")
 
@@ -106,11 +115,6 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 	}
 
 	_, err = newFile.Write(kustomizeYaml)
-	if err != nil {
-		return "", err
-	}
-
-	yamlFile, err := util.LoadDynamicYamlFromFile(config.Spec.Params)
 	if err != nil {
 		return "", err
 	}
@@ -602,4 +606,20 @@ func mapLinkedVars(mapping map[string]interface{}, manifestPath string, config *
 	}
 
 	return nil
+}
+
+// HumanizeKustomizeError takes errors returned from GenerateKustomizeResult and returns them in a human friendly string
+func HumanizeKustomizeError(err error) string {
+	if paramsError, ok := err.(*manifest.ParamsError); ok {
+		switch paramsError.ErrorType {
+		case "missing":
+			return fmt.Sprintf("%s is missing in your params.yaml", paramsError.Key)
+		case "blank":
+			return fmt.Sprintf("%s can not be blank, please use a different namespace in your params.yaml", paramsError.Key)
+		case "reserved":
+			return fmt.Sprintf("%s can not be '%v' please use a different namespace in your params.yaml", paramsError.Key, *paramsError.Value)
+		}
+	}
+
+	return fmt.Sprintf("Error generating result: %v", err.Error())
 }
