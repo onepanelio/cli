@@ -610,13 +610,15 @@ func mapLinkedVars(mapping map[string]interface{}, manifestPath string, config *
 
 // HumanizeKustomizeError takes errors returned from GenerateKustomizeResult and returns them in a human friendly string
 func HumanizeKustomizeError(err error) string {
-	switch err.Error() {
-	case "application.defaultNamespace.missing":
-		return "application.defaultNamespace is missing in your params.yaml"
-	case "application.defaultNamespace.blank":
-		return "application.defaultNamespace can not be blank please use a different namespace in your params.yaml"
-	case "application.defaultNamespace.reserved":
-		return "application.defaultNamespace can not be 'onepanel' please use a different namespace in your params.yaml"
+	if paramsError, ok := err.(*manifest.ParamsError); ok {
+		switch paramsError.ErrorType {
+		case "missing":
+			return fmt.Sprintf("%s is missing in your params.yaml", paramsError.Key)
+		case "blank":
+			return fmt.Sprintf("%s can not be blank, please use a different namespace in your params.yaml", paramsError.Key)
+		case "reserved":
+			return fmt.Sprintf("%s can not be '%v' please use a different namespace in your params.yaml", paramsError.Key, *paramsError.Value)
+		}
 	}
 
 	return fmt.Sprintf("Error generating result: %v", err.Error())
