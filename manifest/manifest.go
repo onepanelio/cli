@@ -118,6 +118,7 @@ func (m *Manifest) GetOverlay(path string) *Overlay {
 // Validate checks if the manifest is valid. If it is, nil is returned. Otherwise an error is returned.
 func Validate(manifest *util.DynamicYaml) error {
 	reservedNamespaces := map[string]bool{
+		"default":            true,
 		"onepanel":           true,
 		"application-system": true,
 		"cert-manager":       true,
@@ -133,6 +134,9 @@ func Validate(manifest *util.DynamicYaml) error {
 	}
 	if defaultNamespace.Value == "" {
 		return &ParamsError{Key: "application.defaultNamespace", ErrorType: "blank"}
+	}
+	if defaultNamespace.Value == "<namespace>" {
+		return &ParamsError{Key: "application.defaultNamespace", Value: &defaultNamespace.Value, ErrorType: "parameter"}
 	}
 	if _, ok := reservedNamespaces[defaultNamespace.Value]; ok {
 		return &ParamsError{Key: "application.defaultNamespace", Value: &defaultNamespace.Value, ErrorType: "reserved"}
