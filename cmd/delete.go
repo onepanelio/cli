@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	opConfig "github.com/onepanelio/cli/config"
 	"github.com/onepanelio/cli/files"
 	"github.com/onepanelio/cli/util"
 	"github.com/spf13/cobra"
@@ -30,6 +31,29 @@ var deleteCmd = &cobra.Command{
 			if userInput != "y" && userInput != "yes" {
 				return
 			}
+		}
+
+		config, err := opConfig.FromFile("config.yaml")
+		if err != nil {
+			fmt.Printf("Unable to read configuration file: %v", err.Error())
+			return
+		}
+
+		paramsYamlFile, err := util.LoadDynamicYamlFromFile(config.Spec.Params)
+		if err != nil {
+			fmt.Println("Error parsing configuration file.")
+			return
+		}
+
+		defaultNamespaceNode := paramsYamlFile.GetValue("application.defaultNamespace")
+		if defaultNamespaceNode == nil {
+			fmt.Printf("application.defaultNamespace is missing from your '%s' file\n", config.Spec.Params)
+			return
+		}
+
+		if defaultNamespaceNode.Value == "default" {
+			fmt.Println("Unable to delete onepanel in the 'default' namespace")
+			return
 		}
 
 		filesToDelete := []string{
