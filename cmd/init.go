@@ -172,6 +172,12 @@ var initCmd = &cobra.Command{
 				return
 			}
 
+			for i, d := range GPUDevicePlugins {
+				if d == "nvidia" && Provider == "gke" {
+					GPUDevicePlugins[i] = "gke"
+				}
+			}
+
 			bld.AddOverlayContender(GPUDevicePlugins...)
 		}
 
