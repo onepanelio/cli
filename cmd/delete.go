@@ -56,6 +56,11 @@ var deleteCmd = &cobra.Command{
 			return
 		}
 
+		if defaultNamespaceNode.Value == "<namespace>" {
+			fmt.Println("Unable to delete onepanel. No namespace set.")
+			return
+		}
+
 		filesToDelete := []string{
 			filepath.Join(".onepanel", "kubernetes.yaml"),
 			filepath.Join(".onepanel", "application.kubernetes.yaml"),
