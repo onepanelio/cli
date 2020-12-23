@@ -81,7 +81,7 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 	}
 
 	manifestPath := config.Spec.ManifestsRepo
-	localManifestsCopyPath := filepath.Join(".onepanel/manifests/cache")
+	localManifestsCopyPath := filepath.Join(".onepanel", "manifests", "cache")
 
 	exists, err := files.Exists(localManifestsCopyPath)
 	if err != nil {
@@ -614,6 +614,8 @@ func HumanizeKustomizeError(err error) string {
 		switch paramsError.ErrorType {
 		case "missing":
 			return fmt.Sprintf("%s is missing in your params.yaml", paramsError.Key)
+		case "parameter":
+			return fmt.Sprintf("%s can not be '%s', please enter a namespace", paramsError.Key, *paramsError.Value)
 		case "blank":
 			return fmt.Sprintf("%s can not be blank, please use a different namespace in your params.yaml", paramsError.Key)
 		case "reserved":

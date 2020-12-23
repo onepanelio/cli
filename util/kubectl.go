@@ -6,15 +6,18 @@ import (
 	"fmt"
 	opConfig "github.com/onepanelio/cli/config"
 	"github.com/spf13/cobra"
+	k8error "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/azure"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"k8s.io/kubectl/pkg/cmd/apply"
+	k8delete "k8s.io/kubectl/pkg/cmd/delete"
 	"k8s.io/kubectl/pkg/cmd/get"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"os"
 	"runtime"
 	"strconv"
+	"strings"
 )
 
 func KubectlGet(resource string, resourceName string, namespace string, extraArgs []string, flags map[string]interface{}) (stdout string, stderr string, err error) {
@@ -121,6 +124,64 @@ func KubectlApply(filePath string) (stdout string, stderr string, err error) {
 
 	stdout = out.String()
 	stderr = errOut.String()
+
+	return
+}
+
+// KubectlDelete run's kubectl delete using the input filePath
+func KubectlDelete(filePath string) (err error) {
+	kubeConfigFlags := genericclioptions.NewConfigFlags(true).WithDeprecatedPasswordFlag()
+	matchVersionKubeConfigFlags := cmdutil.NewMatchVersionFlags(kubeConfigFlags)
+
+	f := cmdutil.NewFactory(matchVersionKubeConfigFlags)
+	ioStreams := genericclioptions.IOStreams{
+		In:     os.Stdin,
+		Out:    os.Stdout,
+		ErrOut: os.Stderr,
+	}
+	cmd := k8delete.NewCmdDelete(f, ioStreams)
+
+	deleteOptions := k8delete.DeleteOptions{IOStreams: ioStreams}
+	deleteOptions.Filenames = []string{filePath}
+	err = cmd.Flags().Set("filename", filePath)
+	if err != nil {
+		return err
+	}
+
+	if err := deleteOptions.Complete(f, []string{}, cmd); err != nil {
+		return err
+	}
+
+	if err := deleteOptions.RunDelete(f); err != nil {
+		errorAggregate, ok := err.(k8error.Aggregate)
+		if ok {
+			finalErrors := make([]error, 0)
+			// Skip any errors that mean "not found"
+			for _, errItem := range errorAggregate.Errors() {
+				if strings.Contains(errItem.Error(), "not found") {
+					continue
+				}
+
+				if strings.Contains(errItem.Error(), "no matches for kind") {
+					continue
+				}
+
+				if strings.Contains(errItem.Error(), "the server could not find the requested resource") {
+					continue
+				}
+
+				finalErrors = append(finalErrors, errItem)
+			}
+
+			if len(finalErrors) == 0 {
+				return nil
+			}
+
+			return k8error.NewAggregate(finalErrors)
+		}
+
+		return err
+	}
 
 	return
 }

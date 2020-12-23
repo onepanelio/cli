@@ -35,7 +35,7 @@ var applyCmd = &cobra.Command{
 			return
 		}
 
-		overlayComponentFirst := filepath.Join("common/application/base")
+		overlayComponentFirst := filepath.Join("common", "application", "base")
 		baseOverlayComponent := config.GetOverlayComponent(overlayComponentFirst)
 		applicationBaseKustomizeTemplate := TemplateFromSimpleOverlayedComponents(baseOverlayComponent)
 		applicationResult, err := GenerateKustomizeResult(*config, applicationBaseKustomizeTemplate)
@@ -44,11 +44,11 @@ var applyCmd = &cobra.Command{
 			return
 		}
 
-		applicationKubernetesYamlFilePath := filepath.Join(".onepanel/application.kubernetes.yaml")
+		applicationKubernetesYamlFilePath := filepath.Join(".onepanel", "application.kubernetes.yaml")
 
 		existsApp, err := files.Exists(applicationKubernetesYamlFilePath)
 		if err != nil {
-			log.Printf("Unable to check if file %v exists", applicationKubernetesYamlFilePath)
+			log.Printf("Unable to check if file '%v' exists", applicationKubernetesYamlFilePath)
 			return
 		}
 
@@ -77,9 +77,9 @@ var applyCmd = &cobra.Command{
 
 		resApp, errResApp, err = applyKubernetesFile(applicationKubernetesYamlFilePath)
 
-		log.Printf("%v", resApp)
+		log.Printf("res: %v", resApp)
 		if errResApp != "" {
-			log.Printf("%v", errResApp)
+			log.Printf("err: %v", errResApp)
 		}
 
 		if err != nil {
@@ -130,7 +130,7 @@ var applyCmd = &cobra.Command{
 			return
 		}
 
-		finalKubernetesYamlFilePath := filepath.Join(".onepanel/kubernetes.yaml")
+		finalKubernetesYamlFilePath := filepath.Join(".onepanel", "kubernetes.yaml")
 
 		exists, err := files.Exists(finalKubernetesYamlFilePath)
 		if err != nil {
