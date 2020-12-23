@@ -72,7 +72,7 @@ var initCmd = &cobra.Command{
 		}
 
 		log.Printf("Initializing...")
-		configFile := filepath.Join(".onepanel/cli_config.yaml")
+		configFile := filepath.Join(".onepanel", "cli_config.yaml")
 		exists, err := files.Exists(configFile)
 		if err != nil {
 			log.Printf("[error] checking for config file %v", configFile)
