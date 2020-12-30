@@ -125,6 +125,7 @@ func Validate(manifest *util.DynamicYaml) error {
 		"knative-serving":    true,
 		"kube-public":        true,
 		"kube-system":        true,
+		"default":            true,
 	}
 
 	defaultNamespace := manifest.GetValue("application.defaultNamespace")

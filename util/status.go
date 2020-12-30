@@ -12,7 +12,6 @@ func DeploymentStatus(yamlFile *DynamicYaml) (ready bool, err error) {
 	namespacesToCheck["application-system"] = true
 	namespacesToCheck["onepanel"] = true
 	namespacesToCheck["istio-system"] = true
-	namespacesToCheck["default"] = true
 
 	if yamlFile.HasKey("certManager") {
 		namespacesToCheck["cert-manager"] = true
