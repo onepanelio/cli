@@ -4,7 +4,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	v1 "github.com/onepanelio/core/pkg"
+	"github.com/onepanelio/cli/cloud/storage"
 	"golang.org/x/crypto/bcrypt"
 	"io/ioutil"
 	"k8s.io/apimachinery/pkg/util/rand"
@@ -83,15 +83,9 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 	manifestPath := config.Spec.ManifestsRepo
 	localManifestsCopyPath := filepath.Join(".onepanel", "manifests", "cache")
 
-	exists, err := files.Exists(localManifestsCopyPath)
-	if err != nil {
+	// Delete the local files if they exist
+	if err := os.RemoveAll(localManifestsCopyPath); err != nil {
 		return "", err
-	}
-
-	if exists {
-		if err := os.RemoveAll(localManifestsCopyPath); err != nil {
-			return "", err
-		}
 	}
 
 	if err := files.CopyDir(manifestPath, localManifestsCopyPath); err != nil {
@@ -99,10 +93,7 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 	}
 
 	localKustomizePath := filepath.Join(localManifestsCopyPath, "kustomization.yaml")
-	if _, err := files.DeleteIfExists(localKustomizePath); err != nil {
-		return "", err
-	}
-
+	// Create will truncate the file if it exists
 	newFile, err := os.Create(localKustomizePath)
 	if err != nil {
 		return "", err
@@ -181,7 +172,7 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 	}
 
 	_, artifactRepositoryNode := yamlFile.Get("artifactRepository")
-	artifactRepositoryConfig := v1.ArtifactRepositoryProvider{}
+	artifactRepositoryConfig := storage.ArtifactRepositoryProvider{}
 	err = artifactRepositoryNode.Decode(&artifactRepositoryConfig)
 	if err != nil {
 		return "", err
@@ -203,11 +194,37 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 		}
 
 		yamlFile.Put("artifactRepositoryProvider", yamlConfigMap)
+	} else if artifactRepositoryConfig.ABS != nil {
+		artifactRepositoryConfig.S3 = &storage.ArtifactRepositoryS3Provider{
+			KeyFormat: "artifacts/{{workflow.namespace}}/{{workflow.name}}/{{pod.name}}",
+			Bucket:    artifactRepositoryConfig.ABS.Container,
+			Endpoint:  "minio-gateway.onepanel.svc.cluster.local:9000",
+			Insecure:  false,
+			AccessKeySecret: storage.ArtifactRepositorySecret{
+				Key:  "artifactRepositoryS3AccessKey",
+				Name: "$(artifactRepositoryS3AccessKey)",
+			},
+			SecretKeySecret: storage.ArtifactRepositorySecret{
+				Key:  "artifactRepositoryS3SecretKey",
+				Name: "$(artifactRepositoryS3SecretKeySecretName)",
+			},
+		}
+		yamlStr, err := artifactRepositoryConfig.S3.MarshalToYaml()
+		if err != nil {
+			return "", err
+		}
+		yamlFile.Put("artifactRepositoryProvider", yamlStr)
+		yamlFile.Put("artifactRepository.s3.accessKey", "placeholder")
+		yamlFile.Put("artifactRepository.s3.secretKey", "placeholder")
+		yamlFile.Put("artifactRepository.s3.bucket", "bucket-name")
+		yamlFile.Put("artifactRepository.s3.endpoint", "minio-gateway.onepanel.svc.cluster.local")
+		yamlFile.Put("artifactRepository.s3.insecure", "false")
+		//yamlFile.Put("artifactRepository.s3.region", "us-west-2")
 	} else {
 		return "", errors.New("unsupported artifactRepository configuration")
 	}
 	flatMap := yamlFile.FlattenToKeyValue(util.LowerCamelCaseFlatMapKeyFormatter)
-	if err := mapLinkedVars(flatMap, localManifestsCopyPath, &config); err != nil {
+	if err := mapLinkedVars(flatMap, localManifestsCopyPath, &config, true); err != nil {
 		return "", err
 	}
 
@@ -225,9 +242,8 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 			continue
 		}
 		k := keyValArr[0]
-		/**
-		Do not include the extra S3 parameters if they are not set in the params.yaml
-		*/
+
+		// Do not include the extra S3 parameters if they are not set in the params.yaml
 		if artifactRepositoryConfig.S3 == nil {
 			if strings.Contains(k, "S3") {
 				continue
@@ -241,15 +257,11 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 	if artifactRepositoryConfig.S3 != nil {
 		artifactRepositoryS3AccessKeySecretName, ok := flatMap["artifactRepositoryS3AccessKeySecretName"].(string)
 		if !ok {
-			if err != nil {
-				return "", err
-			}
+			return "", fmt.Errorf("missing 'artifactRepositoryS3AccessKeySecretName'")
 		}
 		artifactRepositoryS3SecretKeySecretName, ok := flatMap["artifactRepositoryS3SecretKeySecretName"].(string)
 		if !ok {
-			if err != nil {
-				return "", err
-			}
+			return "", fmt.Errorf("missing 'artifactRepositoryS3SecretKeySecretName'")
 		}
 		artifactRepositoryConfig.S3.AccessKeySecret.Name = artifactRepositoryS3AccessKeySecretName
 		artifactRepositoryConfig.S3.SecretKeySecret.Name = artifactRepositoryS3SecretKeySecretName
@@ -263,13 +275,33 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 	//Write to env files
 	//workflow-config-map.env
 	//Set extra values for S3 specific configuration.
-	if artifactRepositoryConfig.S3 != nil && artifactRepositoryConfig.GCS == nil {
-		if yamlFile.HasKeys("artifactRepository.s3.bucket", "artifactRepository.s3.endpoint", "artifactRepository.s3.insecure", "artifactRepository.s3.region") {
-			//Clear previous env file
+	if artifactRepositoryConfig.ABS != nil {
+		missingKeys := yamlFile.FindMissingKeys("artifactRepository.s3.bucket", "artifactRepository.s3.endpoint", "artifactRepository.s3.insecure")
+		if len(missingKeys) == 0 {
 			paramsPath := filepath.Join(localManifestsCopyPath, "vars", "workflow-config-map.env")
-			if _, err := files.DeleteIfExists(paramsPath); err != nil {
+			//Clear previous env file - create truncates if it exists
+			paramsFile, err := os.Create(paramsPath)
+			if err != nil {
 				return "", err
 			}
+			var stringToWrite = fmt.Sprintf("%v=%v\n%v=%v\n%v=%v\n%v=%v\n",
+				"artifactRepositoryBucket", flatMap["artifactRepositoryS3Bucket"],
+				"artifactRepositoryEndpoint", flatMap["artifactRepositoryS3Endpoint"],
+				"artifactRepositoryInsecure", flatMap["artifactRepositoryS3Insecure"],
+			)
+			_, err = paramsFile.WriteString(stringToWrite)
+			if err != nil {
+				return "", err
+			}
+		} else {
+			missingKeysMessage := strings.Join(missingKeys, ", ")
+			log.Fatalf("missing required values in params.yaml: %v", missingKeysMessage)
+		}
+	} else if artifactRepositoryConfig.S3 != nil && artifactRepositoryConfig.GCS == nil {
+		missingKeys := yamlFile.FindMissingKeys("artifactRepository.s3.bucket", "artifactRepository.s3.endpoint", "artifactRepository.s3.insecure", "artifactRepository.s3.region")
+		if len(missingKeys) == 0 {
+			paramsPath := filepath.Join(localManifestsCopyPath, "vars", "workflow-config-map.env")
+			//Clear previous env file - create truncates if it exists
 			paramsFile, err := os.Create(paramsPath)
 			if err != nil {
 				return "", err
@@ -285,7 +317,8 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 				return "", err
 			}
 		} else {
-			log.Fatal("Missing required values in params.yaml, artifactRepository. Check bucket, endpoint, or insecure.")
+			missingKeysMessage := strings.Join(missingKeys, ", ")
+			log.Fatalf("missing required values in params.yaml: %v", missingKeysMessage)
 		}
 	}
 	//logging-config-map.env, optional component
@@ -312,9 +345,6 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 	if yamlFile.HasKey("application.defaultNamespace") {
 		//Clear previous env file
 		paramsPath := filepath.Join(localManifestsCopyPath, "vars", "onepanel-config-map.env")
-		if _, err := files.DeleteIfExists(paramsPath); err != nil {
-			return "", err
-		}
 		paramsFile, err := os.Create(paramsPath)
 		if err != nil {
 			return "", err
@@ -322,8 +352,7 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 		var stringToWrite = fmt.Sprintf("%v=%v\n",
 			"applicationDefaultNamespace", flatMap["applicationDefaultNamespace"],
 		)
-		_, err = paramsFile.WriteString(stringToWrite)
-		if err != nil {
+		if _, err := paramsFile.WriteString(stringToWrite); err != nil {
 			return "", err
 		}
 	} else {
@@ -333,7 +362,8 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 	var secretKeysValues []string
 	artifactRepoSecretPlaceholder := "$(artifactRepositoryProviderSecret)"
 	if yamlFile.HasKey("artifactRepository.s3") {
-		if yamlFile.HasKeys("artifactRepository.s3.accessKey", "artifactRepository.s3.secretKey") {
+		missingKeys := yamlFile.FindMissingKeys("artifactRepository.s3.accessKey", "artifactRepository.s3.secretKey")
+		if len(missingKeys) == 0 {
 			secretKeysValues = append(secretKeysValues, "artifactRepositoryS3AccessKey", "artifactRepositoryS3SecretKey")
 
 			artifactRepoS3Secret := fmt.Sprintf(
@@ -346,7 +376,8 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 				return "", err
 			}
 		} else {
-			log.Fatal("Missing required values in params.yaml, artifactRepository. Check accessKey, or secretKey.")
+			missingKeysMessage := strings.Join(missingKeys, ", ")
+			log.Fatalf("Missing required values in params.yaml: %v", missingKeysMessage)
 		}
 	}
 	if yamlFile.HasKey("artifactRepository.gcs") {
@@ -372,52 +403,8 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 		return "", err
 	}
 
-	for _, filePath := range listOfFiles {
-		manifestFileContent, manifestFileOpenErr := ioutil.ReadFile(filePath)
-		if manifestFileOpenErr != nil {
-			return "", manifestFileOpenErr
-		}
-		manifestFileContentStr := string(manifestFileContent)
-		useStr := ""
-		rawStr := ""
-		for key := range flatMap {
-			valueBool, okBool := flatMap[key].(bool)
-			if okBool {
-				useStr = strconv.FormatBool(valueBool)
-				rawStr = strconv.FormatBool(valueBool)
-			} else {
-				valueInt, okInt := flatMap[key].(int)
-				if okInt {
-					useStr = "\"" + strconv.FormatInt(int64(valueInt), 10) + "\""
-					rawStr = strconv.FormatInt(int64(valueInt), 10)
-				} else {
-					valueStr, ok := flatMap[key].(string)
-					if !ok {
-						log.Fatal("Unrecognized value in flatmap. Check type assertions.")
-					}
-					useStr = valueStr
-					rawStr = valueStr
-				}
-			}
-			oldString := "$(" + key + ")"
-			if strings.Contains(manifestFileContentStr, key) {
-				manifestFileContentStr = strings.Replace(manifestFileContentStr, oldString, useStr, -1)
-			}
-			oldRawString := "$raw(" + key + ")"
-			if strings.Contains(manifestFileContentStr, key) {
-				manifestFileContentStr = strings.Replace(manifestFileContentStr, oldRawString, rawStr, -1)
-			}
-
-			oldBase64String := "$base64(" + key + ")"
-			if strings.Contains(manifestFileContentStr, key) {
-				base64Value := base64.StdEncoding.EncodeToString([]byte(rawStr))
-				manifestFileContentStr = strings.Replace(manifestFileContentStr, oldBase64String, base64Value, -1)
-			}
-		}
-		writeFileErr := ioutil.WriteFile(filePath, []byte(manifestFileContentStr), 0644)
-		if writeFileErr != nil {
-			return "", writeFileErr
-		}
+	if err := replaceVariables(flatMap, listOfFiles); err != nil {
+		return "", err
 	}
 
 	//Update the values in those files
@@ -571,38 +558,44 @@ func generateMetalLbAddresses(nodePoolData []*yaml2.Node) string {
 
 // mapLinkedVars goes through the `default-vars.yaml` files which map variables from already existing variables
 // and set those variable values. If the value is already in the mapping, it is not mapped to the default.
-func mapLinkedVars(mapping map[string]interface{}, manifestPath string, config *opConfig.Config) error {
-	linkVars := false
+func mapLinkedVars(mapping map[string]interface{}, manifestPath string, config *opConfig.Config, replace bool) error {
+	paths := make([]string, 0)
+	pathsAdded := make(map[string]bool)
+
 	for _, component := range config.Spec.Components {
-		if strings.Contains(component, "modeldb") {
-			linkVars = true
-			break
+		if !pathsAdded["modeldb"] && strings.Contains(component, "modeldb") {
+			paths = append(paths, filepath.Join(manifestPath, "modeldb", "base", "default-vars.yaml"))
+			pathsAdded["modeldb"] = true
+		}
+		if !pathsAdded["artifact-repository"] && strings.Contains(component, "artifact-repository") {
+			paths = append(paths, filepath.Join(manifestPath, "common", "artifact-repository", "overlays", "abs", "default-vars.yaml"))
+			pathsAdded["artifact-repository"] = true
 		}
 	}
 
-	if !linkVars {
-		return nil
-	}
-
-	modelDBMapping, err := util.LoadDynamicYamlFromFile(filepath.Join(manifestPath, "modeldb", "base", "default-vars.yaml"))
-	if err != nil {
-		return err
-	}
-
-	flatMappedVars := modelDBMapping.Flatten(util.LowerCamelCaseFlatMapKeyFormatter)
-	for key, valueNode := range flatMappedVars {
-		// Skip if key already exists
-		if _, ok := mapping[key]; ok {
-			continue
+	for _, path := range paths {
+		loadedMapping, err := util.LoadDynamicYamlFromFile(path)
+		if err != nil {
+			return err
 		}
 
-		valueKey := util.LowerCamelCaseStringFormat(valueNode.Value.Value, ".")
-		value, ok := mapping[valueKey]
-		if !ok {
-			return fmt.Errorf("unknown key %v", valueKey)
-		}
+		flatMappedVars := loadedMapping.Flatten(util.LowerCamelCaseFlatMapKeyFormatter)
+		for key, valueNode := range flatMappedVars {
+			// Skip if key already exists
+			if !replace {
+				if _, ok := mapping[key]; ok {
+					continue
+				}
+			}
 
-		mapping[key] = value
+			valueKey := util.LowerCamelCaseStringFormat(valueNode.Value.Value, ".")
+			value, ok := mapping[valueKey]
+			if !ok {
+				return fmt.Errorf("unknown key %v", valueKey)
+			}
+
+			mapping[key] = value
+		}
 	}
 
 	return nil
@@ -624,4 +617,67 @@ func HumanizeKustomizeError(err error) string {
 	}
 
 	return fmt.Sprintf("Error generating result: %v", err.Error())
+}
+
+// replaceVariable will go through the variables in flatMap and replace any instances of it in fileContent
+// the resulting modified content is returned
+func replaceVariable(flatMap map[string]interface{}, fileContent []byte) []byte {
+	manifestFileContentStr := string(fileContent)
+	useStr := ""
+	rawStr := ""
+
+	for key := range flatMap {
+		valueBool, okBool := flatMap[key].(bool)
+		if okBool {
+			useStr = strconv.FormatBool(valueBool)
+			rawStr = strconv.FormatBool(valueBool)
+		} else {
+			valueInt, okInt := flatMap[key].(int)
+			if okInt {
+				useStr = "\"" + strconv.FormatInt(int64(valueInt), 10) + "\""
+				rawStr = strconv.FormatInt(int64(valueInt), 10)
+			} else {
+				valueStr, ok := flatMap[key].(string)
+				if !ok {
+					log.Fatal("Unrecognized value in flatmap. Check type assertions.")
+				}
+				useStr = valueStr
+				rawStr = valueStr
+			}
+		}
+		oldString := "$(" + key + ")"
+		if strings.Contains(manifestFileContentStr, key) {
+			manifestFileContentStr = strings.Replace(manifestFileContentStr, oldString, useStr, -1)
+		}
+		oldRawString := "$raw(" + key + ")"
+		if strings.Contains(manifestFileContentStr, key) {
+			manifestFileContentStr = strings.Replace(manifestFileContentStr, oldRawString, rawStr, -1)
+		}
+
+		oldBase64String := "$base64(" + key + ")"
+		if strings.Contains(manifestFileContentStr, key) {
+			base64Value := base64.StdEncoding.EncodeToString([]byte(rawStr))
+			manifestFileContentStr = strings.Replace(manifestFileContentStr, oldBase64String, base64Value, -1)
+		}
+	}
+
+	return []byte(manifestFileContentStr)
+}
+
+// replaceVariables will go through the variables in flatMap and replace any instances of it in any of the files in filePaths
+// the file content is replaced, no backups are made.
+func replaceVariables(flatMap map[string]interface{}, filePaths []string) error {
+	for _, filePath := range filePaths {
+		manifestFileContent, manifestFileOpenErr := ioutil.ReadFile(filePath)
+		if manifestFileOpenErr != nil {
+			return manifestFileOpenErr
+		}
+
+		manifestFileContentStr := replaceVariable(flatMap, manifestFileContent)
+		if err := ioutil.WriteFile(filePath, manifestFileContentStr, 0644); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
