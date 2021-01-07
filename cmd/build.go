@@ -218,7 +218,7 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 		yamlFile.Put("artifactRepository.s3.secretKey", "placeholder")
 		yamlFile.Put("artifactRepository.s3.bucket", "bucket-name")
 		yamlFile.Put("artifactRepository.s3.endpoint", "minio-gateway.onepanel.svc.cluster.local")
-		yamlFile.Put("artifactRepository.s3.insecure", "false")
+		yamlFile.Put("artifactRepository.s3.insecure", "true")
 	} else {
 		return "", errors.New("unsupported artifactRepository configuration")
 	}
