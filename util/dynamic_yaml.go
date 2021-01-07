@@ -202,6 +202,19 @@ func (d *DynamicYaml) HasKeys(keys ...string) bool {
 	return true
 }
 
+// FindMissingKeys will return an array of the keys that are not in the manifest
+func (d *DynamicYaml) FindMissingKeys(keys ...string) []string {
+	missing := make([]string, 0)
+
+	for _, key := range keys {
+		if !d.HasKey(key) {
+			missing = append(missing, key)
+		}
+	}
+
+	return missing
+}
+
 func createMappingYamlNode() *yaml.Node {
 	return &yaml.Node{
 		Kind:        yaml.MappingNode,

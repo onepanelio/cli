@@ -21,6 +21,7 @@ const (
 	manifestsFilePath             = ".onepanel/manifests"
 	artifactRepositoryProviderS3  = "s3"
 	artifactRepositoryProviderGcs = "gcs"
+	artifactRepositoryProviderAbs = "abs"
 )
 
 var (
@@ -148,6 +149,8 @@ var initCmd = &cobra.Command{
 			log.Printf("[error] AddCommonComponents %v", err.Error())
 			return
 		}
+
+		bld.AddOverlayContender(ArtifactRepositoryProvider)
 
 		if err := addCloudProviderToManifestBuilder(Provider, bld); err != nil {
 			log.Printf("[error] Adding Cloud Provider: %v", err.Error())
@@ -293,7 +296,7 @@ func init() {
 
 	initCmd.Flags().StringVarP(&Provider, "provider", "p", "", "Cloud provider. Valid values: aks, gke, eks")
 	initCmd.Flags().StringVarP(&DNS, "dns-provider", "d", "", "Provider for DNS. Valid values: azuredns, clouddns (google), cloudflare, route53")
-	initCmd.Flags().StringVarP(&ArtifactRepositoryProvider, "artifact-repository-provider", "", "", "Object storage provider for storing artifacts. Valid value: s3")
+	initCmd.Flags().StringVarP(&ArtifactRepositoryProvider, "artifact-repository-provider", "", "", "Object storage provider for storing artifacts. Valid value: s3, abs")
 	initCmd.Flags().StringVarP(&ConfigurationFilePath, "config", "c", "config.yaml", "File path of the resulting config file")
 	initCmd.Flags().StringVarP(&ParametersFilePath, "params", "e", "params.yaml", "File path of the resulting parameters file")
 	initCmd.Flags().BoolVarP(&EnableEFKLogging, "enable-efk-logging", "", false, "Enable Elasticsearch, Fluentd and Kibana (EFK) logging")
@@ -363,14 +366,16 @@ func validateProvider(prov string) error {
 
 func validateArtifactRepositoryProvider(arRepoProv string) error {
 	if arRepoProv == "" {
-		return errors.New("artifact-repository-provider flag is required. Valid value: s3")
+		return errors.New("artifact-repository-provider flag is required. Valid value: s3, abs")
 	}
 
 	if arRepoProv == artifactRepositoryProviderS3 ||
-		arRepoProv == artifactRepositoryProviderGcs {
+		arRepoProv == artifactRepositoryProviderGcs ||
+		arRepoProv == artifactRepositoryProviderAbs {
 		return nil
 	}
-	return fmt.Errorf("'%v' is not a valid --artifact-repository-provider value. Valid value: s3", arRepoProv)
+
+	return fmt.Errorf("'%v' is not a valid --artifact-repository-provider value. Valid value: s3, abs", arRepoProv)
 }
 
 func validateDNS(dns string) error {
@@ -442,7 +447,7 @@ func addDNSProviderToManifestBuilder(dns string, builder *manifest.Builder) erro
 }
 
 func removeUneededArtifactRepositoryProviders(mergedParams *util.DynamicYaml) {
-	artifactRepoProviders := []string{artifactRepositoryProviderS3, artifactRepositoryProviderGcs}
+	artifactRepoProviders := []string{artifactRepositoryProviderS3, artifactRepositoryProviderGcs, artifactRepositoryProviderAbs}
 	var nodeKeyStr string
 	for _, artRepoProv := range artifactRepoProviders {
 		if ArtifactRepositoryProvider == artRepoProv {
