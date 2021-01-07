@@ -368,10 +368,6 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 					"\n  artifactRepositoryS3SecretKey: %v",
 				flatMap["artifactRepositoryS3AccessKey"], flatMap["artifactRepositoryS3SecretKey"])
 
-			if artifactRepositoryConfig.ABS != nil {
-				artifactRepoS3Secret += fmt.Sprintf("\n  MINIO_ACCESS_KEY: %v\n  MINIO_SECRET_KEY: %v", flatMap["artifactRepositoryS3AccessKey"], flatMap["artifactRepositoryS3SecretKey"])
-			}
-
 			err = replacePlaceholderForSecretManiFile(localManifestsCopyPath, artifactRepoSecretPlaceholder, artifactRepoS3Secret)
 			if err != nil {
 				return "", err
