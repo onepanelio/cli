@@ -199,7 +199,7 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 			KeyFormat: "artifacts/{{workflow.namespace}}/{{workflow.name}}/{{pod.name}}",
 			Bucket:    artifactRepositoryConfig.ABS.Container,
 			Endpoint:  "minio-gateway.onepanel.svc.cluster.local:9000",
-			Insecure:  false,
+			Insecure:  true,
 			AccessKeySecret: storage.ArtifactRepositorySecret{
 				Key:  "artifactRepositoryS3AccessKey",
 				Name: "$(artifactRepositoryS3AccessKey)",
@@ -563,7 +563,10 @@ func mapLinkedVars(mapping map[string]interface{}, manifestPath string, config *
 			paths = append(paths, filepath.Join(manifestPath, "modeldb", "base", "default-vars.yaml"))
 			pathsAdded["modeldb"] = true
 		}
-		if !pathsAdded["artifact-repository"] && strings.Contains(component, "artifact-repository") {
+	}
+
+	for _, component := range config.Spec.Overlays {
+		if !pathsAdded["artifact-repository"] && strings.Contains(component, filepath.Join("artifact-repository", "overlays", "abs")) {
 			paths = append(paths, filepath.Join(manifestPath, "common", "artifact-repository", "overlays", "abs", "default-vars.yaml"))
 			pathsAdded["artifact-repository"] = true
 		}
