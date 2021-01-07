@@ -195,10 +195,11 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 
 		yamlFile.Put("artifactRepositoryProvider", yamlConfigMap)
 	} else if artifactRepositoryConfig.ABS != nil {
+		defaultNamespace := yamlFile.GetValue("application.defaultNamespace").Value
 		artifactRepositoryConfig.S3 = &storage.ArtifactRepositoryS3Provider{
 			KeyFormat: artifactRepositoryConfig.ABS.KeyFormat,
 			Bucket:    artifactRepositoryConfig.ABS.Container,
-			Endpoint:  "minio-gateway.onepanel.svc.cluster.local:9000",
+			Endpoint:  fmt.Sprintf("minio-gateway.%v.svc.cluster.local:9000", defaultNamespace),
 			Insecure:  true,
 			AccessKeySecret: storage.ArtifactRepositorySecret{
 				Key:  "artifactRepositoryS3AccessKey",
