@@ -35,4 +35,13 @@ build-windows-amd64:
 			-ldflags $(ldflags) \
 			main.go
 
-all: build-linux-amd64 build-macos-amd64 build-windows-amd64
+all-internal: build-linux-amd64 build-macos-amd64 build-windows-amd64
+
+all:
+	docker run --rm \
+ 	-e version=$(version) \
+ 	-e manifests-version-tag=$(manifests-version-tag) \
+ 	-e core-version-tag=$(core-version-tag) \
+ 	-e core-ui-version-tag=$(core-ui-version-tag) \
+ 	-v "$(PWD)":/usr/src/myapp -w /usr/src/myapp golang:1.15 \
+ 	make all-internal
