@@ -196,7 +196,7 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 		yamlFile.Put("artifactRepositoryProvider", yamlConfigMap)
 	} else if artifactRepositoryConfig.ABS != nil {
 		artifactRepositoryConfig.S3 = &storage.ArtifactRepositoryS3Provider{
-			KeyFormat: "artifacts/{{workflow.namespace}}/{{workflow.name}}/{{pod.name}}",
+			KeyFormat: artifactRepositoryConfig.ABS.KeyFormat,
 			Bucket:    artifactRepositoryConfig.ABS.Container,
 			Endpoint:  "minio-gateway.onepanel.svc.cluster.local:9000",
 			Insecure:  true,
