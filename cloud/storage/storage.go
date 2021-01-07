@@ -155,7 +155,3 @@ func (g *ArtifactRepositoryGCSProvider) FormatKey(namespace, workflowName, podNa
 
 	return keyFormat
 }
-
-type NamespaceConfig struct {
-	ArtifactRepository ArtifactRepositoryProvider
-}
