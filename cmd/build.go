@@ -323,11 +323,8 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 	}
 	//logging-config-map.env, optional component
 	if yamlFile.HasKeys("logging.image", "logging.volumeStorage") {
-		//Clear previous env file
 		paramsPath := filepath.Join(localManifestsCopyPath, "vars", "logging-config-map.env")
-		if _, err := files.DeleteIfExists(paramsPath); err != nil {
-			return "", err
-		}
+		//Clear previous env file
 		paramsFile, err := os.Create(paramsPath)
 		if err != nil {
 			return "", err
@@ -387,8 +384,7 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 				log.Fatal("artifactRepository.gcs.serviceAccountKey cannot be empty.")
 			}
 			artifactRepoS3Secret := "artifactRepositoryGCSServiceAccountKey: '" + val.Value + "'"
-			err = replacePlaceholderForSecretManiFile(localManifestsCopyPath, artifactRepoSecretPlaceholder, artifactRepoS3Secret)
-			if err != nil {
+			if err := replacePlaceholderForSecretManiFile(localManifestsCopyPath, artifactRepoSecretPlaceholder, artifactRepoS3Secret); err != nil {
 				return "", err
 			}
 		} else {
