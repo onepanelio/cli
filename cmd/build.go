@@ -145,9 +145,9 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 	coreUiImageTag := opConfig.CoreUIImageTag
 	coreUiImagePullPolicy := "IfNotPresent"
 	if Dev {
-		coreImageTag = "dev"
+		coreImageTag = "latest"
 		coreImagePullPolicy = "Always"
-		coreUiImageTag = "dev"
+		coreUiImageTag = "latest"
 		coreUiImagePullPolicy = "Always"
 	}
 	yamlFile.PutWithSeparator("applicationCoreImageTag", coreImageTag, ".")
