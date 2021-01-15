@@ -64,7 +64,7 @@ var generateCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(generateCmd)
-	generateCmd.Flags().BoolVarP(&Dev, "dev", "", false, "Sets conditions to allow development testing.")
+	generateCmd.Flags().BoolVarP(&Dev, "latest", "", false, "Sets conditions to allow development testing.")
 }
 
 // Given the path to the manifests, and a kustomize config, creates the final kustomization file.
