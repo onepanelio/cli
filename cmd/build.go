@@ -188,12 +188,40 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 		}
 		yamlFile.Put("artifactRepositoryProvider", yamlStr)
 	} else if artifactRepositoryConfig.GCS != nil {
-		yamlConfigMap, err := artifactRepositoryConfig.GCS.MarshalToYaml()
+		defaultNamespace := yamlFile.GetValue("application.defaultNamespace").Value
+
+		accessKey := artifactRepositoryConfig.GCS.Bucket
+		randomSecret, err := util.RandASCIIString(16)
 		if err != nil {
 			return "", err
 		}
 
-		yamlFile.Put("artifactRepositoryProvider", yamlConfigMap)
+		artifactRepositoryConfig.S3 = &storage.ArtifactRepositoryS3Provider{
+			KeyFormat: artifactRepositoryConfig.GCS.KeyFormat,
+			Bucket:    artifactRepositoryConfig.GCS.Bucket,
+			Endpoint:  fmt.Sprintf("minio-gateway.%v.svc.cluster.local:9000", defaultNamespace),
+			Insecure:  true,
+			AccessKeySecret: storage.ArtifactRepositorySecret{
+				Key:  "artifactRepositoryS3AccessKey",
+				Name: accessKey,
+			},
+			SecretKeySecret: storage.ArtifactRepositorySecret{
+				Key:  "artifactRepositoryS3SecretKey",
+				Name: randomSecret,
+			},
+		}
+		yamlStr, err := artifactRepositoryConfig.S3.MarshalToYaml()
+		if err != nil {
+			return "", err
+		}
+
+		yamlFile.Put("artifactRepositoryProvider", yamlStr)
+		yamlFile.Put("artifactRepository.s3.accessKey", accessKey)
+		yamlFile.Put("artifactRepository.s3.secretKey", randomSecret)
+		yamlFile.Put("artifactRepository.s3.bucket", artifactRepositoryConfig.GCS.Bucket)
+		yamlFile.Put("artifactRepository.s3.endpoint", artifactRepositoryConfig.S3.Endpoint)
+		yamlFile.Put("artifactRepository.s3.insecure", "true")
+		yamlFile.Put("artifactRepositoryServiceAccountKey", base64.StdEncoding.EncodeToString([]byte(artifactRepositoryConfig.GCS.ServiceAccountKey)))
 	} else if artifactRepositoryConfig.ABS != nil {
 		defaultNamespace := yamlFile.GetValue("application.defaultNamespace").Value
 		artifactRepositoryConfig.S3 = &storage.ArtifactRepositoryS3Provider{
@@ -214,6 +242,7 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 		if err != nil {
 			return "", err
 		}
+
 		yamlFile.Put("artifactRepositoryProvider", yamlStr)
 		yamlFile.Put("artifactRepository.s3.accessKey", "placeholder")
 		yamlFile.Put("artifactRepository.s3.secretKey", "placeholder")
@@ -376,20 +405,6 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 		} else {
 			missingKeysMessage := strings.Join(missingKeys, ", ")
 			log.Fatalf("Missing required values in params.yaml: %v", missingKeysMessage)
-		}
-	}
-	if yamlFile.HasKey("artifactRepository.gcs") {
-		if yamlFile.HasKey("artifactRepository.gcs.serviceAccountKey") {
-			_, val := yamlFile.Get("artifactRepository.gcs.serviceAccountKey")
-			if val.Value == "" {
-				log.Fatal("artifactRepository.gcs.serviceAccountKey cannot be empty.")
-			}
-			artifactRepoS3Secret := "artifactRepositoryGCSServiceAccountKey: '" + val.Value + "'"
-			if err := replacePlaceholderForSecretManiFile(localManifestsCopyPath, artifactRepoSecretPlaceholder, artifactRepoS3Secret); err != nil {
-				return "", err
-			}
-		} else {
-			log.Fatal("Missing required values in params.yaml, artifactRepository. artifactRepository.gcs.serviceAccountKey.")
 		}
 	}
 
