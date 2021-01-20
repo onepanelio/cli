@@ -225,7 +225,7 @@ var applyCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(applyCmd)
-	applyCmd.Flags().BoolVarP(&Dev, "dev", "", false, "Sets conditions to allow development testing.")
+	applyCmd.Flags().BoolVarP(&Dev, "latest", "", false, "Sets conditions to allow development testing.")
 }
 
 func getPodInfo(podName string, podNamespace string) (res string, errMessage string, err error) {
