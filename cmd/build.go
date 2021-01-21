@@ -267,6 +267,7 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 	workflowEnvContStr := string(workflowEnvCont)
 	//Add these keys and values
 	for _, line := range strings.Split(workflowEnvContStr, "\n") {
+		line = strings.ReplaceAll(line, "\r", "")
 		keyValArr := strings.Split(line, "=")
 		if len(keyValArr) != 2 {
 			continue
