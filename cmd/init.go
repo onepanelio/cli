@@ -366,7 +366,7 @@ func validateProvider(prov string) error {
 
 func validateArtifactRepositoryProvider(arRepoProv string) error {
 	if arRepoProv == "" {
-		return errors.New("artifact-repository-provider flag is required. Valid value: s3, abs")
+		return errors.New("artifact-repository-provider flag is required. Valid value: s3, abs, gcs")
 	}
 
 	if arRepoProv == artifactRepositoryProviderS3 ||
@@ -375,7 +375,7 @@ func validateArtifactRepositoryProvider(arRepoProv string) error {
 		return nil
 	}
 
-	return fmt.Errorf("'%v' is not a valid --artifact-repository-provider value. Valid value: s3, abs", arRepoProv)
+	return fmt.Errorf("'%v' is not a valid --artifact-repository-provider value. Valid value: s3, abs, gcs", arRepoProv)
 }
 
 func validateDNS(dns string) error {

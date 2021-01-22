@@ -75,7 +75,9 @@ func LoadDynamicYamlFromFile(filePath string) (*DynamicYaml, error) {
 		Kind:  yaml.DocumentNode,
 		Style: 0,
 	}
-	if err := yaml.Unmarshal(rawFileData, data); err != nil {
+
+	formattedFileData := strings.ReplaceAll(string(rawFileData), "\r", "")
+	if err := yaml.Unmarshal([]byte(formattedFileData), data); err != nil {
 		return nil, err
 	}
 
