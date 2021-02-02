@@ -296,7 +296,7 @@ func init() {
 
 	initCmd.Flags().StringVarP(&Provider, "provider", "p", "", "Cloud provider. Valid values: aks, gke, eks")
 	initCmd.Flags().StringVarP(&DNS, "dns-provider", "d", "", "Provider for DNS. Valid values: azuredns, clouddns (google), cloudflare, route53")
-	initCmd.Flags().StringVarP(&ArtifactRepositoryProvider, "artifact-repository-provider", "", "", "Object storage provider for storing artifacts. Valid value: s3, abs")
+	initCmd.Flags().StringVarP(&ArtifactRepositoryProvider, "artifact-repository-provider", "", "", "Object storage provider for storing artifacts. Valid value: s3, abs, gcs")
 	initCmd.Flags().StringVarP(&ConfigurationFilePath, "config", "c", "config.yaml", "File path of the resulting config file")
 	initCmd.Flags().StringVarP(&ParametersFilePath, "params", "e", "params.yaml", "File path of the resulting parameters file")
 	initCmd.Flags().BoolVarP(&EnableEFKLogging, "enable-efk-logging", "", false, "Enable Elasticsearch, Fluentd and Kibana (EFK) logging")
