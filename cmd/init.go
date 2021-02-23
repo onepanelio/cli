@@ -59,6 +59,9 @@ var providerProperties = map[string]ProviderProperties{
 	"aks": {
 		IsCloud: true,
 	},
+	"vsphere": {
+		IsCloud: true,
+	},
 }
 
 // initCmd represents the init command
@@ -294,7 +297,7 @@ var initCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(initCmd)
 
-	initCmd.Flags().StringVarP(&Provider, "provider", "p", "", "Cloud provider. Valid values: aks, gke, eks")
+	initCmd.Flags().StringVarP(&Provider, "provider", "p", "", "Cloud provider. Valid values: aks, gke, eks, vsphere, minikube, microk8s")
 	initCmd.Flags().StringVarP(&DNS, "dns-provider", "d", "", "Provider for DNS. Valid values: azuredns, clouddns (google), cloudflare, route53")
 	initCmd.Flags().StringVarP(&ArtifactRepositoryProvider, "artifact-repository-provider", "", "", "Object storage provider for storing artifacts. Valid value: s3, abs, gcs")
 	initCmd.Flags().StringVarP(&ConfigurationFilePath, "config", "c", "config.yaml", "File path of the resulting config file")
@@ -353,12 +356,12 @@ func validateInput() error {
 
 func validateProvider(prov string) error {
 	if prov == "" {
-		return errors.New("provider flag is required. Valid values: aks, gke, eks")
+		return errors.New("provider flag is required. Valid values: aks, gke, eks, vsphere, minikube, microk8s")
 	}
 
 	_, ok := providerProperties[prov]
 	if !ok {
-		return fmt.Errorf("'%v' is not a valid --provider value. Valid values: aks, gke, eks", prov)
+		return fmt.Errorf("'%v' is not a valid --provider value. Valid values: aks, gke, eks, vsphere, minikube, microk8s", prov)
 	}
 
 	return nil
