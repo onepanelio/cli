@@ -253,6 +253,22 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 		return "", errors.New("unsupported artifactRepository configuration")
 	}
 
+	// Check if workflowEngineContainerRuntimeExecutor is in the vars.
+	// If it is, leave it. If it is not, load it from teh manifests and use the default
+	if !yamlFile.HasKey("workflowEngine.containerRuntimeExecutor") {
+		argoVarsYaml, err := util.LoadDynamicYamlFromFile(filepath.Join(".onepanel", "manifests", "cache", "common", "argo", "base", "vars.yaml"))
+		if err != nil {
+			return "", err
+		}
+
+		_, valueNode := argoVarsYaml.Get("workflowEngine.containerRuntimeExecutor.default")
+		if valueNode == nil {
+			return "", fmt.Errorf("workflowEngine.containerRuntimeExecutor.default does not exist in manifests")
+		}
+
+		yamlFile.Put("workflowEngineContainerRuntimeExecutor", valueNode.Value)
+	}
+
 	flatMap := yamlFile.FlattenToKeyValue(util.LowerCamelCaseFlatMapKeyFormatter)
 	if err := mapLinkedVars(flatMap, localManifestsCopyPath, &config, true); err != nil {
 		return "", err
