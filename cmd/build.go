@@ -254,7 +254,7 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 	}
 
 	// Check if workflowEngineContainerRuntimeExecutor is in the vars.
-	// If it is, leave it. If it is not, load it from teh manifests and use the default
+	// If it is, leave it. If it is not, load it from the manifests and use the default
 	if !yamlFile.HasKey("workflowEngine.containerRuntimeExecutor") {
 		argoVarsYaml, err := util.LoadDynamicYamlFromFile(filepath.Join(".onepanel", "manifests", "cache", "common", "argo", "base", "vars.yaml"))
 		if err != nil {
