@@ -5,6 +5,7 @@ import (
 	opConfig "github.com/onepanelio/cli/config"
 	"github.com/onepanelio/cli/util"
 	"github.com/spf13/cobra"
+	"strings"
 )
 
 var appCmd = &cobra.Command{
@@ -32,8 +33,34 @@ var statusCmd = &cobra.Command{
 			fmt.Println("Error parsing configuration file.")
 			return
 		}
+
+
 		ready, err := util.DeploymentStatus(yamlFile)
 		if err != nil {
+			if strings.Contains(err.Error(), "connection refused") {
+				yamlFile, yamlErr := util.LoadDynamicYamlFromFile(config.Spec.Params)
+				if yamlErr != nil {
+					fmt.Printf("Error reading file '%v' %v", config.Spec.Params, yamlErr.Error())
+					return
+				}
+
+				flatMap := yamlFile.FlattenToKeyValue(util.AppendDotFlatMapKeyFormatter)
+				provider, providerErr := util.GetYamlStringValue(flatMap, "application.provider")
+				if providerErr != nil {
+					fmt.Printf("Unable to read application.provider from params.yaml %v", providerErr.Error())
+					return
+				}
+				if provider == nil {
+					fmt.Printf("application.provider is not set in params.yaml")
+					return
+				}
+
+				if *provider == "microk8s" {
+					fmt.Printf("Unable to connect to cluster. Make sure you are running with \nKUBECONFIG=./kubeconfig opctl apply\nError: %v", err.Error())
+					return
+				}
+			}
+
 			fmt.Println(err.Error())
 			return
 		}
