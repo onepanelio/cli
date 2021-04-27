@@ -54,7 +54,7 @@ var statusCmd = &cobra.Command{
 			}
 
 			if *provider == "microk8s" {
-				fmt.Printf("Unable to connect to cluster. Make sure you are running with \nKUBECONFIG=./kubeconfig opctl apply\nError: %v", err.Error())
+				fmt.Printf("Unable to connect to cluster. Make sure you are running with \nKUBECONFIG=./kubeconfig opctl app status\nError: %v", err.Error())
 				return
 			}
 
