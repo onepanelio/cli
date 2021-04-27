@@ -78,28 +78,26 @@ var applyCmd = &cobra.Command{
 
 		resApp, errResApp, err = applyKubernetesFile(applicationKubernetesYamlFilePath)
 		if err != nil {
-			if strings.Contains(err.Error(), "connection refused") {
-				yamlFile, yamlErr := util.LoadDynamicYamlFromFile(config.Spec.Params)
-				if yamlErr != nil {
-					fmt.Printf("Error reading file '%v' %v", config.Spec.Params, yamlErr.Error())
-					return
-				}
+			yamlFile, yamlErr := util.LoadDynamicYamlFromFile(config.Spec.Params)
+			if yamlErr != nil {
+				fmt.Printf("Error reading file '%v' %v", config.Spec.Params, yamlErr.Error())
+				return
+			}
 
-				flatMap := yamlFile.FlattenToKeyValue(util.AppendDotFlatMapKeyFormatter)
-				provider, providerErr := util.GetYamlStringValue(flatMap, "application.provider")
-				if providerErr != nil {
-					fmt.Printf("Unable to read application.provider from params.yaml %v", providerErr.Error())
-					return
-				}
-				if provider == nil {
-					fmt.Printf("application.provider is not set in params.yaml")
-					return
-				}
+			flatMap := yamlFile.FlattenToKeyValue(util.AppendDotFlatMapKeyFormatter)
+			provider, providerErr := util.GetYamlStringValue(flatMap, "application.provider")
+			if providerErr != nil {
+				fmt.Printf("Unable to read application.provider from params.yaml %v", providerErr.Error())
+				return
+			}
+			if provider == nil {
+				fmt.Printf("application.provider is not set in params.yaml")
+				return
+			}
 
-				if *provider == "microk8s" {
-					fmt.Printf("Unable to connect to cluster. Make sure you are running with \nKUBECONFIG=./kubeconfig opctl apply\nError: %v", err.Error())
-					return
-				}
+			if *provider == "microk8s" {
+				fmt.Printf("Unable to connect to cluster. Make sure you are running with \nKUBECONFIG=./kubeconfig opctl apply\nError: %v", err.Error())
+				return
 			}
 
 			fmt.Printf("\nFailed: %v", err.Error())
