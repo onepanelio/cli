@@ -16,12 +16,9 @@ import (
 
 type Config = restclient.Config
 
-func NewConfig() (config *Config) {
-	config, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
+func NewConfig() (config *Config, err error) {
+	config, err = clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
 		clientcmd.NewDefaultClientConfigLoadingRules(), &clientcmd.ConfigOverrides{}).ClientConfig()
-	if err != nil {
-		panic(err)
-	}
 
 	return
 }

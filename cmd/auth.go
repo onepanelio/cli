@@ -30,7 +30,12 @@ var tokenCmd = &cobra.Command{
 	Long:    "Get a token for a given provider. Google Cloud Platform is different from minikube, for example.",
 	Example: "auth token",
 	Run: func(cmd *cobra.Command, args []string) {
-		config := util.NewConfig()
+		config, err := util.NewConfig()
+		if err != nil {
+			fmt.Printf("Error getting kubernetes configuration: %v", err.Error())
+			return
+		}
+
 		if ServiceAccountName == "" {
 			ServiceAccountName = "admin"
 		}
@@ -60,7 +65,7 @@ var tokenCmd = &cobra.Command{
 			}
 
 			if *provider == "microk8s" {
-				fmt.Printf("Unable to connect to cluster. Make sure you are running with \nKUBECONFIG=./kubeconfig opctl auth token\nError: %v", err.Error())
+				fmt.Printf("Make sure you are running with \nKUBECONFIG=./kubeconfig opctl auth token\nError: %v", err.Error())
 				return
 			}
 
