@@ -33,7 +33,6 @@ var statusCmd = &cobra.Command{
 			return
 		}
 
-
 		ready, err := util.DeploymentStatus(yamlFile)
 		if err != nil {
 			yamlFile, yamlErr := util.LoadDynamicYamlFromFile(config.Spec.Params)
