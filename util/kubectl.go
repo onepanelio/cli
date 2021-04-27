@@ -256,6 +256,7 @@ func GetClusterIp(url string) {
 				hostsPath = "C:\\Windows\\System32\\Drivers\\etc\\hosts"
 			}
 
+			dnsRecordMessage = "local"
 			fmt.Printf("\nIn your %v file, add %v and point it to %v\n", hostsPath, stdout, fqdn)
 		} else {
 			dnsRecordMessage = "an A"
