@@ -745,3 +745,22 @@ func NodeValueToActual(node *yaml.Node) (interface{}, error) {
 
 	return value, nil
 }
+
+// GetYamlStringValue will attempt to get the key from the input mapping and return it as a lowercase string
+// If the key does not exist, nil is returned, with no error
+// If the value exists, but is not a string, an error is returned
+func GetYamlStringValue(mapping map[string]interface{}, key string) (*string, error) {
+	value, ok := mapping[key]
+	if !ok {
+		return nil, nil
+	}
+
+	valueString, okString := value.(string)
+	if !okString {
+		return nil, fmt.Errorf("value is not a string")
+	}
+
+	result := strings.ToLower(valueString)
+
+	return &result, nil
+}

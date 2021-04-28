@@ -4,6 +4,7 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"fmt"
+	opConfig "github.com/onepanelio/cli/config"
 
 	"github.com/onepanelio/cli/util"
 	"github.com/spf13/cobra"
@@ -29,12 +30,45 @@ var tokenCmd = &cobra.Command{
 	Long:    "Get a token for a given provider. Google Cloud Platform is different from minikube, for example.",
 	Example: "auth token",
 	Run: func(cmd *cobra.Command, args []string) {
-		config := util.NewConfig()
+		config, err := util.NewConfig()
+		if err != nil {
+			fmt.Printf("Error getting kubernetes configuration: %v", err.Error())
+			return
+		}
+
 		if ServiceAccountName == "" {
 			ServiceAccountName = "admin"
 		}
 		token, username, err := util.GetBearerToken(config, "", ServiceAccountName)
 		if err != nil {
+			configFilePath := "config.yaml"
+			opConfig, opErr := opConfig.FromFile(configFilePath)
+			if opErr != nil {
+				fmt.Printf("Unable to read configuration file: %v", err.Error())
+				return
+			}
+			yamlFile, yamlErr := util.LoadDynamicYamlFromFile(opConfig.Spec.Params)
+			if yamlErr != nil {
+				fmt.Printf("Error reading file '%v' %v", opConfig.Spec.Params, yamlErr.Error())
+				return
+			}
+
+			flatMap := yamlFile.FlattenToKeyValue(util.AppendDotFlatMapKeyFormatter)
+			provider, providerErr := util.GetYamlStringValue(flatMap, "application.provider")
+			if providerErr != nil {
+				fmt.Printf("Unable to read application.provider from params.yaml %v", providerErr.Error())
+				return
+			}
+			if provider == nil {
+				fmt.Printf("application.provider is not set in params.yaml")
+				return
+			}
+
+			if *provider == "microk8s" {
+				fmt.Printf("Make sure you are running with \nKUBECONFIG=./kubeconfig opctl auth token\nError: %v", err.Error())
+				return
+			}
+
 			fmt.Printf("Error encountered for user %s: %s\n", username, err.Error())
 		}
 
