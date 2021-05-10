@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -17,7 +18,8 @@ type Manifest struct {
 
 // ParamsError represents an error encountered in the params.yaml file
 type ParamsError struct {
-	Key       string
+	Key       string // The full key, as in 'application.domain'
+	ShortKey string  // The short key, as in 'domain'
 	Value     *string
 	ErrorType string
 }
@@ -130,16 +132,41 @@ func Validate(manifest *util.DynamicYaml) error {
 
 	defaultNamespace := manifest.GetValue("application.defaultNamespace")
 	if defaultNamespace == nil {
-		return &ParamsError{Key: "application.defaultNamespace", ErrorType: "missing"}
+		return &ParamsError{Key: "application.defaultNamespace", ShortKey: "defaultNamespace", ErrorType: "missing"}
 	}
 	if defaultNamespace.Value == "" {
-		return &ParamsError{Key: "application.defaultNamespace", ErrorType: "blank"}
+		return &ParamsError{Key: "application.defaultNamespace", ShortKey: "defaultNamespace",  ErrorType: "blank"}
 	}
 	if defaultNamespace.Value == "<namespace>" {
-		return &ParamsError{Key: "application.defaultNamespace", Value: &defaultNamespace.Value, ErrorType: "parameter"}
+		return &ParamsError{Key: "application.defaultNamespace", ShortKey: "defaultNamespace",  Value: &defaultNamespace.Value, ErrorType: "parameter"}
 	}
 	if _, ok := reservedNamespaces[defaultNamespace.Value]; ok {
-		return &ParamsError{Key: "application.defaultNamespace", Value: &defaultNamespace.Value, ErrorType: "reserved"}
+		return &ParamsError{Key: "application.defaultNamespace", ShortKey: "defaultNamespace",  Value: &defaultNamespace.Value, ErrorType: "reserved"}
+	}
+
+	// TODO - this needs to include array sub items.
+	flatMap := manifest.FlattenToKeyValue(util.AppendDotFlatMapKeyFormatter)
+	mapKeys := []string{}
+	for key, _ := range flatMap {
+		mapKeys = append(mapKeys, key)
+	}
+	sort.Strings(mapKeys)
+
+	for _, key := range mapKeys {
+		value := flatMap[key]
+		valueString, ok := value.(string)
+		if !ok {
+			continue
+		}
+
+		//log.Printf("Looking at %v -> %v\n", key, value)
+
+		// TODO what about leading whitespace?
+		if strings.HasPrefix(valueString, "<") {
+			lastDotIndex := strings.LastIndex(key, ".")
+			shortKey := key[lastDotIndex + 1:]
+			return &ParamsError{Key: key, ShortKey: shortKey,  Value: &valueString, ErrorType: "parameter"}
+		}
 	}
 
 	return nil

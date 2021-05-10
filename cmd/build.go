@@ -640,11 +640,11 @@ func HumanizeKustomizeError(err error) string {
 		case "missing":
 			return fmt.Sprintf("%s is missing in your params.yaml", paramsError.Key)
 		case "parameter":
-			return fmt.Sprintf("%s can not be '%s', please enter a namespace", paramsError.Key, *paramsError.Value)
+			return fmt.Sprintf("%s can not be '%s', please enter a %v", paramsError.Key, *paramsError.Value, paramsError.ShortKey)
 		case "blank":
-			return fmt.Sprintf("%s can not be blank, please use a different namespace in your params.yaml", paramsError.Key)
+			return fmt.Sprintf("%s can not be blank, please use a different %v in your params.yaml", paramsError.Key, paramsError.ShortKey)
 		case "reserved":
-			return fmt.Sprintf("%s can not be '%v' please use a different namespace in your params.yaml", paramsError.Key, *paramsError.Value)
+			return fmt.Sprintf("%s can not be '%v' please use a different %v in your params.yaml", paramsError.Key, *paramsError.Value, paramsError.ShortKey)
 		}
 	}
 
