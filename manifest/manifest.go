@@ -146,7 +146,7 @@ func Validate(manifest *util.DynamicYaml) error {
 
 	flatMap := manifest.FlattenToKeyValue(util.AppendDotFlatMapKeyFormatter)
 	mapKeys := []string{}
-	for key, _ := range flatMap {
+	for key := range flatMap {
 		mapKeys = append(mapKeys, key)
 	}
 	sort.Strings(mapKeys)
