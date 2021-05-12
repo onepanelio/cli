@@ -144,7 +144,6 @@ func Validate(manifest *util.DynamicYaml) error {
 		return &ParamsError{Key: "application.defaultNamespace", ShortKey: "defaultNamespace",  Value: &defaultNamespace.Value, ErrorType: "reserved"}
 	}
 
-	// TODO - this needs to include array sub items.
 	flatMap := manifest.FlattenToKeyValue(util.AppendDotFlatMapKeyFormatter)
 	mapKeys := []string{}
 	for key, _ := range flatMap {
@@ -159,9 +158,6 @@ func Validate(manifest *util.DynamicYaml) error {
 			continue
 		}
 
-		//log.Printf("Looking at %v -> %v\n", key, value)
-
-		// TODO what about leading whitespace?
 		if strings.HasPrefix(valueString, "<") {
 			lastDotIndex := strings.LastIndex(key, ".")
 			shortKey := key[lastDotIndex + 1:]
