@@ -75,7 +75,6 @@ var applyCmd = &cobra.Command{
 		resApp := ""
 		errResApp := ""
 
-
 		resApp, errResApp, err = applyKubernetesFile(applicationKubernetesYamlFilePath)
 		if err != nil {
 			yamlFile, yamlErr := util.LoadDynamicYamlFromFile(config.Spec.Params)

@@ -67,7 +67,7 @@ func init() {
 	generateCmd.Flags().BoolVarP(&Dev, "latest", "", false, "Sets conditions to allow development testing.")
 }
 
-// Given the path to the manifests, and a kustomize config, creates the final kustomization file.
+// GenerateKustomizeResult Given the path to the manifests, and a kustomize config, creates the final kustomization file.
 // It does this by copying the manifests into a temporary directory, inserting the kustomize template
 // and running the kustomize command
 func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.Kustomize) (string, error) {
@@ -640,7 +640,7 @@ func HumanizeKustomizeError(err error) string {
 		case "missing":
 			return fmt.Sprintf("%s is missing in your params.yaml", paramsError.Key)
 		case "parameter":
-			return fmt.Sprintf("%s can not be '%s', please enter a %v", paramsError.Key, *paramsError.Value, paramsError.ShortKey)
+			return fmt.Sprintf("%s can not be '%s', please enter a different value for %v. %v", paramsError.Key, *paramsError.Value, paramsError.ShortKey, paramsError.ValidationMessage)
 		case "blank":
 			return fmt.Sprintf("%s can not be blank, please use a different %v in your params.yaml", paramsError.Key, paramsError.ShortKey)
 		case "reserved":
