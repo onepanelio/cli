@@ -162,6 +162,16 @@ func Validate(manifest *util.DynamicYaml) error {
 		}
 	}
 
+	if strings.HasPrefix(defaultNamespace.Value, "kube-") {
+		return &ParamsError{
+			Key:               "application.defaultNamespace",
+			ShortKey:          "defaultNamespace",
+			Value:             &defaultNamespace.Value,
+			ErrorType:         "parameter",
+			ValidationMessage: "A namespace can not start with 'kube-'",
+		}
+	}
+
 	namespaceRegex := regexp.MustCompile(`^[a-z0-9]([-a-z0-9]*[a-z0-9])$`)
 	if !namespaceRegex.MatchString(defaultNamespace.Value) {
 		return &ParamsError{
