@@ -6,6 +6,8 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"regexp"
+	"sort"
 	"strings"
 )
 
@@ -17,9 +19,11 @@ type Manifest struct {
 
 // ParamsError represents an error encountered in the params.yaml file
 type ParamsError struct {
-	Key       string
-	Value     *string
-	ErrorType string
+	Key               string // The full key, as in 'application.domain'
+	ShortKey          string // The short key, as in 'domain'
+	Value             *string
+	ErrorType         string
+	ValidationMessage string // empty space means none
 }
 
 // Error returns an error string indicating what key/value is invalid
@@ -130,16 +134,74 @@ func Validate(manifest *util.DynamicYaml) error {
 
 	defaultNamespace := manifest.GetValue("application.defaultNamespace")
 	if defaultNamespace == nil {
-		return &ParamsError{Key: "application.defaultNamespace", ErrorType: "missing"}
+		return &ParamsError{Key: "application.defaultNamespace", ShortKey: "defaultNamespace", ErrorType: "missing"}
 	}
 	if defaultNamespace.Value == "" {
-		return &ParamsError{Key: "application.defaultNamespace", ErrorType: "blank"}
+		return &ParamsError{Key: "application.defaultNamespace", ShortKey: "defaultNamespace", ErrorType: "blank"}
 	}
 	if defaultNamespace.Value == "<namespace>" {
-		return &ParamsError{Key: "application.defaultNamespace", Value: &defaultNamespace.Value, ErrorType: "parameter"}
+		return &ParamsError{
+			Key:               "application.defaultNamespace",
+			ShortKey:          "defaultNamespace",
+			Value:             &defaultNamespace.Value,
+			ErrorType:         "parameter",
+			ValidationMessage: "Namespace can not be <namespace> please provide a value like 'example'",
+		}
 	}
 	if _, ok := reservedNamespaces[defaultNamespace.Value]; ok {
-		return &ParamsError{Key: "application.defaultNamespace", Value: &defaultNamespace.Value, ErrorType: "reserved"}
+		return &ParamsError{Key: "application.defaultNamespace", ShortKey: "defaultNamespace", Value: &defaultNamespace.Value, ErrorType: "reserved"}
+	}
+
+	if len(defaultNamespace.Value) > 63 {
+		return &ParamsError{
+			Key:               "application.defaultNamespace",
+			ShortKey:          "defaultNamespace",
+			Value:             &defaultNamespace.Value,
+			ErrorType:         "parameter",
+			ValidationMessage: "Namespace must be less than 63 characters",
+		}
+	}
+
+	if strings.HasPrefix(defaultNamespace.Value, "kube-") {
+		return &ParamsError{
+			Key:               "application.defaultNamespace",
+			ShortKey:          "defaultNamespace",
+			Value:             &defaultNamespace.Value,
+			ErrorType:         "parameter",
+			ValidationMessage: "A namespace can not start with 'kube-'",
+		}
+	}
+
+	namespaceRegex := regexp.MustCompile(`^[a-z0-9]([-a-z0-9]*[a-z0-9])$`)
+	if !namespaceRegex.MatchString(defaultNamespace.Value) {
+		return &ParamsError{
+			Key:               "application.defaultNamespace",
+			ShortKey:          "defaultNamespace",
+			Value:             &defaultNamespace.Value,
+			ErrorType:         "parameter",
+			ValidationMessage: "A namespace can not start with 'kube-', must be lowercase, and can not start or end with dashes '-'",
+		}
+	}
+
+	flatMap := manifest.FlattenToKeyValue(util.AppendDotFlatMapKeyFormatter)
+	mapKeys := []string{}
+	for key := range flatMap {
+		mapKeys = append(mapKeys, key)
+	}
+	sort.Strings(mapKeys)
+
+	for _, key := range mapKeys {
+		value := flatMap[key]
+		valueString, ok := value.(string)
+		if !ok {
+			continue
+		}
+
+		if strings.HasPrefix(valueString, "<") {
+			lastDotIndex := strings.LastIndex(key, ".")
+			shortKey := key[lastDotIndex+1:]
+			return &ParamsError{Key: key, ShortKey: shortKey, Value: &valueString, ErrorType: "parameter"}
+		}
 	}
 
 	return nil

@@ -729,6 +729,12 @@ func flattenMap(path string, keyFormatter FlatMapKeyFormatter, node *yaml.Node, 
 		} else if childNode.Kind == yaml.MappingNode {
 			flattenMap(path, keyFormatter, childNode, results)
 			continue
+		} else if childNode.Kind == yaml.SequenceNode {
+			for i, sequenceNode := range childNode.Content {
+				newPath := keyFormatter(path, fmt.Sprintf("[%v]", i))
+				flattenMap(newPath, keyFormatter, sequenceNode, results)
+			}
+			continue
 		}
 	}
 }
