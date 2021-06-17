@@ -13,6 +13,7 @@ import (
 	"github.com/onepanelio/cli/manifest"
 	"github.com/onepanelio/cli/template"
 	"github.com/onepanelio/cli/util"
+	"github.com/sethvargo/go-password/password"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
 )
@@ -234,6 +235,15 @@ var initCmd = &cobra.Command{
 		mergedParams.Put("application.provider", Provider)
 
 		removeUneededArtifactRepositoryProviders(mergedParams)
+
+		databasePassword := mergedParams.GetValue("database.password")
+		// generates passwords with 16 characters 6 digits 0 special characters
+		// allow lowercased and uppercased letters and don't allow repeated characters
+		inputPassword, err := password.Generate(16, 6, 0, false, false)
+		if err != nil {
+			log.Fatal(err)
+		}
+		databasePassword.Value = inputPassword
 
 		mergedParams.Sort()
 
