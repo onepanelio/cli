@@ -80,6 +80,7 @@ func init() {
 	generateCmd.Flags().BoolVarP(&Dev, "latest", "", false, "Sets conditions to allow development testing.")
 }
 
+// GenerateKustomizeResultOptions is configuration for the GenerateKustomizeResult function
 type GenerateKustomizeResultOptions struct {
 	Database *opConfig.Database
 	Config   *opConfig.Config
@@ -129,6 +130,8 @@ func generateDatabaseConfiguration(yaml *util.DynamicYaml, database *opConfig.Da
 	return nil
 }
 
+// GetDatabaseConfigurationFromCluster attempts to load the database configuration from a deployed cluster
+// If there is no configuration (not found) no error is returned
 func GetDatabaseConfigurationFromCluster() (database *opConfig.Database, err error) {
 	config, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
 		clientcmd.NewDefaultClientConfigLoadingRules(), &clientcmd.ConfigOverrides{}).ClientConfig()
