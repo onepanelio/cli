@@ -5,9 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"github.com/onepanelio/cli/cloud/storage"
+	"github.com/sethvargo/go-password/password"
 	"golang.org/x/crypto/bcrypt"
 	"io/ioutil"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/rand"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
 	"log"
 	"os"
 	"path/filepath"
@@ -51,8 +55,17 @@ var generateCmd = &cobra.Command{
 
 		kustomizeTemplate := TemplateFromSimpleOverlayedComponents(config.GetOverlayComponents(""))
 
+		databaseConfig, err := GetDatabaseConfigurationFromCluster()
+		if err != nil {
+			fmt.Printf("[error] %v", err.Error())
+			return
+		}
+
 		log.Printf("Building...")
-		result, err := GenerateKustomizeResult(*config, kustomizeTemplate)
+		result, err := GenerateKustomizeResult(kustomizeTemplate, &GenerateKustomizeResultOptions{
+			Config:   config,
+			Database: databaseConfig,
+		})
 		if err != nil {
 			fmt.Printf("%s\n", HumanizeKustomizeError(err))
 			return
@@ -67,10 +80,109 @@ func init() {
 	generateCmd.Flags().BoolVarP(&Dev, "latest", "", false, "Sets conditions to allow development testing.")
 }
 
+type GenerateKustomizeResultOptions struct {
+	Database *opConfig.Database
+	Config   *opConfig.Config
+}
+
+// generateDatabaseConfiguration checks to see if database configuration is already present
+// if not, it'll randomly generate some.
+func generateDatabaseConfiguration(yaml *util.DynamicYaml, database *opConfig.Database) error {
+	if yaml.HasKey("database") {
+		return nil
+	}
+
+	if database == nil {
+		dbPath := filepath.Join(".onepanel", "manifests", "cache", "common", "onepanel", "base", "vars.yaml")
+		data, err := ioutil.ReadFile(dbPath)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		wrapper := &opConfig.DatabaseWrapper{}
+		if err := yaml2.Unmarshal(data, wrapper); err != nil {
+			log.Fatal(err)
+		}
+
+		database = wrapper.Database
+
+		pass, err := password.Generate(16, 6, 0, false, false)
+		if err != nil {
+			return err
+		}
+		database.Password.Value = pass
+
+		username, err := password.Generate(8, 6, 0, false, false)
+		if err != nil {
+			return err
+		}
+		database.Username.Value = "onepanel" + username
+	}
+
+	yaml.Put("database.host", database.Host.Value)
+	yaml.Put("database.username", database.Username.Value)
+	yaml.Put("database.password", database.Password.Value)
+	yaml.Put("database.port", fmt.Sprintf(`"%s"`, database.Port.Value))
+	yaml.Put("database.databaseName", database.DatabaseName.Value)
+	yaml.Put("database.driverName", database.DriverName.Value)
+
+	return nil
+}
+
+func GetDatabaseConfigurationFromCluster() (database *opConfig.Database, err error) {
+	config, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
+		clientcmd.NewDefaultClientConfigLoadingRules(), &clientcmd.ConfigOverrides{}).ClientConfig()
+	if err != nil {
+		return
+	}
+	// check if there is any, and load that. Otherwise don't.
+	c, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		return
+	}
+
+	secret, err := c.CoreV1().Secrets("onepanel").Get("onepanel", v1.GetOptions{})
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			return nil, nil
+		}
+		return
+	}
+
+	databaseUsername := string(secret.Data["databaseUsername"])
+	databasePassword := string(secret.Data["databasePassword"])
+
+	configMap, err := c.CoreV1().ConfigMaps("onepanel").Get("onepanel", v1.GetOptions{})
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			return nil, nil
+		}
+		return
+	}
+
+	driverName := configMap.Data["databaseDriverName"]
+	databaseHost := configMap.Data["databaseHost"]
+	databaseName := configMap.Data["databaseName"]
+	databasePort := configMap.Data["databasePort"]
+
+	database = &opConfig.Database{
+		Host:         opConfig.RequiredManifestVar(databaseHost),
+		Username:     opConfig.RequiredManifestVar(databaseUsername),
+		Password:     opConfig.RequiredManifestVar(databasePassword),
+		Port:         opConfig.RequiredManifestVar(databasePort),
+		DatabaseName: opConfig.RequiredManifestVar(databaseName),
+		DriverName:   opConfig.RequiredManifestVar(driverName),
+	}
+
+	return
+}
+
 // GenerateKustomizeResult Given the path to the manifests, and a kustomize config, creates the final kustomization file.
 // It does this by copying the manifests into a temporary directory, inserting the kustomize template
 // and running the kustomize command
-func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.Kustomize) (string, error) {
+func GenerateKustomizeResult(kustomizeTemplate template.Kustomize, options *GenerateKustomizeResultOptions) (string, error) {
+	config := *options.Config
+
 	yamlFile, err := util.LoadDynamicYamlFromFile(config.Spec.Params)
 	if err != nil {
 		return "", err
@@ -267,6 +379,10 @@ func GenerateKustomizeResult(config opConfig.Config, kustomizeTemplate template.
 		}
 
 		yamlFile.Put("workflowEngineContainerRuntimeExecutor", valueNode.Value)
+	}
+
+	if err := generateDatabaseConfiguration(yamlFile, options.Database); err != nil {
+		return "", err
 	}
 
 	flatMap := yamlFile.FlattenToKeyValue(util.LowerCamelCaseFlatMapKeyFormatter)

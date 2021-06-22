@@ -13,7 +13,6 @@ import (
 	"github.com/onepanelio/cli/manifest"
 	"github.com/onepanelio/cli/template"
 	"github.com/onepanelio/cli/util"
-	"github.com/sethvargo/go-password/password"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
 )
@@ -36,6 +35,7 @@ var (
 	EnableHTTPS                bool
 	EnableCertManager          bool
 	EnableMetalLb              bool
+	Database                   bool
 	GPUDevicePlugins           []string
 	Services                   []string
 )
@@ -67,7 +67,6 @@ var initCmd = &cobra.Command{
 	Use:   "init",
 	Short: "Gets latest manifests and generates params.yaml file.",
 	Run: func(cmd *cobra.Command, args []string) {
-
 		if err := validateInput(); err != nil {
 			log.Println(err.Error())
 			return
@@ -236,15 +235,6 @@ var initCmd = &cobra.Command{
 
 		removeUneededArtifactRepositoryProviders(mergedParams)
 
-		databasePassword := mergedParams.GetValue("database.password")
-		// generates passwords with 16 characters 6 digits 0 special characters
-		// allow lowercased and uppercased letters and don't allow repeated characters
-		inputPassword, err := password.Generate(16, 6, 0, false, false)
-		if err != nil {
-			log.Fatal(err)
-		}
-		databasePassword.Value = inputPassword
-
 		mergedParams.Sort()
 
 		inputCommand := "# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -\n"
@@ -255,6 +245,21 @@ var initCmd = &cobra.Command{
 			log.Printf("[error] setting comments: %v", err.Error())
 			return
 		}
+
+		// Workflow Engine defaults to pns, but can be overwritten
+		if err := mergedParams.Delete("workflowEngine"); err != nil {
+			log.Printf("[error] %v", err.Error())
+			return
+		}
+
+		// By default, random credentials for a Postgres database are generated
+		if !Database {
+			if err := mergedParams.Delete("database"); err != nil {
+				log.Printf("[error] %v", err.Error())
+				return
+			}
+		}
+
 		paramsString, err := mergedParams.String()
 		if err != nil {
 			log.Printf("[error] unable to write params to a string")
@@ -315,6 +320,7 @@ func init() {
 	initCmd.Flags().BoolVarP(&EnableMetalLb, "enable-metallb", "", false, "Automatically create a LoadBalancer for non-cloud deployments.")
 	initCmd.Flags().StringSliceVarP(&GPUDevicePlugins, "gpu-device-plugins", "", nil, "Install NVIDIA and/or AMD gpu device plugins. Valid values can be comma separated and are: amd, nvidia")
 	initCmd.Flags().StringSliceVarP(&Services, "services", "", nil, "Install additional services. Valid values can be comma separated and are: modeldb")
+	initCmd.Flags().BoolVarP(&Database, "database", "", false, "Use a pre-existing database, set up configuration in params.yaml")
 }
 
 func validateInput() error {

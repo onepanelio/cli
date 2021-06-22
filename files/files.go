@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-// exists returns whether the given file or directory exists
+// Exists returns whether the given file or directory exists
 func Exists(path string) (bool, error) {
 	_, err := os.Stat(path)
 	if err == nil {
