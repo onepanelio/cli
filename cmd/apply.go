@@ -172,8 +172,6 @@ var applyCmd = &cobra.Command{
 			return
 		}
 
-		fmt.Printf(result)
-
 		finalKubernetesYamlFilePath := filepath.Join(".onepanel", "kubernetes.yaml")
 
 		exists, err := files.Exists(finalKubernetesYamlFilePath)
