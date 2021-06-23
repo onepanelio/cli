@@ -17,6 +17,7 @@ import (
 
 type Config = restclient.Config
 
+// NewConfig creates a new, default, configuration for kubernetes
 func NewConfig() (config *Config, err error) {
 	config, err = clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
 		clientcmd.NewDefaultClientConfigLoadingRules(), &clientcmd.ConfigOverrides{}).ClientConfig()
@@ -24,6 +25,7 @@ func NewConfig() (config *Config, err error) {
 	return
 }
 
+// NewKubernetesClient creates a kubernetes client with the config returned from NewConfig
 func NewKubernetesClient() (*kubernetes.Clientset, error) {
 	config, err := NewConfig()
 	if err != nil {
