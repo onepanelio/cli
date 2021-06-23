@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -11,7 +12,6 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
 	"log"
 	"os"
 	"path/filepath"
@@ -20,11 +20,6 @@ import (
 
 	yaml2 "gopkg.in/yaml.v3"
 
-	"sigs.k8s.io/kustomize/api/filesys"
-	"sigs.k8s.io/kustomize/api/krusty"
-	"sigs.k8s.io/kustomize/api/resmap"
-	"sigs.k8s.io/kustomize/api/types"
-
 	opConfig "github.com/onepanelio/cli/config"
 	"github.com/onepanelio/cli/files"
 	"github.com/onepanelio/cli/manifest"
@@ -32,6 +27,9 @@ import (
 	"github.com/onepanelio/cli/util"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
+	"sigs.k8s.io/kustomize/api/filesys"
+	"sigs.k8s.io/kustomize/api/krusty"
+	"sigs.k8s.io/kustomize/api/resmap"
 )
 
 // generateCmd represents the generate command
@@ -40,9 +38,13 @@ var generateCmd = &cobra.Command{
 	Short: "Builds application YAML for preview.",
 	Run: func(cmd *cobra.Command, args []string) {
 		configFilePath := "config.yaml"
-
 		if len(args) > 1 {
 			configFilePath = args[0]
+		}
+
+		k8sClient, err := util.NewKubernetesClient()
+		if err != nil {
+			fmt.Printf("Unable to get kubernetes client error: %v", err.Error())
 			return
 		}
 
@@ -55,7 +57,7 @@ var generateCmd = &cobra.Command{
 
 		kustomizeTemplate := TemplateFromSimpleOverlayedComponents(config.GetOverlayComponents(""))
 
-		databaseConfig, err := GetDatabaseConfigurationFromCluster()
+		databaseConfig, err := GetDatabaseConfigurationFromCluster(k8sClient)
 		if err != nil {
 			fmt.Printf("[error] %v", err.Error())
 			return
