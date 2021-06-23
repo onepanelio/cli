@@ -1,6 +1,7 @@
 package util
 
 import (
+	"context"
 	"github.com/pkg/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -23,6 +24,15 @@ func NewConfig() (config *Config, err error) {
 	return
 }
 
+func NewKubernetesClient() (*kubernetes.Clientset, error) {
+	config, err := NewConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	return kubernetes.NewForConfig(config)
+}
+
 func GetBearerToken(in *restclient.Config, explicitKubeConfigPath string, serviceAccountName string) (token string, username string, err error) {
 	if in == nil {
 		return "", serviceAccountName, errors.Errorf("RestClient can't be nil")
@@ -33,7 +43,7 @@ func GetBearerToken(in *restclient.Config, explicitKubeConfigPath string, servic
 		return "", serviceAccountName, errors.Errorf("Could not get kubeClient")
 	}
 	ns := "onepanel"
-	secrets, err := kubeClient.CoreV1().Secrets(ns).List(v1.ListOptions{})
+	secrets, err := kubeClient.CoreV1().Secrets(ns).List(context.Background(), v1.ListOptions{})
 	if err != nil {
 		return "", serviceAccountName, errors.Errorf("Could not get %s secrets.", ns)
 	}
