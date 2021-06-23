@@ -80,7 +80,7 @@ var statusCmd = &cobra.Command{
 			return
 		}
 
-		util.GetClusterIP(url)
+		util.PrintClusterNetworkInformation(url)
 	},
 }
 

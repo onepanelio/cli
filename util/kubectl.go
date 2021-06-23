@@ -215,7 +215,8 @@ func validatePruneAll(prune, all bool, selector string) error {
 	return nil
 }
 
-func GetClusterIP(url string) {
+// PrintClusterNetworkInformation prints the ip address of the cluster and network DNS configuration required
+func PrintClusterNetworkInformation(url string) {
 	kubectlGetFlags := make(map[string]interface{})
 	kubectlGetFlags["output"] = "jsonpath='{.status.loadBalancer.ingress[0].ip}'"
 	extraArgs := []string{}
