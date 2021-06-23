@@ -59,6 +59,28 @@ type ConfigSpec struct {
 	Overlays      []string `yaml:"overlays"`
 }
 
+// HasComponent checks if the config spec has any component with the exact name given
+func (c *ConfigSpec) HasComponent(name string) bool {
+	for _, val := range c.Components {
+		if val == name {
+			return true
+		}
+	}
+
+	return false
+}
+
+// HasLikeComponent checks if the config spec has any component that starts with the name given
+func (c *ConfigSpec) HasLikeComponent(name string) bool {
+	for _, val := range c.Components {
+		if strings.HasPrefix(val, name) {
+			return true
+		}
+	}
+
+	return false
+}
+
 func FromFile(path string) (config *Config, err error) {
 	content, err := ioutil.ReadFile(path)
 	if err != nil {
