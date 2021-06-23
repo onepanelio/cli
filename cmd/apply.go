@@ -35,10 +35,30 @@ var applyCmd = &cobra.Command{
 			return
 		}
 
+		yamlFile, err := util.LoadDynamicYamlFromFile(config.Spec.Params)
+		if err != nil {
+			fmt.Printf("Unable to read params.yaml: %v", err.Error())
+			return
+		}
+
+		var database *opConfig.Database = nil
+		if !yamlFile.HasKey("database") {
+			database, err = GetDatabaseConfigurationFromCluster()
+			if err != nil {
+				fmt.Printf("Unable to connect to cluster to check information: %v", err.Error())
+				return
+			}
+		}
+
+		options := &GenerateKustomizeResultOptions{
+			Database: database,
+			Config:   config,
+		}
+
 		overlayComponentFirst := filepath.Join("common", "application", "base")
 		baseOverlayComponent := config.GetOverlayComponent(overlayComponentFirst)
 		applicationBaseKustomizeTemplate := TemplateFromSimpleOverlayedComponents(baseOverlayComponent)
-		applicationResult, err := GenerateKustomizeResult(*config, applicationBaseKustomizeTemplate)
+		applicationResult, err := GenerateKustomizeResult(applicationBaseKustomizeTemplate, options)
 		if err != nil {
 			fmt.Printf("%s\n", HumanizeKustomizeError(err))
 			return
@@ -146,7 +166,7 @@ var applyCmd = &cobra.Command{
 		//Apply the rest of the yaml
 		kustomizeTemplate := TemplateFromSimpleOverlayedComponents(config.GetOverlayComponents(overlayComponentFirst))
 
-		result, err := GenerateKustomizeResult(*config, kustomizeTemplate)
+		result, err := GenerateKustomizeResult(kustomizeTemplate, options)
 		if err != nil {
 			fmt.Printf("%s\n", HumanizeKustomizeError(err))
 			return
@@ -200,7 +220,7 @@ var applyCmd = &cobra.Command{
 			log.Printf("%v", errRes)
 		}
 
-		yamlFile, err := util.LoadDynamicYamlFromFile(config.Spec.Params)
+		yamlFile, err = util.LoadDynamicYamlFromFile(config.Spec.Params)
 		if err != nil {
 			fmt.Println("Error parsing configuration file.")
 			return

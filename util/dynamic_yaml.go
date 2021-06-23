@@ -587,34 +587,6 @@ func (d *DynamicYaml) FlattenRequiredDefault() {
 	}
 }
 
-// HideHidden goes through the vars in the yaml and removes any where hide is set to true
-func (d *DynamicYaml) HideHidden() error {
-	flatMap := d.Flatten(AppendDotFlatMapKeyFormatter)
-
-	for key := range flatMap {
-		lastIndex := strings.LastIndex(key, ".")
-		if lastIndex < 0 {
-			continue
-		}
-		postfixDefault := ".hide"
-		if key[lastIndex:] != postfixDefault {
-			continue
-		}
-		defaultIndex := strings.LastIndex(key, postfixDefault)
-		if defaultIndex < 0 {
-			continue
-		}
-
-		partialKey := key[0:defaultIndex]
-
-		if err := d.Delete(partialKey); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
 func (d *DynamicYaml) mergeSingle(y *DynamicYaml) {
 	if len(y.node.Content) == 0 || len(y.node.Content[0].Content) == 0 {
 		return
