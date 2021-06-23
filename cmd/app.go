@@ -21,6 +21,12 @@ var statusCmd = &cobra.Command{
 	Long:    "Check deployment status by checking pods statuses.",
 	Example: "status",
 	Run: func(cmd *cobra.Command, args []string) {
+		k8sClient, err := util.NewKubernetesClient()
+		if err != nil {
+			fmt.Printf("Unable to create kubernetes client: error %v", err.Error())
+			return
+		}
+
 		configFilePath := "config.yaml"
 		config, err := opConfig.FromFile(configFilePath)
 		if err != nil {
@@ -33,7 +39,7 @@ var statusCmd = &cobra.Command{
 			return
 		}
 
-		ready, err := util.DeploymentStatus(yamlFile)
+		ready, err := util.NamespacesExist(k8sClient, util.NamespacesToCheck(yamlFile)...)
 		if err != nil {
 			yamlFile, yamlErr := util.LoadDynamicYamlFromFile(config.Spec.Params)
 			if yamlErr != nil {
@@ -74,7 +80,7 @@ var statusCmd = &cobra.Command{
 			return
 		}
 
-		util.GetClusterIp(url)
+		util.GetClusterIP(url)
 	},
 }
 
