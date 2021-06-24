@@ -2,8 +2,8 @@ package cmd
 
 import (
 	"fmt"
+	"io/ioutil"
 	"log"
-	"os"
 	"path/filepath"
 	"time"
 
@@ -67,7 +67,7 @@ var applyCmd = &cobra.Command{
 		}
 
 		applicationKubernetesYamlFilePath := filepath.Join(".onepanel", "application.kubernetes.yaml")
-		if err := os.WriteFile(applicationKubernetesYamlFilePath, []byte(applicationResult), 0); err != nil {
+		if err := ioutil.WriteFile(applicationKubernetesYamlFilePath, []byte(applicationResult), 0); err != nil {
 			log.Printf("Error writing to temporary file: %v", err.Error())
 			return
 		}
@@ -107,7 +107,7 @@ var applyCmd = &cobra.Command{
 		}
 
 		finalKubernetesYamlFilePath := filepath.Join(".onepanel", "kubernetes.yaml")
-		if err := os.WriteFile(finalKubernetesYamlFilePath, []byte(result), 0); err != nil {
+		if err := ioutil.WriteFile(finalKubernetesYamlFilePath, []byte(result), 0); err != nil {
 			log.Printf("Error writing to temporary file: %v", err.Error())
 			return
 		}
