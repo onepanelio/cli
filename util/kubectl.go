@@ -6,6 +6,7 @@ import (
 	"fmt"
 	opConfig "github.com/onepanelio/cli/config"
 	"github.com/spf13/cobra"
+	"io/ioutil"
 	k8error "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/azure"
@@ -13,6 +14,7 @@ import (
 	"k8s.io/kubectl/pkg/cmd/apply"
 	k8delete "k8s.io/kubectl/pkg/cmd/delete"
 	"k8s.io/kubectl/pkg/cmd/get"
+	"k8s.io/kubectl/pkg/cmd/patch"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"os"
 	"runtime"
@@ -84,46 +86,51 @@ func KubectlGet(resource string, resourceName string, namespace string, extraArg
 	return
 }
 
-func KubectlApply(filePath string) (stdout string, stderr string, err error) {
+// KubectlApply applies the yaml at the given filePath
+func KubectlApply(filePath string) (err error) {
 	kubeConfigFlags := genericclioptions.NewConfigFlags(true).WithDeprecatedPasswordFlag()
 	matchVersionKubeConfigFlags := cmdutil.NewMatchVersionFlags(kubeConfigFlags)
-
-	out := &bytes.Buffer{}
-	errOut := &bytes.Buffer{}
 
 	f := cmdutil.NewFactory(matchVersionKubeConfigFlags)
 	ioStreams := genericclioptions.IOStreams{
 		In:     os.Stdin,
-		Out:    out,
-		ErrOut: errOut,
-	}
-	cmd := apply.NewCmdApply("kubectl", f, ioStreams)
-	var args []string
-	applyOptions := apply.NewApplyOptions(ioStreams)
-	applyOptions.DeleteFlags.FileNameFlags.Filenames = &[]string{filePath}
-	err = cmd.Flags().Set("filename", filePath)
-	if err != nil {
-		return "", "", err
-	}
-	err = cmd.Flags().Set("validate", "false")
-	if err != nil {
-		return "", "", err
-	}
-	if err = applyOptions.Complete(f, cmd); err != nil {
-		return "", "", err
-	}
-	if err = validateArgs(cmd, args); err != nil {
-		return "", "", err
-	}
-	if err = validatePruneAll(applyOptions.Prune, applyOptions.All, applyOptions.Selector); err != nil {
-		return "", "", err
-	}
-	if err = applyOptions.Run(); err != nil {
-		return "", "", err
+		Out:    os.Stdout,
+		ErrOut: os.Stderr,
 	}
 
-	stdout = out.String()
-	stderr = errOut.String()
+	cmd := ApplyCmdWithError(f, ioStreams)
+	if err := cmd.Flags().Set("filename", filePath); err != nil {
+		return err
+	}
+
+	return cmd.RunE(cmd, []string{})
+}
+
+// KubectlPatch patches a resource.
+// resource example: serviceaccount/default
+func KubectlPatch(namespace string, resource string, filePath string) (err error) {
+	kubeConfigFlags := genericclioptions.NewConfigFlags(true).WithDeprecatedPasswordFlag()
+	kubeConfigFlags.Namespace = &namespace
+	matchVersionKubeConfigFlags := cmdutil.NewMatchVersionFlags(kubeConfigFlags)
+
+	f := cmdutil.NewFactory(matchVersionKubeConfigFlags)
+	ioStreams := genericclioptions.IOStreams{
+		In:     os.Stdin,
+		Out:    os.Stdout,
+		ErrOut: os.Stderr,
+	}
+	content, err := ioutil.ReadFile(filePath)
+	if err != nil {
+		return err
+	}
+
+	cmd := patch.NewCmdPatch(f, ioStreams)
+
+	if err := cmd.Flags().Set("patch", string(content)); err != nil {
+		return err
+	}
+
+	cmd.Run(cmd, []string{resource})
 
 	return
 }
@@ -139,16 +146,21 @@ func KubectlDelete(filePath string) (err error) {
 		Out:    os.Stdout,
 		ErrOut: os.Stderr,
 	}
-	cmd := k8delete.NewCmdDelete(f, ioStreams)
 
-	deleteOptions := k8delete.DeleteOptions{IOStreams: ioStreams}
-	deleteOptions.Filenames = []string{filePath}
-	err = cmd.Flags().Set("filename", filePath)
+	deleteFlags := k8delete.NewDeleteCommandFlags("containing the resource to delete.")
+	cmd := &cobra.Command{}
+	deleteFlags.AddFlags(cmd)
+	cmdutil.AddDryRunFlag(cmd)
+
+	deleteOptions, err := deleteFlags.ToOptions(nil, ioStreams)
 	if err != nil {
 		return err
 	}
-
+	deleteOptions.Filenames = []string{filePath}
 	if err := deleteOptions.Complete(f, []string{}, cmd); err != nil {
+		return err
+	}
+	if err := deleteOptions.Validate(); err != nil {
 		return err
 	}
 
@@ -203,7 +215,8 @@ func validatePruneAll(prune, all bool, selector string) error {
 	return nil
 }
 
-func GetClusterIp(url string) {
+// PrintClusterNetworkInformation prints the ip address of the cluster and network DNS configuration required
+func PrintClusterNetworkInformation(url string) {
 	kubectlGetFlags := make(map[string]interface{})
 	kubectlGetFlags["output"] = "jsonpath='{.status.loadBalancer.ingress[0].ip}'"
 	extraArgs := []string{}
@@ -275,4 +288,36 @@ func GetClusterIp(url string) {
 		fmt.Printf("\nIn your DNS, add %v record for %v and point it to %v\n", dnsRecordMessage, GetWildCardDNS(url), stdout)
 	}
 	fmt.Printf("Once complete, your application will be running at %v\n\n", url)
+}
+
+// ApplyCmdWithError runs the kubectl apply command and returns an error, if any.
+func ApplyCmdWithError(f cmdutil.Factory, ioStreams genericclioptions.IOStreams) *cobra.Command {
+	o := apply.NewApplyOptions(ioStreams)
+
+	cmd := &cobra.Command{
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cmdutil.CheckErr(o.Complete(f, cmd))
+			cmdutil.CheckErr(validateArgs(cmd, args))
+			cmdutil.CheckErr(validatePruneAll(o.Prune, o.All, o.Selector))
+			return o.Run()
+		},
+	}
+
+	// bind flag structs
+	o.DeleteFlags.AddFlags(cmd)
+	o.RecordFlags.AddFlags(cmd)
+	o.PrintFlags.AddFlags(cmd)
+
+	cmd.Flags().BoolVar(&o.Overwrite, "overwrite", o.Overwrite, "Automatically resolve conflicts between the modified and live configuration by using values from the modified configuration")
+	cmd.Flags().BoolVar(&o.Prune, "prune", o.Prune, "Automatically delete resource objects, including the uninitialized ones, that do not appear in the configs and are created by either apply or create --save-config. Should be used with either -l or --all.")
+	cmdutil.AddValidateFlags(cmd)
+	cmd.Flags().StringVarP(&o.Selector, "selector", "l", o.Selector, "Selector (label query) to filter on, supports '=', '==', and '!='.(e.g. -l key1=value1,key2=value2)")
+	cmd.Flags().BoolVar(&o.All, "all", o.All, "Select all resources in the namespace of the specified resource types.")
+	cmd.Flags().StringArrayVar(&o.PruneWhitelist, "prune-whitelist", o.PruneWhitelist, "Overwrite the default whitelist with <group/version/kind> for --prune")
+	cmd.Flags().BoolVar(&o.OpenAPIPatch, "openapi-patch", o.OpenAPIPatch, "If true, use openapi to calculate diff when the openapi presents and the resource can be found in the openapi spec. Otherwise, fall back to use baked-in types.")
+	cmdutil.AddDryRunFlag(cmd)
+	cmdutil.AddServerSideApplyFlags(cmd)
+	cmdutil.AddFieldManagerFlagVar(cmd, &o.FieldManager, apply.FieldManagerClientSideApply)
+
+	return cmd
 }

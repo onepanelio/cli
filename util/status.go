@@ -1,57 +1,52 @@
 package util
 
 import (
-	"errors"
-	"fmt"
+	"context"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 	"strings"
 )
 
-func DeploymentStatus(yamlFile *DynamicYaml) (ready bool, err error) {
-	//True is a required namespace
-	namespacesToCheck := make(map[string]bool)
-	namespacesToCheck["application-system"] = true
-	namespacesToCheck["onepanel"] = true
-	namespacesToCheck["istio-system"] = true
+// NamespacesToCheck returns an array of namespaces to check depending on what's present in the yamlFile
+func NamespacesToCheck(yamlFile *DynamicYaml) []string {
+	namespaces := make([]string, 0)
+	namespaces = append(namespaces, "application-system", "onepanel", "istio-system")
 
 	if yamlFile.HasKey("certManager") {
-		namespacesToCheck["cert-manager"] = true
+		namespaces = append(namespaces, "cert-manager")
 	}
 	if yamlFile.HasKey("logging") {
-		namespacesToCheck["kube-logging"] = true
+		namespaces = append(namespaces, "kube-logging")
 	}
 
-	var stdout, stderr string
-	for namespace, required := range namespacesToCheck {
-		flags := make(map[string]interface{})
-		var extraArgs []string
-		stdout, stderr, err = KubectlGet("pod", "", namespace, extraArgs, flags)
+	return namespaces
+}
+
+// IsApplicationControllerManagerRunning checks if the application-controller-manager pod is running
+func IsApplicationControllerManagerRunning(c *kubernetes.Clientset) (bool, error) {
+	pod, err := c.CoreV1().Pods("application-system").Get(context.Background(), "application-controller-manager-0", v1.GetOptions{})
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			return false, nil
+		}
+		return false, err
+	}
+
+	return pod.Status.Phase == "Running", nil
+}
+
+// NamespacesExist checks if the cluster has the input namespaces
+func NamespacesExist(c *kubernetes.Clientset, namespaces ...string) (bool, error) {
+	for _, namespace := range namespaces {
+		_, err := c.CoreV1().Namespaces().Get(context.Background(), namespace, v1.GetOptions{})
 		if err != nil {
+			if strings.Contains(err.Error(), "not found") {
+				return false, nil
+			}
+
 			return false, err
 		}
-		if stderr != "" {
-			if strings.Contains(stderr, "No resources found") {
-				if required {
-					return false, errors.New(stderr)
-				}
-				fmt.Println(stderr)
-				continue
-			}
-			return false, errors.New(stderr)
-		}
-		lines := strings.Split(stdout, "\n")
-		if len(lines) > 1 {
-			//check that the pods are running, line by line
-			for idx, line := range lines {
-				if idx == 0 {
-					continue
-				}
-				if line != "" && !strings.Contains(line, "Running") {
-					return false, nil
-				}
-			}
-		} else {
-			return false, errors.New(stdout + "No pods detected in namespace " + namespace)
-		}
 	}
+
 	return true, nil
 }

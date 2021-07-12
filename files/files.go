@@ -194,7 +194,7 @@ func CopyDirChildren(src string, dst string) (err error) {
 	return
 }
 
-// Delete a file if it exists. If it doesn't, nothing happens.
+// DeleteIfExists will delete a file if it exists. If it doesn't, nothing happens.
 // Returns if the file existed. If there was an error, existed is set to false, and err is set.
 func DeleteIfExists(path string) (existed bool, err error) {
 	existed, err = Exists(path)
@@ -213,8 +213,8 @@ func DeleteIfExists(path string) (existed bool, err error) {
 	return
 }
 
-// Source: https://golangcode.com/unzip-files-in-go/
 // Unzip will decompress a zip archive, moving all files and folders
+// Source: https://golangcode.com/unzip-files-in-go/
 // within the zip file (parameter 1) to an output directory (parameter 2).
 func Unzip(src string, dest string) ([]string, error) {
 	var filenames []string

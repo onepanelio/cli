@@ -315,7 +315,6 @@ func (b *Builder) addOrReplaceSource(path, componentName string, order int, isOv
 // Adds a variable from the configuration.
 // We need the path of the file and the name of the variable.
 func (b *Builder) addVar(path string, value *files.ConfigVar) {
-	// TODO remove?
 	b.Vars[path] = path
 }
 

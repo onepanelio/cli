@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -11,7 +12,6 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
 	"log"
 	"os"
 	"path/filepath"
@@ -20,11 +20,6 @@ import (
 
 	yaml2 "gopkg.in/yaml.v3"
 
-	"sigs.k8s.io/kustomize/api/filesys"
-	"sigs.k8s.io/kustomize/api/krusty"
-	"sigs.k8s.io/kustomize/api/resmap"
-	"sigs.k8s.io/kustomize/api/types"
-
 	opConfig "github.com/onepanelio/cli/config"
 	"github.com/onepanelio/cli/files"
 	"github.com/onepanelio/cli/manifest"
@@ -32,6 +27,9 @@ import (
 	"github.com/onepanelio/cli/util"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
+	"sigs.k8s.io/kustomize/api/filesys"
+	"sigs.k8s.io/kustomize/api/krusty"
+	"sigs.k8s.io/kustomize/api/resmap"
 )
 
 // generateCmd represents the generate command
@@ -40,9 +38,13 @@ var generateCmd = &cobra.Command{
 	Short: "Builds application YAML for preview.",
 	Run: func(cmd *cobra.Command, args []string) {
 		configFilePath := "config.yaml"
-
 		if len(args) > 1 {
 			configFilePath = args[0]
+		}
+
+		k8sClient, err := util.NewKubernetesClient()
+		if err != nil {
+			fmt.Printf("Unable to get kubernetes client error: %v", err.Error())
 			return
 		}
 
@@ -55,7 +57,7 @@ var generateCmd = &cobra.Command{
 
 		kustomizeTemplate := TemplateFromSimpleOverlayedComponents(config.GetOverlayComponents(""))
 
-		databaseConfig, err := GetDatabaseConfigurationFromCluster()
+		databaseConfig, err := GetDatabaseConfigurationFromCluster(k8sClient)
 		if err != nil {
 			fmt.Printf("[error] %v", err.Error())
 			return
@@ -132,19 +134,8 @@ func generateDatabaseConfiguration(yaml *util.DynamicYaml, database *opConfig.Da
 
 // GetDatabaseConfigurationFromCluster attempts to load the database configuration from a deployed cluster
 // If there is no configuration (not found) no error is returned
-func GetDatabaseConfigurationFromCluster() (database *opConfig.Database, err error) {
-	config, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
-		clientcmd.NewDefaultClientConfigLoadingRules(), &clientcmd.ConfigOverrides{}).ClientConfig()
-	if err != nil {
-		return
-	}
-	// check if there is any, and load that. Otherwise don't.
-	c, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		return
-	}
-
-	secret, err := c.CoreV1().Secrets("onepanel").Get("onepanel", v1.GetOptions{})
+func GetDatabaseConfigurationFromCluster(c *kubernetes.Clientset) (database *opConfig.Database, err error) {
+	secret, err := c.CoreV1().Secrets("onepanel").Get(context.Background(), "onepanel", v1.GetOptions{})
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			return nil, nil
@@ -155,7 +146,7 @@ func GetDatabaseConfigurationFromCluster() (database *opConfig.Database, err err
 	databaseUsername := string(secret.Data["databaseUsername"])
 	databasePassword := string(secret.Data["databasePassword"])
 
-	configMap, err := c.CoreV1().ConfigMaps("onepanel").Get("onepanel", v1.GetOptions{})
+	configMap, err := c.CoreV1().ConfigMaps("onepanel").Get(context.Background(), "onepanel", v1.GetOptions{})
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			return nil, nil
@@ -185,6 +176,19 @@ func GetDatabaseConfigurationFromCluster() (database *opConfig.Database, err err
 // and running the kustomize command
 func GenerateKustomizeResult(kustomizeTemplate template.Kustomize, options *GenerateKustomizeResultOptions) (string, error) {
 	config := *options.Config
+
+	coreImageTag := opConfig.CoreImageTag
+	coreImagePullPolicy := "IfNotPresent"
+	coreUIImageTag := opConfig.CoreUIImageTag
+	coreUIImagePullPolicy := "IfNotPresent"
+	if Dev {
+		coreImageTag = "latest"
+		coreImagePullPolicy = "Always"
+		coreUIImageTag = "latest"
+		coreUIImagePullPolicy = "Always"
+	} else if coreImageTag == "" {
+		return "", fmt.Errorf("no version set. If you are running in dev mode, add the --latest flag")
+	}
 
 	yamlFile, err := util.LoadDynamicYamlFromFile(config.Spec.Params)
 	if err != nil {
@@ -231,9 +235,9 @@ func GenerateKustomizeResult(kustomizeTemplate template.Kustomize, options *Gene
 		return "", err
 	}
 
-	applicationApiPath := cloudSettings.GetValue("applicationCloudApiPath").Value
-	applicationApiGrpcPort, _ := strconv.Atoi(cloudSettings.GetValue("applicationCloudApiGRPCPort").Value)
-	applicationUiPath := cloudSettings.GetValue("applicationCloudUiPath").Value
+	applicationAPIPath := cloudSettings.GetValue("applicationCloudApiPath").Value
+	applicationAPIGRPCPort, _ := strconv.Atoi(cloudSettings.GetValue("applicationCloudApiGRPCPort").Value)
+	applicationUIPath := cloudSettings.GetValue("applicationCloudUiPath").Value
 
 	insecure, _ := strconv.ParseBool(yamlFile.GetValue("application.insecure").Value)
 	httpScheme := "http://"
@@ -243,33 +247,23 @@ func GenerateKustomizeResult(kustomizeTemplate template.Kustomize, options *Gene
 		wsScheme = "wss://"
 	}
 
-	apiPath := httpScheme + fqdn + applicationApiPath
-	uiApiPath := formatUrlForUi(apiPath)
-	uiApiWsPath := formatUrlForUi(wsScheme + fqdn + applicationApiPath)
+	apiPath := httpScheme + fqdn + applicationAPIPath
+	uiAPIPath := formatURLForUI(apiPath)
+	uiAPIWsPath := formatURLForUI(wsScheme + fqdn + applicationAPIPath)
 
-	yamlFile.PutWithSeparator("applicationApiUrl", uiApiPath, ".")
-	yamlFile.PutWithSeparator("applicationApiWsUrl", uiApiWsPath, ".")
-	yamlFile.PutWithSeparator("applicationApiPath", applicationApiPath, ".")
-	yamlFile.PutWithSeparator("applicationUiPath", applicationUiPath, ".")
-	yamlFile.PutWithSeparator("applicationApiGrpcPort", applicationApiGrpcPort, ".")
+	yamlFile.PutWithSeparator("applicationApiUrl", uiAPIPath, ".")
+	yamlFile.PutWithSeparator("applicationApiWsUrl", uiAPIWsPath, ".")
+	yamlFile.PutWithSeparator("applicationApiPath", applicationAPIPath, ".")
+	yamlFile.PutWithSeparator("applicationUiPath", applicationUIPath, ".")
+	yamlFile.PutWithSeparator("applicationApiGrpcPort", applicationAPIGRPCPort, ".")
 	yamlFile.PutWithSeparator("providerType", "cloud", ".")
 	yamlFile.PutWithSeparator("onepanelApiUrl", apiPath, ".")
 
-	coreImageTag := opConfig.CoreImageTag
-	coreImagePullPolicy := "IfNotPresent"
-	coreUiImageTag := opConfig.CoreUIImageTag
-	coreUiImagePullPolicy := "IfNotPresent"
-	if Dev {
-		coreImageTag = "latest"
-		coreImagePullPolicy = "Always"
-		coreUiImageTag = "latest"
-		coreUiImagePullPolicy = "Always"
-	}
 	yamlFile.PutWithSeparator("applicationCoreImageTag", coreImageTag, ".")
 	yamlFile.PutWithSeparator("applicationCoreImagePullPolicy", coreImagePullPolicy, ".")
 
-	yamlFile.PutWithSeparator("applicationCoreuiImageTag", coreUiImageTag, ".")
-	yamlFile.PutWithSeparator("applicationCoreuiImagePullPolicy", coreUiImagePullPolicy, ".")
+	yamlFile.PutWithSeparator("applicationCoreuiImageTag", coreUIImageTag, ".")
+	yamlFile.PutWithSeparator("applicationCoreuiImagePullPolicy", coreUIImagePullPolicy, ".")
 
 	applicationNodePoolOptionsConfigMapStr := generateApplicationNodePoolOptions(yamlFile.GetValue("application.nodePool"))
 	yamlFile.PutWithSeparator("applicationNodePoolOptions", applicationNodePoolOptionsConfigMapStr, ".")
@@ -302,6 +296,7 @@ func GenerateKustomizeResult(kustomizeTemplate template.Kustomize, options *Gene
 			return "", err
 		}
 		yamlFile.Put("artifactRepositoryProvider", yamlStr)
+		yamlFile.Put("artifactRepository.s3.region", artifactRepositoryConfig.S3.Region)
 	} else if artifactRepositoryConfig.GCS != nil {
 		defaultNamespace := yamlFile.GetValue("application.defaultNamespace").Value
 
@@ -332,6 +327,7 @@ func GenerateKustomizeResult(kustomizeTemplate template.Kustomize, options *Gene
 
 		yamlFile.Put("artifactRepositoryProvider", yamlStr)
 		yamlFile.Put("artifactRepository.s3.accessKey", accessKey)
+		yamlFile.Put("artifactRepository.s3.region", "us-west-2")
 		yamlFile.Put("artifactRepository.s3.secretKey", randomSecret)
 		yamlFile.Put("artifactRepository.s3.bucket", artifactRepositoryConfig.GCS.Bucket)
 		yamlFile.Put("artifactRepository.s3.endpoint", artifactRepositoryConfig.S3.Endpoint)
@@ -362,7 +358,8 @@ func GenerateKustomizeResult(kustomizeTemplate template.Kustomize, options *Gene
 		yamlFile.Put("artifactRepository.s3.accessKey", "placeholder")
 		yamlFile.Put("artifactRepository.s3.secretKey", "placeholder")
 		yamlFile.Put("artifactRepository.s3.bucket", "bucket-name")
-		yamlFile.Put("artifactRepository.s3.endpoint", "minio-gateway.onepanel.svc.cluster.local")
+		yamlFile.Put("artifactRepository.s3.region", "us-west-2")
+		yamlFile.Put("artifactRepository.s3.endpoint", fmt.Sprintf("minio-gateway.%v.svc.cluster.local", defaultNamespace))
 		yamlFile.Put("artifactRepository.s3.insecure", "true")
 	} else {
 		return "", errors.New("unsupported artifactRepository configuration")
@@ -505,22 +502,19 @@ func GenerateKustomizeResult(kustomizeTemplate template.Kustomize, options *Gene
 		}
 	}
 	//onepanel-config-map.env
-	if yamlFile.HasKey("application.defaultNamespace") {
-		//Clear previous env file
-		paramsPath := filepath.Join(localManifestsCopyPath, "vars", "onepanel-config-map.env")
-		paramsFile, err := os.Create(paramsPath)
-		if err != nil {
-			return "", err
-		}
-		var stringToWrite = fmt.Sprintf("%v=%v\n",
-			"applicationDefaultNamespace", flatMap["applicationDefaultNamespace"],
-		)
-		if _, err := paramsFile.WriteString(stringToWrite); err != nil {
-			return "", err
-		}
-	} else {
-		log.Fatal("Missing required values in params.yaml, applicationDefaultNamespace")
+	//Clear previous env file
+	paramsPath := filepath.Join(localManifestsCopyPath, "vars", "onepanel-config-map.env")
+	paramsFile, err := os.Create(paramsPath)
+	if err != nil {
+		return "", err
 	}
+	var stringToWrite = fmt.Sprintf("%v=%v\n",
+		"applicationDefaultNamespace", flatMap["applicationDefaultNamespace"],
+	)
+	if _, err := paramsFile.WriteString(stringToWrite); err != nil {
+		return "", err
+	}
+
 	//Write to secret files
 	var secretKeysValues []string
 	artifactRepoSecretPlaceholder := "$(artifactRepositoryProviderSecret)"
@@ -586,28 +580,6 @@ func replacePlaceholderForSecretManiFile(localManifestsCopyPath string, artifact
 	return nil
 }
 
-func BuilderToTemplate(builder *manifest.Builder) template.Kustomize {
-	k := template.Kustomize{
-		ApiVersion:     "kustomize.config.k8s.io/v1beta1",
-		Kind:           "Kustomization",
-		Resources:      make([]string, 0),
-		Configurations: []string{filepath.Join("configs/varreference.yaml")},
-	}
-
-	for _, overlayComponent := range builder.GetOverlayComponents() {
-		if !overlayComponent.HasOverlays() {
-			k.Resources = append(k.Resources, overlayComponent.Component().Path())
-			continue
-		}
-
-		for _, overlay := range overlayComponent.Overlays() {
-			k.Resources = append(k.Resources, overlay.Path())
-		}
-	}
-
-	return k
-}
-
 func TemplateFromSimpleOverlayedComponents(comps []*opConfig.SimpleOverlayedComponent) template.Kustomize {
 	k := template.Kustomize{
 		ApiVersion:     "kustomize.config.k8s.io/v1beta1",
@@ -625,6 +597,7 @@ func TemplateFromSimpleOverlayedComponents(comps []*opConfig.SimpleOverlayedComp
 	return k
 }
 
+// FilePathWalkDir goes through a directory and finds all of the files under it, including subdirectories
 func FilePathWalkDir(root string) ([]string, error) {
 	var filesFound []string
 	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
@@ -638,7 +611,7 @@ func FilePathWalkDir(root string) ([]string, error) {
 	return filesFound, err
 }
 
-func formatUrlForUi(url string) string {
+func formatURLForUI(url string) string {
 	result := strings.Replace(url, "/", `\/`, -1)
 	result = strings.Replace(result, ".", `\.`, -1)
 	result = strings.Replace(result, ":", `\:`, -1)
@@ -648,15 +621,11 @@ func formatUrlForUi(url string) string {
 
 func runKustomizeBuild(path string) (rm resmap.ResMap, err error) {
 	fSys := filesys.MakeFsOnDisk()
-	opts := &krusty.Options{
-		DoLegacyResourceSort: true,
-		LoadRestrictions:     types.LoadRestrictionsNone,
-		DoPrune:              false,
-	}
+	opts := krusty.MakeDefaultOptions()
 
-	k := krusty.MakeKustomizer(fSys, opts)
+	k := krusty.MakeKustomizer(opts)
 
-	rm, err = k.Run(path)
+	rm, err = k.Run(fSys, path)
 	if err != nil {
 		return nil, fmt.Errorf("Kustomizer Run for path '%s' failed: %s", path, err)
 	}

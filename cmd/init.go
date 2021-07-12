@@ -35,11 +35,13 @@ var (
 	EnableHTTPS                bool
 	EnableCertManager          bool
 	EnableMetalLb              bool
+	EnableKFServing            bool
 	Database                   bool
 	GPUDevicePlugins           []string
 	Services                   []string
 )
 
+// ProviderProperties are data associated with various providers, like microk8s vs eks
 type ProviderProperties struct {
 	IsCloud bool
 }
@@ -111,10 +113,15 @@ var initCmd = &cobra.Command{
 				}
 			}
 		} else {
-			fmt.Printf("cli_config.yaml is using %v as source, ignoring CLI tag: %v", manifest.SourceDirectory, config.CLIVersion)
+			fmt.Printf("cli_config.yaml is using %v as source, ignoring CLI tag %v", manifest.SourceDirectory, config.CLIVersion)
 		}
 
-		if err := source.MoveToDirectory(filepath.Join(manifestsFilePath)); err != nil {
+		pwd, err := os.Getwd()
+		if err != nil {
+			log.Printf("[error] %v", err.Error())
+			return
+		}
+		if err := source.MoveToDirectory(filepath.Join(pwd, manifestsFilePath)); err != nil {
 			log.Printf("[error] %v", err.Error())
 			return
 		}
@@ -200,6 +207,13 @@ var initCmd = &cobra.Command{
 			overlay := strings.Join([]string{"cluster-autoscaler", "overlays", "eks"}, string(os.PathSeparator))
 			if err := bld.AddOverlay(overlay); err != nil {
 				log.Printf("[error] Adding overlay %v:\n", err.Error())
+				return
+			}
+		}
+
+		if EnableKFServing {
+			if err := bld.AddComponent("kfserving"); err != nil {
+				log.Printf("[error] Adding component kfserving %v", err.Error())
 				return
 			}
 		}
@@ -321,6 +335,7 @@ func init() {
 	initCmd.Flags().StringSliceVarP(&GPUDevicePlugins, "gpu-device-plugins", "", nil, "Install NVIDIA and/or AMD gpu device plugins. Valid values can be comma separated and are: amd, nvidia")
 	initCmd.Flags().StringSliceVarP(&Services, "services", "", nil, "Install additional services. Valid values can be comma separated and are: modeldb")
 	initCmd.Flags().BoolVarP(&Database, "database", "", false, "Use a pre-existing database, set up configuration in params.yaml")
+	initCmd.Flags().BoolVarP(&EnableKFServing, "enable-kfserving", "", false, "Enable KFServing and Knative")
 }
 
 func validateInput() error {
