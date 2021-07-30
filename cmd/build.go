@@ -313,7 +313,7 @@ func GenerateKustomizeResult(kustomizeTemplate template.Kustomize, options *Gene
 			KeyFormat:      artifactRepositoryConfig.GCS.KeyFormat,
 			Bucket:         artifactRepositoryConfig.GCS.Bucket,
 			Endpoint:       fmt.Sprintf("minio-gateway.%v.svc.cluster.local:9000", defaultNamespace),
-			PublicEndpoint: fmt.Sprintf("minio.%v", domain),
+			PublicEndpoint: fmt.Sprintf("sys-storage-%v.%v", defaultNamespace, domain),
 			Insecure:       true,
 			PublicInsecure: insecure,
 			AccessKeySecret: storage.ArtifactRepositorySecret{
@@ -344,7 +344,7 @@ func GenerateKustomizeResult(kustomizeTemplate template.Kustomize, options *Gene
 			KeyFormat:      artifactRepositoryConfig.ABS.KeyFormat,
 			Bucket:         artifactRepositoryConfig.ABS.Container,
 			Endpoint:       fmt.Sprintf("minio-gateway.%v.svc.cluster.local:9000", defaultNamespace),
-			PublicEndpoint: fmt.Sprintf("minio.%v", domain),
+			PublicEndpoint: fmt.Sprintf("sys-storage-%v.%v", defaultNamespace, domain),
 			Insecure:       true,
 			PublicInsecure: insecure,
 			AccessKeySecret: storage.ArtifactRepositorySecret{
