@@ -2,9 +2,12 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/onepanelio/cli/cloud/storage"
 	opConfig "github.com/onepanelio/cli/config"
 	"github.com/onepanelio/cli/util"
 	"github.com/spf13/cobra"
+	"log"
+	"strings"
 )
 
 var appCmd = &cobra.Command{
@@ -81,6 +84,37 @@ var statusCmd = &cobra.Command{
 		}
 
 		util.PrintClusterNetworkInformation(k8sClient, url)
+
+		_, artifactRepositoryNode := yamlFile.Get("artifactRepository")
+		artifactRepositoryConfig := storage.ArtifactRepositoryProvider{}
+		err = artifactRepositoryNode.Decode(&artifactRepositoryConfig)
+		if err != nil {
+			log.Printf("Unable to check artifactRepository configuration. Original error: %v", err.Error())
+			return
+		}
+
+		defaultNamespace := yamlFile.GetValue("application.defaultNamespace").Value
+		domain := yamlFile.GetValue("application.domain").Value
+		isHTTPS := strings.ToLower(yamlFile.GetValue("application.insecure").Value) == "false"
+
+		minioClient, err := artifactRepositoryConfig.MinioClient(defaultNamespace, domain, isHTTPS)
+		if err != nil {
+			log.Printf("Unable to run tests on storage. Original error %v", err.Error())
+			return
+		}
+
+		bucket, err := artifactRepositoryConfig.Bucket()
+		if err != nil {
+			fmt.Printf(err.Error())
+			return
+		}
+
+		if err := storage.TestMinioStorageConnection(minioClient, bucket); err != nil {
+			fmt.Printf("ArtifactRepository tests: Failed\n")
+			fmt.Printf("  " + err.Error())
+		} else {
+			fmt.Printf("ArtifactRepository tests: Successful\n")
+		}
 	},
 }
 
