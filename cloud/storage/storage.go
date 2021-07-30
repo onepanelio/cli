@@ -13,6 +13,8 @@ type ArtifactRepositoryS3Provider struct {
 	KeyFormat       string `yaml:"keyFormat"`
 	Bucket          string
 	Endpoint        string
+	PublicEndpoint  string `yaml:"publicEndpoint"`
+	PublicInsecure  bool   `yaml:"publicInsecure"`
 	Insecure        bool
 	Region          string                   `yaml:"region,omitempty"`
 	AccessKeySecret ArtifactRepositorySecret `yaml:"accessKeySecret"`
@@ -78,11 +80,13 @@ func (a *ArtifactRepositoryS3Provider) MarshalToYaml() (string, error) {
 	defer encoder.Close()
 	err := encoder.Encode(&ArtifactRepositoryProvider{
 		S3: &ArtifactRepositoryS3Provider{
-			KeyFormat: a.KeyFormat,
-			Bucket:    a.Bucket,
-			Endpoint:  a.Endpoint,
-			Insecure:  a.Insecure,
-			Region:    a.Region,
+			KeyFormat:      a.KeyFormat,
+			Bucket:         a.Bucket,
+			Endpoint:       a.Endpoint,
+			PublicEndpoint: a.PublicEndpoint,
+			PublicInsecure: a.PublicInsecure,
+			Insecure:       a.Insecure,
+			Region:         a.Region,
 			AccessKeySecret: ArtifactRepositorySecret{
 				Name: a.AccessKeySecret.Name,
 				Key:  a.AccessKeySecret.Key,

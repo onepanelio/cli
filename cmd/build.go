@@ -229,12 +229,14 @@ func GenerateKustomizeResult(kustomizeTemplate template.Kustomize, options *Gene
 		return "", err
 	}
 
+	domain := yamlFile.GetValue("application.domain").Value
 	fqdn := yamlFile.GetValue("application.fqdn").Value
 	cloudSettings, err := util.LoadDynamicYamlFromFile(filepath.Join(config.Spec.ManifestsRepo, "vars", "onepanel-config-map-hidden.env"))
 	if err != nil {
 		return "", err
 	}
 
+	defaultNamespace := yamlFile.GetValue("application.defaultNamespace").Value
 	applicationAPIPath := cloudSettings.GetValue("applicationCloudApiPath").Value
 	applicationAPIGRPCPort, _ := strconv.Atoi(cloudSettings.GetValue("applicationCloudApiGRPCPort").Value)
 	applicationUIPath := cloudSettings.GetValue("applicationCloudUiPath").Value
@@ -291,6 +293,9 @@ func GenerateKustomizeResult(kustomizeTemplate template.Kustomize, options *Gene
 		artifactRepositoryConfig.S3.AccessKeySecret.Name = "$(artifactRepositoryS3AccessKeySecretName)"
 		artifactRepositoryConfig.S3.SecretKeySecret.Key = "artifactRepositoryS3SecretKey"
 		artifactRepositoryConfig.S3.SecretKeySecret.Name = "$(artifactRepositoryS3SecretKeySecretName)"
+		artifactRepositoryConfig.S3.PublicEndpoint = artifactRepositoryConfig.S3.Endpoint
+		artifactRepositoryConfig.S3.PublicInsecure = artifactRepositoryConfig.S3.Insecure
+
 		yamlStr, err := artifactRepositoryConfig.S3.MarshalToYaml()
 		if err != nil {
 			return "", err
@@ -298,8 +303,6 @@ func GenerateKustomizeResult(kustomizeTemplate template.Kustomize, options *Gene
 		yamlFile.Put("artifactRepositoryProvider", yamlStr)
 		yamlFile.Put("artifactRepository.s3.region", artifactRepositoryConfig.S3.Region)
 	} else if artifactRepositoryConfig.GCS != nil {
-		defaultNamespace := yamlFile.GetValue("application.defaultNamespace").Value
-
 		accessKey := artifactRepositoryConfig.GCS.Bucket
 		randomSecret, err := util.RandASCIIString(16)
 		if err != nil {
@@ -307,10 +310,12 @@ func GenerateKustomizeResult(kustomizeTemplate template.Kustomize, options *Gene
 		}
 
 		artifactRepositoryConfig.S3 = &storage.ArtifactRepositoryS3Provider{
-			KeyFormat: artifactRepositoryConfig.GCS.KeyFormat,
-			Bucket:    artifactRepositoryConfig.GCS.Bucket,
-			Endpoint:  fmt.Sprintf("minio-gateway.%v.svc.cluster.local:9000", defaultNamespace),
-			Insecure:  true,
+			KeyFormat:      artifactRepositoryConfig.GCS.KeyFormat,
+			Bucket:         artifactRepositoryConfig.GCS.Bucket,
+			Endpoint:       fmt.Sprintf("minio-gateway.%v.svc.cluster.local:9000", defaultNamespace),
+			PublicEndpoint: fmt.Sprintf("minio.%v", domain),
+			Insecure:       true,
+			PublicInsecure: insecure,
 			AccessKeySecret: storage.ArtifactRepositorySecret{
 				Key:  "artifactRepositoryS3AccessKey",
 				Name: accessKey,
@@ -331,15 +336,17 @@ func GenerateKustomizeResult(kustomizeTemplate template.Kustomize, options *Gene
 		yamlFile.Put("artifactRepository.s3.secretKey", randomSecret)
 		yamlFile.Put("artifactRepository.s3.bucket", artifactRepositoryConfig.GCS.Bucket)
 		yamlFile.Put("artifactRepository.s3.endpoint", artifactRepositoryConfig.S3.Endpoint)
+		yamlFile.Put("artifactRepository.s3.publicEndpoint", artifactRepositoryConfig.S3.PublicEndpoint)
 		yamlFile.Put("artifactRepository.s3.insecure", "true")
 		yamlFile.Put("artifactRepositoryServiceAccountKey", base64.StdEncoding.EncodeToString([]byte(artifactRepositoryConfig.GCS.ServiceAccountKey)))
 	} else if artifactRepositoryConfig.ABS != nil {
-		defaultNamespace := yamlFile.GetValue("application.defaultNamespace").Value
 		artifactRepositoryConfig.S3 = &storage.ArtifactRepositoryS3Provider{
-			KeyFormat: artifactRepositoryConfig.ABS.KeyFormat,
-			Bucket:    artifactRepositoryConfig.ABS.Container,
-			Endpoint:  fmt.Sprintf("minio-gateway.%v.svc.cluster.local:9000", defaultNamespace),
-			Insecure:  true,
+			KeyFormat:      artifactRepositoryConfig.ABS.KeyFormat,
+			Bucket:         artifactRepositoryConfig.ABS.Container,
+			Endpoint:       fmt.Sprintf("minio-gateway.%v.svc.cluster.local:9000", defaultNamespace),
+			PublicEndpoint: fmt.Sprintf("minio.%v", domain),
+			Insecure:       true,
+			PublicInsecure: insecure,
 			AccessKeySecret: storage.ArtifactRepositorySecret{
 				Key:  "artifactRepositoryS3AccessKey",
 				Name: "$(artifactRepositoryS3AccessKey)",
@@ -359,7 +366,8 @@ func GenerateKustomizeResult(kustomizeTemplate template.Kustomize, options *Gene
 		yamlFile.Put("artifactRepository.s3.secretKey", "placeholder")
 		yamlFile.Put("artifactRepository.s3.bucket", "bucket-name")
 		yamlFile.Put("artifactRepository.s3.region", "us-west-2")
-		yamlFile.Put("artifactRepository.s3.endpoint", fmt.Sprintf("minio-gateway.%v.svc.cluster.local", defaultNamespace))
+		yamlFile.Put("artifactRepository.s3.endpoint", artifactRepositoryConfig.S3.Endpoint)
+		yamlFile.Put("artifactRepository.s3.publicEndpoint", artifactRepositoryConfig.S3.PublicEndpoint)
 		yamlFile.Put("artifactRepository.s3.insecure", "true")
 	} else {
 		return "", errors.New("unsupported artifactRepository configuration")

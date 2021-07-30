@@ -218,6 +218,10 @@ var initCmd = &cobra.Command{
 			}
 		}
 
+		if ArtifactRepositoryProvider != artifactRepositoryProviderS3 {
+			bld.AddOverlayContender("expose-minio")
+		}
+
 		if err := bld.Build(); err != nil {
 			log.Printf("[error] building components and overlays: %v", err.Error())
 			return
