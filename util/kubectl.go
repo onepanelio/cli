@@ -2,13 +2,16 @@ package util
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	opConfig "github.com/onepanelio/cli/config"
 	"github.com/spf13/cobra"
 	"io/ioutil"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8error "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/azure"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"k8s.io/kubectl/pkg/cmd/apply"
@@ -20,6 +23,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"time"
 )
 
 func KubectlGet(resource string, resourceName string, namespace string, extraArgs []string, flags map[string]interface{}) (stdout string, stderr string, err error) {
@@ -215,33 +219,49 @@ func validatePruneAll(prune, all bool, selector string) error {
 	return nil
 }
 
-// PrintClusterNetworkInformation prints the ip address of the cluster and network DNS configuration required
-func PrintClusterNetworkInformation(url string) {
-	kubectlGetFlags := make(map[string]interface{})
-	kubectlGetFlags["output"] = "jsonpath='{.status.loadBalancer.ingress[0].ip}'"
-	extraArgs := []string{}
-	stdout, stderr, err := KubectlGet("service", "istio-ingressgateway", "istio-system", extraArgs, kubectlGetFlags)
+// getDeployedIP attempts to get the ip address of the load balancer
+// ("pending", nil) is returned if there is no ip yet
+func getDeployedIP(c *kubernetes.Clientset) (string, error) {
+	svc, err := c.CoreV1().Services("istio-system").Get(context.Background(), "istio-ingressgateway", v1.GetOptions{})
 	if err != nil {
-		fmt.Printf("[error] Unable to get IP from istio-ingressgateway service: %v", err.Error())
-		return
-	}
-	if stderr != "" {
-		fmt.Printf("[error] Unable to get IP from istio-ingressgateway service: %v", stderr)
-		return
+		return "", err
 	}
 
-	if stdout == "" || stdout == "''" {
-		kubectlGetFlags["output"] = "jsonpath='{.status.loadBalancer.ingress[0].hostname}'"
-		extraArgs := []string{}
-		stdout, stderr, err = KubectlGet("service", "istio-ingressgateway", "istio-system", extraArgs, kubectlGetFlags)
+	ingress := svc.Status.LoadBalancer.Ingress
+	if ingress == nil {
+		return "pending", nil
+	}
+
+	if len(ingress) == 1 {
+		return ingress[0].IP, nil
+	}
+
+	return "", fmt.Errorf("unable to get load balancer ip")
+}
+
+// getDeployedIPRetry calls getDeployedIP retries times, with a delay in between each call while the ip is pending
+func getDeployedIPRetry(c *kubernetes.Clientset, retries int, delay time.Duration) (string, error) {
+	for tries := 0; tries < retries; tries++ {
+		ip, err := getDeployedIP(c)
 		if err != nil {
-			fmt.Printf("[error] Unable to get Hostname from istio-ingressgateway service: %v", err.Error())
-			return
+			return ip, err
 		}
-		if stderr != "" {
-			fmt.Printf("[error] Unable to get Hostname from istio-ingressgateway service: %v", stderr)
-			return
+
+		if ip != "pending" {
+			return ip, err
 		}
+
+		time.Sleep(delay)
+	}
+
+	return "", fmt.Errorf("unable to get deployed ip from LoadBalancer")
+}
+
+// PrintClusterNetworkInformation prints the ip address of the cluster and network DNS configuration required
+func PrintClusterNetworkInformation(c *kubernetes.Clientset, url string) {
+	clusterIP, err := getDeployedIPRetry(c, 20, 6*time.Second)
+	if err != nil {
+		fmt.Printf("error: %v", err)
 	}
 
 	configFilePath := "config.yaml"
@@ -270,22 +290,22 @@ func PrintClusterNetworkInformation(url string) {
 			}
 
 			dnsRecordMessage = "local"
-			fmt.Printf("\nIn your %v file, add %v and point it to %v\n", hostsPath, stdout, fqdn)
+			fmt.Printf("\nIn your %v file, add %v and point it to %v\n", hostsPath, clusterIP, fqdn)
 		} else {
 			dnsRecordMessage = "an A"
-			if !IsIpv4(stdout) {
+			if !IsIpv4(clusterIP) {
 				dnsRecordMessage = "a CNAME"
 			}
-			fmt.Printf("\nIn your DNS, add %v record for %v and point it to %v\n", dnsRecordMessage, GetWildCardDNS(url), stdout)
+			fmt.Printf("\nIn your DNS, add %v record for %v and point it to %v\n", dnsRecordMessage, GetWildCardDNS(url), clusterIP)
 		}
 	}
 	//If yaml key is missing due to older params.yaml file, use this default.
 	if dnsRecordMessage == "" {
 		dnsRecordMessage = "an A"
-		if !IsIpv4(stdout) {
+		if !IsIpv4(clusterIP) {
 			dnsRecordMessage = "a CNAME"
 		}
-		fmt.Printf("\nIn your DNS, add %v record for %v and point it to %v\n", dnsRecordMessage, GetWildCardDNS(url), stdout)
+		fmt.Printf("\nIn your DNS, add %v record for %v and point it to %v\n", dnsRecordMessage, GetWildCardDNS(url), clusterIP)
 	}
 	fmt.Printf("Once complete, your application will be running at %v\n\n", url)
 }

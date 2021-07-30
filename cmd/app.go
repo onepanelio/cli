@@ -80,7 +80,7 @@ var statusCmd = &cobra.Command{
 			return
 		}
 
-		util.PrintClusterNetworkInformation(url)
+		util.PrintClusterNetworkInformation(k8sClient, url)
 	},
 }
 
