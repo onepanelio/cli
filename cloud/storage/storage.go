@@ -138,7 +138,7 @@ func (a *ArtifactRepositoryProvider) AccessKey() (string, error) {
 // AccessSecret returns the AccessSecret of the currently set Provider
 func (a *ArtifactRepositoryProvider) AccessSecret() (string, error) {
 	if a.S3 != nil {
-		return a.S3.AccessKeySecret.Key, nil
+		return a.S3.Secretkey, nil
 	}
 	if a.GCS != nil {
 		return a.GCS.ServiceAccountKeySecret.Key, nil
@@ -182,9 +182,18 @@ func (a *ArtifactRepositoryProvider) MinioClient(namespace, domain string, useSs
 		return nil, err
 	}
 
-	minioClient, err := minio.New(endpoint, accessKeyName, accessKeySecret, useSsl)
-	if err != nil {
-		return nil, err
+	var minioClient *minio.Client
+
+	if a.S3 != nil {
+		minioClient, err = minio.NewWithRegion(endpoint, accessKeyName, accessKeySecret, useSsl, a.S3.Region)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		minioClient, err = minio.New(endpoint, accessKeyName, accessKeySecret, useSsl)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return minioClient, nil
