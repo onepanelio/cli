@@ -233,6 +233,10 @@ func getDeployedIP(c *kubernetes.Clientset) (string, error) {
 	}
 
 	if len(ingress) == 1 {
+		if ingress[0].IP == "" && ingress[0].Hostname != "" {
+			return ingress[0].Hostname, nil
+		}
+
 		return ingress[0].IP, nil
 	}
 
