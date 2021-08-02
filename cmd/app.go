@@ -44,12 +44,6 @@ var statusCmd = &cobra.Command{
 
 		ready, err := util.NamespacesExist(k8sClient, util.NamespacesToCheck(yamlFile)...)
 		if err != nil {
-			yamlFile, yamlErr := util.LoadDynamicYamlFromFile(config.Spec.Params)
-			if yamlErr != nil {
-				fmt.Printf("Error reading file '%v' %v", config.Spec.Params, yamlErr.Error())
-				return
-			}
-
 			flatMap := yamlFile.FlattenToKeyValue(util.AppendDotFlatMapKeyFormatter)
 			provider, providerErr := util.GetYamlStringValue(flatMap, "application.provider")
 			if providerErr != nil {
@@ -69,6 +63,7 @@ var statusCmd = &cobra.Command{
 			fmt.Println(err.Error())
 			return
 		}
+
 		if ready {
 			fmt.Println("Your deployment is ready.")
 		} else {
@@ -87,15 +82,19 @@ var statusCmd = &cobra.Command{
 
 		_, artifactRepositoryNode := yamlFile.Get("artifactRepository")
 		artifactRepositoryConfig := storage.ArtifactRepositoryProvider{}
-		err = artifactRepositoryNode.Decode(&artifactRepositoryConfig)
-		if err != nil {
-			log.Printf("Unable to check artifactRepository configuration. Original error: %v", err.Error())
+		if err := artifactRepositoryNode.Decode(&artifactRepositoryConfig); err != nil {
+			fmt.Printf("Unable to check artifactRepository configuration. Original error: %v", err.Error())
 			return
 		}
 
 		defaultNamespace := yamlFile.GetValue("application.defaultNamespace").Value
 		domain := yamlFile.GetValue("application.domain").Value
 		isHTTPS := strings.ToLower(yamlFile.GetValue("application.insecure").Value) == "false"
+
+		if err := artifactRepositoryConfig.Load(k8sClient, defaultNamespace); err != nil {
+			fmt.Println(err)
+			return
+		}
 
 		minioClient, err := artifactRepositoryConfig.MinioClient(defaultNamespace, domain, isHTTPS)
 		if err != nil {

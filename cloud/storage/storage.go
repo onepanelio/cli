@@ -1,9 +1,12 @@
 package storage
 
 import (
+	"context"
 	"fmt"
 	"github.com/onepanelio/cli/files"
 	"github.com/onepanelio/cli/util"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 	"path/filepath"
 	"strings"
 
@@ -70,6 +73,26 @@ type ArtifactRepositoryProvider struct {
 	ABS *ArtifactRepositoryABSProvider `yaml:"abs,omitempty"`
 }
 
+// Load loads any provider specific information required from the cluster
+func (a *ArtifactRepositoryProvider) Load(c *kubernetes.Clientset, namespace string) error {
+	if a.GCS == nil {
+		return nil
+	}
+
+	secret, err := c.CoreV1().Secrets(namespace).Get(context.Background(), "onepanel", v1.GetOptions{})
+	if err != nil {
+		return err
+	}
+
+	if secretKeyBytes, ok := secret.Data["artifactRepositoryS3SecretKey"]; ok {
+		a.GCS.ServiceAccountKeySecret.Key = string(secretKeyBytes)
+
+		return nil
+	}
+
+	return fmt.Errorf("unable to read artifact configuration")
+}
+
 // Endpoint returns the Endpoint of the currently set Provider
 func (a *ArtifactRepositoryProvider) Endpoint() (string, error) {
 	if a.S3 != nil {
@@ -103,7 +126,7 @@ func (a *ArtifactRepositoryProvider) AccessKey() (string, error) {
 		return a.S3.AccessKey, nil
 	}
 	if a.GCS != nil {
-		return a.GCS.ServiceAccountKey, nil
+		return a.GCS.Bucket, nil
 	}
 	if a.ABS != nil {
 		return a.ABS.StorageAccountName, nil
