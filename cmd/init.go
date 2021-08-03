@@ -355,6 +355,10 @@ func validateInput() error {
 		return fmt.Errorf("enable-cert-manager flag is required when dns-provider is set")
 	}
 
+	if EnableKFServing && !EnableCertManager {
+		return fmt.Errorf("enable-cert-manager flag is required when enable-kfserving is set")
+	}
+
 	if err := validateProvider(Provider); err != nil {
 		return err
 	}
