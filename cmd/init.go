@@ -216,6 +216,14 @@ var initCmd = &cobra.Command{
 				log.Printf("[error] Adding component kfserving %v", err.Error())
 				return
 			}
+
+			if !EnableCertManager {
+				if err := bld.AddComponent("cert-manager"); err != nil {
+					log.Printf(err.Error())
+					return
+				}
+				bld.AddOverlayContender("self-signed")
+			}
 		}
 
 		if ArtifactRepositoryProvider != artifactRepositoryProviderS3 {
@@ -353,10 +361,6 @@ func validateInput() error {
 
 	if !EnableCertManager && DNS != "" {
 		return fmt.Errorf("enable-cert-manager flag is required when dns-provider is set")
-	}
-
-	if EnableKFServing && !EnableCertManager {
-		return fmt.Errorf("enable-cert-manager flag is required when enable-kfserving is set")
 	}
 
 	if err := validateProvider(Provider); err != nil {
