@@ -298,7 +298,6 @@ func GenerateKustomizeResult(kustomizeTemplate template.Kustomize, options *Gene
 		artifactRepositoryConfig.S3.AccessKeySecret.Name = "$(artifactRepositoryS3AccessKeySecretName)"
 		artifactRepositoryConfig.S3.SecretKeySecret.Key = "artifactRepositoryS3SecretKey"
 		artifactRepositoryConfig.S3.SecretKeySecret.Name = "$(artifactRepositoryS3SecretKeySecretName)"
-		artifactRepositoryConfig.S3.PublicEndpoint = artifactRepositoryConfig.S3.Endpoint
 		artifactRepositoryConfig.S3.PublicInsecure = artifactRepositoryConfig.S3.Insecure
 
 		yamlStr, err := artifactRepositoryConfig.S3.MarshalToYaml()
