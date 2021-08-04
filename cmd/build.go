@@ -247,6 +247,11 @@ func GenerateKustomizeResult(kustomizeTemplate template.Kustomize, options *Gene
 	if !insecure {
 		httpScheme = "https://"
 		wsScheme = "wss://"
+		yamlFile.PutWithSeparator("kfservingSecureCookies", "true", ".")
+		yamlFile.PutWithSeparator("kfservingDefaultExternalScheme", "https", ".")
+	} else {
+		yamlFile.PutWithSeparator("kfservingSecureCookies", "false", ".")
+		yamlFile.PutWithSeparator("kfservingDefaultExternalScheme", "http", ".")
 	}
 
 	apiPath := httpScheme + fqdn + applicationAPIPath
