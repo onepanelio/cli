@@ -111,7 +111,7 @@ func (a *ArtifactRepositoryProvider) Endpoint() (string, error) {
 // PublicEndpoint returns the Publicly accessible endpoint of the currently set Provider
 func (a *ArtifactRepositoryProvider) PublicEndpoint(namespace, domain string) (string, error) {
 	if a.S3 != nil {
-		return a.S3.Endpoint, nil
+		return a.S3.PublicEndpoint, nil
 	}
 	if a.GCS != nil || a.ABS != nil {
 		return fmt.Sprintf("sys-storage-%v.%v", namespace, domain), nil
