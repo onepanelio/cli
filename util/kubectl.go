@@ -294,7 +294,18 @@ func PrintClusterNetworkInformation(c *kubernetes.Clientset, url string) {
 			}
 
 			dnsRecordMessage = "local"
-			fmt.Printf("\nIn your %v file, add %v and point it to %v\n", hostsPath, clusterIP, fqdn)
+			fmt.Printf("\nIn your %v file, add\n", hostsPath)
+			fmt.Printf("  %v %v\n", clusterIP, fqdn)
+
+			if config.Spec.HasLikeComponent("kfserving") {
+				domain := yamlFile.GetValue("application.domain").Value
+				defaultNamespace := yamlFile.GetValue("application.defaultNamespace").Value
+				modelServingURL := fmt.Sprintf("sys-storage-%v.%v", defaultNamespace, domain)
+
+				fmt.Printf("  %v %v\n", clusterIP, modelServingURL)
+			}
+
+			fmt.Println()
 		} else {
 			dnsRecordMessage = "an A"
 			if !IsIpv4(clusterIP) {
