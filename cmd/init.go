@@ -35,7 +35,7 @@ var (
 	EnableHTTPS                bool
 	EnableCertManager          bool
 	EnableMetalLb              bool
-	EnableKFServing            bool
+	DisableServing             bool
 	Database                   bool
 	GPUDevicePlugins           []string
 	Services                   []string
@@ -211,7 +211,7 @@ var initCmd = &cobra.Command{
 			}
 		}
 
-		if EnableKFServing {
+		if !DisableServing {
 			if err := bld.AddComponent("kfserving"); err != nil {
 				log.Printf("[error] Adding component kfserving %v", err.Error())
 				return
@@ -347,7 +347,7 @@ func init() {
 	initCmd.Flags().StringSliceVarP(&GPUDevicePlugins, "gpu-device-plugins", "", nil, "Install NVIDIA and/or AMD gpu device plugins. Valid values can be comma separated and are: amd, nvidia")
 	initCmd.Flags().StringSliceVarP(&Services, "services", "", nil, "Install additional services. Valid values can be comma separated and are: modeldb")
 	initCmd.Flags().BoolVarP(&Database, "database", "", false, "Use a pre-existing database, set up configuration in params.yaml")
-	initCmd.Flags().BoolVarP(&EnableKFServing, "enable-kfserving", "", false, "Enable KFServing and Knative")
+	initCmd.Flags().BoolVarP(&DisableServing, "disable-serving", "", false, "Disable model serving")
 }
 
 func validateInput() error {
