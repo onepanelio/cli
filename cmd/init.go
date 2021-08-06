@@ -265,6 +265,7 @@ var initCmd = &cobra.Command{
 
 		inputCommand := "# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -\n"
 		inputCommand += "# Generated with Onepanel CLI \n"
+		inputCommand += "# CLI version: " + config.CLIVersion + "\n"
 		inputCommand += "# Command: opctl " + strings.Join(os.Args[1:], " ") + "\n"
 		inputCommand += "# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"
 		if err := mergedParams.SetTopComment(inputCommand); err != nil {
