@@ -183,6 +183,26 @@ func Validate(manifest *util.DynamicYaml) error {
 		}
 	}
 
+	domain := manifest.GetValue("application.domain")
+	if domain == nil {
+		return &ParamsError{Key: "application.domain", ShortKey: "domain", ErrorType: "missing"}
+	}
+	if domain.Value == "" {
+		return &ParamsError{Key: "application.domain", ShortKey: "domain", ErrorType: "blank"}
+	}
+
+	fqdn := manifest.GetValue("application.fqdn")
+	if fqdn == nil {
+		return &ParamsError{Key: "application.fqdn", ShortKey: "fqdn", ErrorType: "missing"}
+	}
+	if fqdn.Value == "" {
+		return &ParamsError{Key: "application.fqdn", ShortKey: "fqdn", ErrorType: "blank"}
+	}
+
+	if !strings.HasSuffix(fqdn.Value, domain.Value) {
+		return fmt.Errorf("application.fqdn does not end in application.domain")
+	}
+
 	flatMap := manifest.FlattenToKeyValue(util.AppendDotFlatMapKeyFormatter)
 	mapKeys := []string{}
 	for key := range flatMap {
