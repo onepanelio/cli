@@ -286,6 +286,7 @@ func PrintClusterNetworkInformation(c *kubernetes.Clientset, url string) {
 	if yamlFile.HasKey("application.provider") {
 		provider := yamlFile.GetValue("application.provider").Value
 		if provider == "minikube" || provider == "microk8s" {
+			domain := yamlFile.GetValue("application.domain").Value
 			fqdn := yamlFile.GetValue("application.fqdn").Value
 
 			hostsPath := "/etc/hosts"
@@ -297,11 +298,12 @@ func PrintClusterNetworkInformation(c *kubernetes.Clientset, url string) {
 			fmt.Printf("\nIn your %v file, add\n", hostsPath)
 			fmt.Printf("  %v %v\n", clusterIP, fqdn)
 
-			if config.Spec.HasLikeComponent("kfserving") {
-				domain := yamlFile.GetValue("application.domain").Value
-				defaultNamespace := yamlFile.GetValue("application.defaultNamespace").Value
-				modelServingURL := fmt.Sprintf("sys-storage-%v.%v", defaultNamespace, domain)
+			defaultNamespace := yamlFile.GetValue("application.defaultNamespace").Value
+			sysStorageURL := fmt.Sprintf("sys-storage-%v.%v", defaultNamespace, domain)
+			fmt.Printf("  %v %v\n", clusterIP, sysStorageURL)
 
+			if config.Spec.HasLikeComponent("kfserving") {
+				modelServingURL := fmt.Sprintf("serving.%v", domain)
 				fmt.Printf("  %v %v\n", clusterIP, modelServingURL)
 			}
 
