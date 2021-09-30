@@ -2,11 +2,13 @@ package cmd
 
 import (
 	"fmt"
+	"path/filepath"
+
 	opConfig "github.com/onepanelio/cli/config"
 	"github.com/onepanelio/cli/files"
 	"github.com/onepanelio/cli/util"
 	"github.com/spf13/cobra"
-	"path/filepath"
+	"k8s.io/client-go/tools/clientcmd"
 )
 
 var (
@@ -89,7 +91,18 @@ var deleteCmd = &cobra.Command{
 	},
 }
 
+func RunCurrentContext(options *clientcmd.PathOptions) error {
+	config, err := options.GetStartingConfig()
+	if err != nil {
+		return err
+	}
+	fmt.Printf("The current kubernetes context is: %s \n", config.CurrentContext)
+	return nil
+}
+
 func init() {
+	pathOptions := clientcmd.NewDefaultPathOptions()
+	RunCurrentContext(pathOptions)
 	rootCmd.AddCommand(deleteCmd)
 	deleteCmd.Flags().BoolVarP(&skipConfirmDelete, "yes", "y", false, "Add this in to skip the confirmation prompt")
 }
