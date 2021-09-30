@@ -14,6 +14,7 @@ import (
 var (
 	// skipConfirmDelete if true, will skip the confirmation prompt of the delete command
 	skipConfirmDelete bool
+	options           *clientcmd.PathOptions
 )
 
 var deleteCmd = &cobra.Command{
@@ -23,7 +24,13 @@ var deleteCmd = &cobra.Command{
 	Example: "delete",
 	Run: func(cmd *cobra.Command, args []string) {
 		if skipConfirmDelete == false {
-			fmt.Print("Are you sure you want to delete onepanel? ('y' or 'yes' to confirm. Anything else to cancel): ")
+			options := clientcmd.NewDefaultPathOptions()
+			config, err := options.GetStartingConfig()
+			if err != nil {
+				return
+			}
+			fmt.Printf("The current kubernetes context is: %s \n", config.CurrentContext)
+			fmt.Printf("Are you sure you want to delete onepanel from '%s'? ('y' or 'yes' to confirm. Anything else to cancel): ", config.CurrentContext)
 			userInput := ""
 			if _, err := fmt.Scanln(&userInput); err != nil {
 				fmt.Printf("Unable to get response\n")
@@ -91,18 +98,7 @@ var deleteCmd = &cobra.Command{
 	},
 }
 
-func RunCurrentContext(options *clientcmd.PathOptions) error {
-	config, err := options.GetStartingConfig()
-	if err != nil {
-		return err
-	}
-	fmt.Printf("The current kubernetes context is: %s \n", config.CurrentContext)
-	return nil
-}
-
 func init() {
-	pathOptions := clientcmd.NewDefaultPathOptions()
-	RunCurrentContext(pathOptions)
 	rootCmd.AddCommand(deleteCmd)
 	deleteCmd.Flags().BoolVarP(&skipConfirmDelete, "yes", "y", false, "Add this in to skip the confirmation prompt")
 }
