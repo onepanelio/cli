@@ -2,11 +2,13 @@ package cmd
 
 import (
 	"fmt"
+	"path/filepath"
+
 	opConfig "github.com/onepanelio/cli/config"
 	"github.com/onepanelio/cli/files"
 	"github.com/onepanelio/cli/util"
 	"github.com/spf13/cobra"
-	"path/filepath"
+	"k8s.io/client-go/tools/clientcmd"
 )
 
 var (
@@ -21,7 +23,15 @@ var deleteCmd = &cobra.Command{
 	Example: "delete",
 	Run: func(cmd *cobra.Command, args []string) {
 		if skipConfirmDelete == false {
-			fmt.Print("Are you sure you want to delete onepanel? ('y' or 'yes' to confirm. Anything else to cancel): ")
+			options := clientcmd.NewDefaultPathOptions()
+			config, err := options.GetStartingConfig()
+			if err != nil {
+				fmt.Printf("Unable to get kubernetes config: %v", err.Error())
+				return
+			}
+
+			fmt.Println("The current kubernetes context is:", config.CurrentContext)
+			fmt.Printf("Are you sure you want to delete onepanel from '%s'? ('y' or 'yes' to confirm. Anything else to cancel): ", config.CurrentContext)
 			userInput := ""
 			if _, err := fmt.Scanln(&userInput); err != nil {
 				fmt.Printf("Unable to get response\n")
