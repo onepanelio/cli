@@ -14,7 +14,6 @@ import (
 var (
 	// skipConfirmDelete if true, will skip the confirmation prompt of the delete command
 	skipConfirmDelete bool
-	options           *clientcmd.PathOptions
 )
 
 var deleteCmd = &cobra.Command{
@@ -27,9 +26,11 @@ var deleteCmd = &cobra.Command{
 			options := clientcmd.NewDefaultPathOptions()
 			config, err := options.GetStartingConfig()
 			if err != nil {
+				fmt.Printf("Unable to get kubernetes config: %v", err.Error())
 				return
 			}
-			fmt.Printf("The current kubernetes context is: %s \n", config.CurrentContext)
+
+			fmt.Println("The current kubernetes context is:", config.CurrentContext)
 			fmt.Printf("Are you sure you want to delete onepanel from '%s'? ('y' or 'yes' to confirm. Anything else to cancel): ", config.CurrentContext)
 			userInput := ""
 			if _, err := fmt.Scanln(&userInput); err != nil {
