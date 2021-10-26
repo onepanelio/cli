@@ -294,6 +294,7 @@ func GenerateKustomizeResult(kustomizeTemplate template.Kustomize, options *Gene
 		return "", err
 	}
 	if artifactRepositoryConfig.S3 != nil {
+		artifactRepositoryConfig.S3.Source = "s3"
 		artifactRepositoryConfig.S3.AccessKeySecret.Key = "artifactRepositoryS3AccessKey"
 		artifactRepositoryConfig.S3.AccessKeySecret.Name = "$(artifactRepositoryS3AccessKeySecretName)"
 		artifactRepositoryConfig.S3.SecretKeySecret.Key = "artifactRepositoryS3SecretKey"
@@ -314,6 +315,7 @@ func GenerateKustomizeResult(kustomizeTemplate template.Kustomize, options *Gene
 		}
 
 		artifactRepositoryConfig.S3 = &storage.ArtifactRepositoryS3Provider{
+			Source:         "gcs",
 			KeyFormat:      artifactRepositoryConfig.GCS.KeyFormat,
 			Bucket:         artifactRepositoryConfig.GCS.Bucket,
 			Endpoint:       fmt.Sprintf("minio-gateway.%v.svc.cluster.local:9000", defaultNamespace),
@@ -345,6 +347,7 @@ func GenerateKustomizeResult(kustomizeTemplate template.Kustomize, options *Gene
 		yamlFile.Put("artifactRepositoryServiceAccountKey", base64.StdEncoding.EncodeToString([]byte(artifactRepositoryConfig.GCS.ServiceAccountKey)))
 	} else if artifactRepositoryConfig.ABS != nil {
 		artifactRepositoryConfig.S3 = &storage.ArtifactRepositoryS3Provider{
+			Source:         "abs",
 			KeyFormat:      artifactRepositoryConfig.ABS.KeyFormat,
 			Bucket:         artifactRepositoryConfig.ABS.Container,
 			Endpoint:       fmt.Sprintf("minio-gateway.%v.svc.cluster.local:9000", defaultNamespace),

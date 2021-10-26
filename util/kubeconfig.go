@@ -2,6 +2,7 @@ package util
 
 import (
 	"context"
+	"fmt"
 	"github.com/pkg/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -16,6 +17,24 @@ import (
 )
 
 type Config = restclient.Config
+
+const onepanelEnabledLabelKey = "onepanel.io/enabled"
+
+func ListOnepanelEnabledNamespaces(c *kubernetes.Clientset) (namespaces []string, err error) {
+	namespaceList, err := c.CoreV1().Namespaces().List(context.Background(), v1.ListOptions{
+		LabelSelector: fmt.Sprintf("%s=%s", onepanelEnabledLabelKey, "true"),
+	})
+
+	if err != nil {
+		return
+	}
+
+	for _, ns := range namespaceList.Items {
+		namespaces = append(namespaces, ns.Name)
+	}
+
+	return
+}
 
 // NewConfig creates a new, default, configuration for kubernetes
 func NewConfig() (config *Config, err error) {
@@ -44,18 +63,29 @@ func GetBearerToken(in *restclient.Config, explicitKubeConfigPath string, servic
 	if err != nil {
 		return "", serviceAccountName, errors.Errorf("Could not get kubeClient")
 	}
-	ns := "onepanel"
-	secrets, err := kubeClient.CoreV1().Secrets(ns).List(context.Background(), v1.ListOptions{})
+
+	namespaces := []string{"onepanel"}
+	moreNamespaces, err := ListOnepanelEnabledNamespaces(kubeClient)
 	if err != nil {
-		return "", serviceAccountName, errors.Errorf("Could not get %s secrets.", ns)
+		return "", "", err
 	}
-	search := `^` + serviceAccountName + `-token-`
-	re := regexp.MustCompile(search)
-	for _, secret := range secrets.Items {
-		if re.Find([]byte(secret.ObjectMeta.Name)) != nil {
-			return string(secret.Data["token"]), serviceAccountName, nil
+	namespaces = append(namespaces, moreNamespaces...)
+
+	for _, namespace := range namespaces {
+		secrets, err := kubeClient.CoreV1().Secrets(namespace).List(context.Background(), v1.ListOptions{})
+		if err != nil {
+			return "", serviceAccountName, errors.Errorf("Could not get %s secrets.", namespace)
+		}
+
+		search := `^` + serviceAccountName + `-token-`
+		re := regexp.MustCompile(search)
+		for _, secret := range secrets.Items {
+			if re.Find([]byte(secret.ObjectMeta.Name)) != nil {
+				return string(secret.Data["token"]), serviceAccountName, nil
+			}
 		}
 	}
+
 	return "", serviceAccountName, errors.Errorf("could not find a token")
 }
 
