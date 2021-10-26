@@ -19,6 +19,7 @@ import (
 // by the CLI. CLI will marshal this struct into the correct
 // YAML structure for k8s configmap / secret.
 type ArtifactRepositoryS3Provider struct {
+	Source          string
 	KeyFormat       string `yaml:"keyFormat"`
 	Bucket          string
 	Endpoint        string
@@ -36,6 +37,7 @@ type ArtifactRepositoryS3Provider struct {
 // by the CLI. CLI will marshal this struct into the correct
 // YAML structure for k8s configmap / secret.
 type ArtifactRepositoryGCSProvider struct {
+	Source                  string
 	KeyFormat               string `yaml:"keyFormat"`
 	Bucket                  string
 	Endpoint                string
@@ -217,6 +219,7 @@ func (a *ArtifactRepositoryS3Provider) MarshalToYaml() (string, error) {
 	defer encoder.Close()
 	err := encoder.Encode(&ArtifactRepositoryProvider{
 		S3: &ArtifactRepositoryS3Provider{
+			Source:         a.Source,
 			KeyFormat:      a.KeyFormat,
 			Bucket:         a.Bucket,
 			Endpoint:       a.Endpoint,
@@ -251,6 +254,7 @@ func (g *ArtifactRepositoryGCSProvider) MarshalToYaml() (string, error) {
 	defer encoder.Close()
 	err := encoder.Encode(&ArtifactRepositoryProvider{
 		GCS: &ArtifactRepositoryGCSProvider{
+			Source:    g.Source,
 			KeyFormat: g.KeyFormat,
 			Bucket:    g.Bucket,
 			Endpoint:  g.Endpoint,
